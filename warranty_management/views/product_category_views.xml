@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_category_form_view_warranty" model="ir.ui.view">
+        <field name="name">product.category.form.warranty</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="product.product_category_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='first']" position="after">
+                <group string="Default Warranty" name="default_warranty">
+                    <group>
+                        <field name="warranty_policy_id"/>
+                        <label for="default_warranty_period"/>
+                        <div class="o_row">
+                            <field name="default_warranty_period"/>
+                            <field name="default_warranty_period_unit"/>
+                        </div>
+                        <field name="warranty_start_criterion"/>
+                        <field name="warranty_basis"/>
+                    </group>
+                    <group>
+                        <field name="default_free_service_count"/>
+                        <label for="free_service_frequency"/>
+                        <div class="o_row">
+                            <field name="free_service_frequency"/>
+                            <field name="free_service_frequency_unit"/>
+                        </div>
+                        <field name="card_grouping_mode"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

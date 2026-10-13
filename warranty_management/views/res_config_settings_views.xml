@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_warranty" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.warranty</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="60"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Warranty" string="Warranty" name="warranty_management" groups="base.group_system">
+                    <block title="General Warranty Settings" name="warranty_general_settings">
+                        <setting id="warranty_scope_mode" string="Warranty Scope Mode"
+                                 help="Capability blocks enabled for this company">
+                            <field name="warranty_scope_mode"/>
+                        </setting>
+                        <setting id="warranty_default_policy" string="Default Warranty Policy"
+                                 help="Company fallback warranty policy">
+                            <field name="warranty_default_policy_id"/>
+                        </setting>
+                        <setting id="warranty_default_card_grouping" string="Default Card Grouping Mode"
+                                 help="How Sales Order lines are grouped into warranty cards">
+                            <field name="warranty_default_card_grouping_mode"/>
+                        </setting>
+                        <setting id="warranty_default_basis" string="Default Warranty Basis"
+                                 help="Date-based (Period) or meter-based (Usage) validity">
+                            <field name="warranty_default_basis"/>
+                        </setting>
+                        <setting id="warranty_default_start_criterion" string="Default Start Criterion"
+                                 help="Date source used to start the warranty">
+                            <field name="warranty_default_start_criterion"/>
+                        </setting>
+                        <setting id="warranty_default_duration" string="Default Warranty Duration"
+                                 help="Company fallback warranty duration">
+                            <div class="o_row">
+                                <field name="warranty_default_duration"/>
+                                <field name="warranty_default_duration_unit"/>
+                            </div>
+                        </setting>
+                        <setting id="warranty_auto_create_services" string="Auto-create Services"
+                                 help="Create draft services after warranty confirmation">
+                            <field name="warranty_auto_create_services"/>
+                        </setting>
+                        <setting id="warranty_draft_job_from_service" string="Draft Job from Service"
+                                 help="Services may create draft jobs">
+                            <field name="warranty_draft_job_from_service"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_warranty_config_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module': 'warranty_management', 'bin_size': False}</field>
+    </record>
+</odoo>

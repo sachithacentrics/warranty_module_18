@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_warranty_root" name="Warranty" sequence="45"/>
+
+    <menuitem id="menu_warranty_cards_root" name="Warranty Cards"
+              parent="menu_warranty_root" sequence="10"/>
+    <menuitem id="menu_warranty_card" name="Warranty Cards" action="action_warranty_card"
+              parent="menu_warranty_cards_root" sequence="10"/>
+    <menuitem id="menu_warranty_unit" name="Unit Warranty Numbers" action="action_warranty_unit"
+              parent="menu_warranty_cards_root" sequence="20"/>
+
+    <menuitem id="menu_warranty_configuration" name="Configuration"
+              parent="menu_warranty_root" sequence="100"/>
+    <menuitem id="menu_warranty_settings" name="Settings" action="action_warranty_config_settings"
+              parent="menu_warranty_configuration" sequence="10" groups="base.group_system"/>
+    <menuitem id="menu_warranty_policy" name="Warranty Policies" action="action_warranty_policy"
+              parent="menu_warranty_configuration" sequence="20"/>
+    <menuitem id="menu_warranty_coverage_item" name="Coverage Items" action="action_warranty_coverage_item"
+              parent="menu_warranty_configuration" sequence="30"/>
+</odoo>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Soft-copy warranty card generated on warranty confirmation (no Print menu binding) -->
+    <record id="action_report_warranty_card" model="ir.actions.report">
+        <field name="name">Warranty Card</field>
+        <field name="model">warranty.card</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">warranty_management.report_warranty_card</field>
+        <field name="report_file">warranty_management.report_warranty_card</field>
+        <field name="print_report_name">'Warranty Card - %s' % object.name</field>
+    </record>
+
+    <template id="report_warranty_card_document">
+        <t t-call="web.external_layout">
+            <t t-set="card" t-value="card.with_context(lang=card.partner_id.lang)"/>
+            <div class="page">
+                <h2>Warranty Card <span t-field="card.name"/></h2>
+                <div class="row mt-4">
+                    <div class="col-6">
+                        <strong>Customer:</strong>
+                        <div t-field="card.partner_id"
+                             t-options="{'widget': 'contact', 'fields': ['address', 'name', 'phone'], 'no_marker': True}"/>
+                    </div>
+                    <div class="col-6">
+                        <div><strong>Sale Order: </strong><span t-field="card.sale_order_id"/></div>
+                        <div t-if="card.product_id"><strong>Product: </strong><span t-field="card.product_id"/></div>
+                        <div t-if="card.brand_id"><strong>Brand: </strong><span t-field="card.brand_id"/></div>
+                        <div t-if="card.model_id"><strong>Model: </strong><span t-field="card.model_id"/></div>
+                        <div t-if="card.indoor_serial_id"><strong>Indoor Serial No.: </strong><span t-field="card.indoor_serial_id"/></div>
+                        <div t-if="card.outdoor_serial_id"><strong>Outdoor Serial No.: </strong><span t-field="card.outdoor_serial_id"/></div>
+                        <div><strong>Warranty Start Date: </strong><span t-field="card.warranty_start_date"/></div>
+                        <div t-if="card.warranty_end_date"><strong>Warranty End Date: </strong><span t-field="card.warranty_end_date"/></div>
+                        <div t-if="card.warranty_basis == 'usage'">
+                            <strong>Usage Limit: </strong><span t-field="card.usage_limit"/> <span t-field="card.usage_unit"/>
+                        </div>
+                        <div><strong>Free Services Allowed: </strong><span t-field="card.free_services_allowed"/></div>
+                    </div>
+                </div>
+                <table class="table table-sm mt-4">
+                    <thead>
+                        <tr>
+                            <th>Warranty Number</th>
+                            <th>Product</th>
+                            <th>Serial(s)</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="card.unit_warranty_ids" t-as="unit">
+                            <td><span t-field="unit.name"/></td>
+                            <td><span t-field="unit.product_id"/></td>
+                            <td><span t-esc="', '.join(unit.serial_ids.mapped('name'))"/></td>
+                            <td><span t-field="unit.start_date"/></td>
+                            <td><span t-field="unit.end_date"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_warranty_card">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="card">
+                <t t-call="warranty_management.report_warranty_card_document"/>
+            </t>
+        </t>
+    </template>
+</odoo>

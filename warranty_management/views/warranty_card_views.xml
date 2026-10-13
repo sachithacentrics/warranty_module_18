@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_card_view_list" model="ir.ui.view">
+        <field name="name">warranty.card.list</field>
+        <field name="model">warranty.card</field>
+        <field name="arch" type="xml">
+            <list string="Warranty Cards" create="false">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="product_id" optional="show"/>
+                <field name="sale_order_id"/>
+                <field name="card_grouping_mode" optional="hide"/>
+                <field name="start_criterion" optional="show"/>
+                <field name="warranty_start_date"/>
+                <field name="warranty_end_date"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-warning="state == 'ready'"
+                       decoration-success="state == 'confirmed'"
+                       decoration-danger="state in ('suspended', 'cancelled')"
+                       decoration-muted="state == 'expired'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_card_view_form" model="ir.ui.view">
+        <field name="name">warranty.card.form</field>
+        <field name="model">warranty.card</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Card" create="false">
+                <header>
+                    <button name="action_confirm_warranty" type="object" string="Confirm Warranty"
+                            class="btn-primary" invisible="state != 'ready'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,ready,confirmed"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="not missing_requirements">
+                        <strong>Missing confirmation requirements:</strong>
+                        <field name="missing_requirements" nolabel="1"/>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="state not in ('draft', 'ready')"/>
+                            <field name="product_id" readonly="state not in ('draft', 'ready')"/>
+                            <field name="brand_id" readonly="state not in ('draft', 'ready')"/>
+                            <field name="model_id" readonly="state not in ('draft', 'ready')"/>
+                            <field name="indoor_serial_id" readonly="state not in ('draft', 'ready')"/>
+                            <field name="outdoor_serial_id" readonly="state not in ('draft', 'ready')"/>
+                            <field name="sale_order_id"/>
+                            <field name="pricelist_id"/>
+                        </group>
+                        <group>
+                            <field name="start_criterion"/>
+                            <field name="warranty_basis"/>
+                            <field name="installation_date" readonly="state not in ('draft', 'ready')"/>
+                            <field name="warranty_start_date"
+                                   readonly="start_criterion != 'custom' or state not in ('draft', 'ready')"/>
+                            <field name="warranty_end_date"
+                                   readonly="start_criterion != 'custom' or state not in ('draft', 'ready')"/>
+                            <field name="confirmation_status"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Unit Warranty Numbers" name="unit_warranty_numbers">
+                            <field name="unit_warranty_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="product_id"/>
+                                    <field name="unit_number"/>
+                                    <field name="sale_order_line_id" optional="hide"/>
+                                    <field name="stock_move_line_id" optional="show"/>
+                                    <field name="serial_ids" widget="many2many_tags"/>
+                                    <field name="start_date"/>
+                                    <field name="end_date"/>
+                                    <field name="usage_limit" optional="hide"/>
+                                    <field name="usage_unit" optional="hide"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Resolved Rule" name="resolved_rule">
+                            <group>
+                                <group>
+                                    <field name="policy_source"/>
+                                    <field name="policy_id"/>
+                                    <field name="card_grouping_mode"/>
+                                    <field name="warranty_duration"/>
+                                    <field name="warranty_duration_unit"/>
+                                    <field name="usage_limit"/>
+                                    <field name="usage_unit"/>
+                                    <field name="payment_check_required"/>
+                                </group>
+                                <group>
+                                    <field name="free_services_allowed"/>
+                                    <field name="free_services_used"/>
+                                    <field name="free_services_balance"/>
+                                    <field name="free_service_frequency"/>
+                                    <field name="free_service_frequency_unit"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Sales &amp; Deliveries" name="sales_deliveries">
+                            <group>
+                                <field name="sale_order_line_ids" widget="many2many_tags"/>
+                                <field name="delivery_ids" widget="many2many_tags"/>
+                                <field name="invoice_ids" widget="many2many_tags"/>
+                            </group>
+                        </page>
+                        <page string="Other Information" name="other_information">
+                            <group>
+                                <group>
+                                    <field name="current_active_serial"/>
+                                    <field name="replacement_count"/>
+                                </group>
+                                <group>
+                                    <field name="pdf_attachment_id"/>
+                                    <field name="print_count"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_card_view_search" model="ir.ui.view">
+        <field name="name">warranty.card.search</field>
+        <field name="model">warranty.card</field>
+        <field name="arch" type="xml">
+            <search string="Warranty Cards">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="sale_order_id"/>
+                <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_ready" string="Ready to Confirm" domain="[('state', '=', 'ready')]"/>
+                <filter name="filter_confirmed" string="Confirmed" domain="[('state', '=', 'confirmed')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_partner" string="Customer" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_sale_order" string="Sale Order" context="{'group_by': 'sale_order_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_card" model="ir.actions.act_window">
+        <field name="name">Warranty Cards</field>
+        <field name="res_model">warranty.card</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="warranty_card_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No warranty cards yet</p>
+            <p>Draft warranty cards are created when a Sales Order with warranty-applicable products is confirmed.</p>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_warranty_card_user,warranty.card user,model_warranty_card,base.group_user,1,1,1,0
+access_warranty_card_admin,warranty.card admin,model_warranty_card,base.group_system,1,1,1,1
+access_warranty_unit_user,warranty.unit user,model_warranty_unit,base.group_user,1,1,1,0
+access_warranty_unit_admin,warranty.unit admin,model_warranty_unit,base.group_system,1,1,1,1
+access_warranty_policy_user,warranty.policy user,model_warranty_policy,base.group_user,1,0,0,0
+access_warranty_policy_admin,warranty.policy admin,model_warranty_policy,base.group_system,1,1,1,1
+access_warranty_coverage_item_user,warranty.coverage.item user,model_warranty_coverage_item,base.group_user,1,0,0,0
+access_warranty_coverage_item_admin,warranty.coverage.item admin,model_warranty_coverage_item,base.group_system,1,1,1,1
+access_warranty_pricelist_rule_user,warranty.product.pricelist.rule user,model_warranty_product_pricelist_rule,base.group_user,1,0,0,0
+access_warranty_pricelist_rule_sale_manager,warranty.product.pricelist.rule sales manager,model_warranty_product_pricelist_rule,sales_team.group_sale_manager,1,1,1,1
+access_warranty_pricelist_rule_admin,warranty.product.pricelist.rule admin,model_warranty_product_pricelist_rule,base.group_system,1,1,1,1

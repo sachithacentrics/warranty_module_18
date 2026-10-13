@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_policy_view_list" model="ir.ui.view">
+        <field name="name">warranty.policy.list</field>
+        <field name="model">warranty.policy</field>
+        <field name="arch" type="xml">
+            <list string="Warranty Policies">
+                <field name="name"/>
+                <field name="applies_to"/>
+                <field name="warranty_duration"/>
+                <field name="warranty_duration_unit"/>
+                <field name="start_date_basis"/>
+                <field name="warranty_basis"/>
+                <field name="free_service_count"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_policy_view_form" model="ir.ui.view">
+        <field name="name">warranty.policy.form</field>
+        <field name="model">warranty.policy</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Policy">
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. Retail A/C Warranty"/></h1>
+                    </div>
+                    <group>
+                        <group string="Applicability">
+                            <field name="active" invisible="1"/>
+                            <field name="applies_to"/>
+                            <field name="pricelist_ids" widget="many2many_tags"/>
+                            <field name="sale_order_type_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Warranty">
+                            <label for="warranty_duration"/>
+                            <div class="o_row">
+                                <field name="warranty_duration"/>
+                                <field name="warranty_duration_unit"/>
+                            </div>
+                            <field name="start_date_basis"/>
+                            <field name="warranty_basis"/>
+                            <field name="usage_unit"/>
+                            <field name="card_grouping_mode"/>
+                        </group>
+                        <group string="Free Services">
+                            <field name="free_service_count"/>
+                            <label for="free_service_period"/>
+                            <div class="o_row">
+                                <field name="free_service_period"/>
+                                <field name="free_service_period_unit"/>
+                            </div>
+                            <field name="schedule_method"/>
+                            <field name="auto_create_services"/>
+                            <field name="draft_job_from_service"/>
+                        </group>
+                        <group string="Controls">
+                            <field name="payment_check_required"/>
+                            <field name="overdue_claim_handling"/>
+                            <field name="replacement_date_policy"/>
+                        </group>
+                    </group>
+                    <group string="Coverage">
+                        <field name="covered_item_ids" widget="many2many_tags"/>
+                        <field name="excluded_item_ids" widget="many2many_tags"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_policy_view_search" model="ir.ui.view">
+        <field name="name">warranty.policy.search</field>
+        <field name="model">warranty.policy</field>
+        <field name="arch" type="xml">
+            <search string="Warranty Policies">
+                <field name="name"/>
+                <filter name="inactive" string="Archived" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_policy" model="ir.actions.act_window">
+        <field name="name">Warranty Policies</field>
+        <field name="res_model">warranty.policy</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="warranty_policy_view_search"/>
+    </record>
+</odoo>

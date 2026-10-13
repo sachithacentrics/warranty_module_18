@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_unit_view_list" model="ir.ui.view">
+        <field name="name">warranty.unit.list</field>
+        <field name="model">warranty.unit</field>
+        <field name="arch" type="xml">
+            <list string="Unit Warranty Numbers" create="false">
+                <field name="name"/>
+                <field name="warranty_card_id"/>
+                <field name="sale_order_id"/>
+                <field name="product_id"/>
+                <field name="unit_number"/>
+                <field name="stock_move_line_id" optional="show"/>
+                <field name="serial_ids" widget="many2many_tags"/>
+                <field name="start_date"/>
+                <field name="end_date"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_unit_view_form" model="ir.ui.view">
+        <field name="name">warranty.unit.form</field>
+        <field name="model">warranty.unit</field>
+        <field name="arch" type="xml">
+            <form string="Unit Warranty Number" create="false">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="warranty_card_id" readonly="1"/>
+                            <field name="sale_order_line_id"/>
+                            <field name="product_id"/>
+                            <field name="unit_number"/>
+                            <field name="stock_move_line_id"/>
+                            <field name="serial_ids" widget="many2many_tags"/>
+                        </group>
+                        <group>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                            <field name="usage_limit"/>
+                            <field name="usage_unit"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_unit_view_search" model="ir.ui.view">
+        <field name="name">warranty.unit.search</field>
+        <field name="model">warranty.unit</field>
+        <field name="arch" type="xml">
+            <search string="Unit Warranty Numbers">
+                <field name="name"/>
+                <field name="warranty_card_id"/>
+                <field name="product_id"/>
+                <field name="serial_ids"/>
+                <field name="sale_order_id"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_card" string="Warranty Card" context="{'group_by': 'warranty_card_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_unit" model="ir.actions.act_window">
+        <field name="name">Unit Warranty Numbers</field>
+        <field name="res_model">warranty.unit</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="warranty_unit_view_search"/>
+    </record>
+</odoo>

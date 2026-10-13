@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- WC/xxxxx; unit warranty numbers WN/xxxxx-xx are derived from the card number -->
+        <record id="seq_warranty_card" model="ir.sequence">
+            <field name="name">Warranty Card</field>
+            <field name="code">warranty.card</field>
+            <field name="prefix">WC/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>
