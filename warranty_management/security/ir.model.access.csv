@@ -10,3 +10,16 @@ access_warranty_coverage_item_admin,warranty.coverage.item admin,model_warranty_
 access_warranty_pricelist_rule_user,warranty.product.pricelist.rule user,model_warranty_product_pricelist_rule,base.group_user,1,0,0,0
 access_warranty_pricelist_rule_sale_manager,warranty.product.pricelist.rule sales manager,model_warranty_product_pricelist_rule,sales_team.group_sale_manager,1,1,1,1
 access_warranty_pricelist_rule_admin,warranty.product.pricelist.rule admin,model_warranty_product_pricelist_rule,base.group_system,1,1,1,1
+access_warranty_service_entitlement_user,warranty.service.entitlement user,model_warranty_service_entitlement,base.group_user,1,1,1,0
+access_warranty_service_entitlement_admin,warranty.service.entitlement admin,model_warranty_service_entitlement,base.group_system,1,1,1,1
+access_warranty_entitlement_date_log_user,warranty.service.entitlement.date.log user,model_warranty_service_entitlement_date_log,base.group_user,1,0,1,0
+access_warranty_entitlement_date_log_admin,warranty.service.entitlement.date.log admin,model_warranty_service_entitlement_date_log,base.group_system,1,1,1,1
+access_warranty_policy_service_offset_user,warranty.policy.service.offset user,model_warranty_policy_service_offset,base.group_user,1,0,0,0
+access_warranty_policy_service_offset_admin,warranty.policy.service.offset admin,model_warranty_policy_service_offset,base.group_system,1,1,1,1
+access_warranty_due_date_wizard_user,warranty.service.entitlement.due.date.wizard user,model_warranty_service_entitlement_due_date_wizard,base.group_user,1,1,1,0
+access_product_brand_user,product.brand user,model_product_brand,stock.group_stock_user,1,0,0,0
+access_product_brand_manager,product.brand manager,model_product_brand,stock.group_stock_manager,1,1,1,1
+access_product_model_user,product.model user,model_product_model,stock.group_stock_user,1,0,0,0
+access_product_model_manager,product.model manager,model_product_model,stock.group_stock_manager,1,1,1,1
+access_warranty_grouping_wizard_user,warranty.grouping.wizard user,model_warranty_grouping_wizard,base.group_user,1,1,1,0
+access_warranty_grouping_wizard_line_user,warranty.grouping.wizard.line user,model_warranty_grouping_wizard_line,base.group_user,1,1,1,0

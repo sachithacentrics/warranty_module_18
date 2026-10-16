@@ -22,6 +22,13 @@ class WarrantyProductPricelistRule(models.Model):
         ('months', 'Months'),
         ('years', 'Years'),
     ], string='Free Service Frequency Unit')
+    # Same choices as the product / category / company Default Schedule Method.
+    default_schedule_method = fields.Selection([
+        ('equal_interval', 'Equal Interval'),
+        ('manual', 'Manual Schedule'),
+        ('calendar_month', 'Calendar Month'),
+    ], string='Default Schedule Method')
+    auto_create_services = fields.Boolean(string='Auto-create Services')
     usage_limit = fields.Float(string='Usage Limit')
     usage_unit = fields.Selection([
         ('operating_hours', 'Operating Hours'),

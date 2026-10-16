@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="mail_activity_type_free_service_due" model="mail.activity.type">
+            <field name="name">Free Service Due Alert</field>
+            <field name="res_model">warranty.service.entitlement</field>
+            <field name="category">default</field>
+            <field name="icon">fa-wrench</field>
+            <field name="delay_count">0</field>
+            <field name="keep_done" eval="True"/>
+        </record>
+        <record id="mail_activity_type_free_service_expiry" model="mail.activity.type">
+            <field name="name">Free Service Expiry Reminder</field>
+            <field name="res_model">warranty.service.entitlement</field>
+            <field name="category">default</field>
+            <field name="icon">fa-hourglass-end</field>
+            <field name="delay_count">0</field>
+            <field name="keep_done" eval="True"/>
+        </record>
+    </data>
+</odoo>

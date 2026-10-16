@@ -26,15 +26,39 @@
                     <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
                     <div class="oe_title">
                         <label for="name"/>
-                        <h1><field name="name" placeholder="e.g. Retail A/C Warranty"/></h1>
+                        <h1>
+                            <field name="name" placeholder="e.g. Retail A/C Warranty"/>
+                        </h1>
                     </div>
                     <group>
                         <group string="Applicability">
                             <field name="active" invisible="1"/>
                             <field name="applies_to"/>
-                            <field name="pricelist_ids" widget="many2many_tags"/>
-                            <field name="sale_order_type_id"/>
-                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="product_tmpl_ids" widget="many2many_tags"
+                                   invisible="applies_to != 'product'"
+                                   required="applies_to == 'product'"/>
+                            <!-- Products assigned directly from the product form (other Applies To). -->
+                            <field name="product_tmpl_ids" string="Directly Assigned Products"
+                                   widget="many2many_tags" readonly="1"
+                                   invisible="applies_to == 'product' or not product_tmpl_ids"/>
+                            <field name="product_categ_ids" widget="many2many_tags"
+                                   invisible="applies_to != 'product_category'"
+                                   required="applies_to == 'product_category'"/>
+                            <field name="product_brand_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"
+                                   invisible="applies_to != 'brand'"
+                                   required="applies_to == 'brand'"/>
+                            <field name="product_model_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"
+                                   invisible="applies_to != 'model'"
+                                   required="applies_to == 'model'"/>
+                            <field name="pricelist_ids" widget="many2many_tags"
+                                   invisible="applies_to != 'customer_type'"
+                                   required="applies_to == 'customer_type'"/>
+                            <field name="sale_order_type_id"
+                                   invisible="applies_to != 'sale_order_type'"
+                                   required="applies_to == 'sale_order_type'"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
                         </group>
                         <group string="Warranty">
                             <label for="warranty_duration"/>
@@ -44,8 +68,8 @@
                             </div>
                             <field name="start_date_basis"/>
                             <field name="warranty_basis"/>
-                            <field name="usage_unit"/>
-                            <field name="card_grouping_mode"/>
+                            <field name="usage_unit" invisible="warranty_basis != 'usage'"/>
+                            <field name="card_grouping_mode" invisible="1"/>
                         </group>
                         <group string="Free Services">
                             <field name="free_service_count"/>
@@ -63,6 +87,30 @@
                             <field name="overdue_claim_handling"/>
                             <field name="replacement_date_policy"/>
                         </group>
+                        <group string="Service Due Monitoring" name="service_due_monitoring">
+                            <field name="grace_period_days"/>
+                            <field name="auto_expire_services"/>
+                            <!--                            <field name="carry_forward_allowed"/>-->
+                            <field name="service_due_alert_days"/>
+                            <field name="expiry_reminder_days"/>
+                            <field name="usage_alert_percentage"/>
+                            <field name="service_alert_user_ids" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert"
+                         invisible="service_alert_user_ids or (not service_due_alert_days and not expiry_reminder_days)">
+                        No Service Alert Responsible Users on this policy: due alerts and expiry reminders
+                        are assigned to the company Service Alert Responsible Users. If none is configured,
+                        no activity is created.
+                    </div>
+                    <group string="Service Offsets" invisible="schedule_method != 'fixed_offsets'">
+                        <field name="service_offset_ids" nolabel="1" colspan="2">
+                            <list editable="bottom">
+                                <field name="service_no"/>
+                                <field name="offset"/>
+                                <field name="offset_unit"/>
+                            </list>
+                        </field>
                     </group>
                     <group string="Coverage">
                         <field name="covered_item_ids" widget="many2many_tags"/>

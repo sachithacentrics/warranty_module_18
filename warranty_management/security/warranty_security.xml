@@ -16,5 +16,20 @@
             <field name="model_id" ref="model_warranty_policy"/>
             <field name="domain_force">[('company_id', 'in', company_ids + [False])]</field>
         </record>
+        <record id="warranty_service_entitlement_company_rule" model="ir.rule">
+            <field name="name">Service Entitlement: multi-company</field>
+            <field name="model_id" ref="model_warranty_service_entitlement"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="warranty_entitlement_date_log_company_rule" model="ir.rule">
+            <field name="name">Service Entitlement Due Date History: multi-company</field>
+            <field name="model_id" ref="model_warranty_service_entitlement_date_log"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="warranty_policy_service_offset_company_rule" model="ir.rule">
+            <field name="name">Service Offset: multi-company</field>
+            <field name="model_id" ref="model_warranty_policy_service_offset"/>
+            <field name="domain_force">[('company_id', 'in', company_ids + [False])]</field>
+        </record>
     </data>
 </odoo>

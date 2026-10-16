@@ -17,8 +17,9 @@
                                  help="Company fallback warranty policy">
                             <field name="warranty_default_policy_id"/>
                         </setting>
+
                         <setting id="warranty_default_card_grouping" string="Default Card Grouping Mode"
-                                 help="How Sales Order lines are grouped into warranty cards">
+                                 help="How Sales Order lines are grouped into warranty cards" invisible="1">
                             <field name="warranty_default_card_grouping_mode"/>
                         </setting>
                         <setting id="warranty_default_basis" string="Default Warranty Basis"
@@ -32,17 +33,46 @@
                         <setting id="warranty_default_duration" string="Default Warranty Duration"
                                  help="Company fallback warranty duration">
                             <div class="o_row">
-                                <field name="warranty_default_duration"/>
-                                <field name="warranty_default_duration_unit"/>
+                                <field name="warranty_default_duration" required="warranty_scope_mode"/>
+                                <field name="warranty_default_duration_unit" required="warranty_scope_mode"/>
                             </div>
+                        </setting>
+                    </block>
+                    <block title="Free Service Settings" name="warranty_free_service_settings"
+                           invisible="warranty_scope_mode not in ('free_services', 'amc_free_services')">
+                        <setting id="warranty_default_free_service_count" string="Default Free Service Count"
+                                 help="Free services at the company fallback level">
+                            <field name="warranty_default_free_service_count"/>
+                        </setting>
+                        <setting id="warranty_default_free_service_period" string="Default Free Service Period"
+                                 help="Period in which the free services are scheduled, when the warranty policy has none">
+                            <div class="o_row">
+                                <field name="warranty_default_free_service_period"/>
+                                <field name="warranty_default_free_service_period_unit"/>
+                            </div>
+                        </setting>
+                        <setting id="warranty_default_schedule_method" string="Default Schedule Method"
+                                 help="How free service due dates are calculated, when the warranty policy has none">
+                            <field name="warranty_default_schedule_method"/>
                         </setting>
                         <setting id="warranty_auto_create_services" string="Auto-create Services"
                                  help="Create draft services after warranty confirmation">
                             <field name="warranty_auto_create_services"/>
                         </setting>
                         <setting id="warranty_draft_job_from_service" string="Draft Job from Service"
-                                 help="Services may create draft jobs">
+                                 help="Services may create draft jobs" invisible="1">
                             <field name="warranty_draft_job_from_service"/>
+                        </setting>
+                    </block>
+                    <block title="Free Service Monitoring" name="warranty_service_monitoring_settings"
+                           invisible="warranty_scope_mode not in ('free_services', 'amc_free_services')">
+                        <setting id="warranty_service_alert_user" string="Service Alert Responsible Users"
+                                 help="Fallback users for due alerts and expiry reminders when the warranty card has none; each user receives their own activity">
+                            <field name="warranty_service_alert_user_ids" widget="many2many_tags"/>
+                        </setting>
+                        <setting id="warranty_timezone" string="Warranty Timezone"
+                                 help="Timezone used to evaluate due and expiry dates (empty: company contact timezone, then UTC)">
+                            <field name="warranty_timezone"/>
                         </setting>
                     </block>
                 </app>

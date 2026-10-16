@@ -5,26 +5,36 @@
         <field name="model">product.category</field>
         <field name="inherit_id" ref="product.product_category_form_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//group[@name='first']" position="after">
+            <xpath expr="//group[@name='account_property']" position="after">
                 <group string="Default Warranty" name="default_warranty">
+                    <!-- Defaults readonly while an applicable category policy is mapped (UI only). -->
                     <group>
                         <field name="warranty_policy_id"/>
+                        <field name="warranty_policy_applicable"/>
                         <label for="default_warranty_period"/>
                         <div class="o_row">
-                            <field name="default_warranty_period"/>
-                            <field name="default_warranty_period_unit"/>
+                            <field name="default_warranty_period" readonly="warranty_policy_applicable"/>
+                            <field name="default_warranty_period_unit" readonly="warranty_policy_applicable"/>
                         </div>
-                        <field name="warranty_start_criterion"/>
-                        <field name="warranty_basis"/>
                     </group>
                     <group>
-                        <field name="default_free_service_count"/>
+                        <field name="warranty_start_criterion" readonly="warranty_policy_applicable"/>
+                        <field name="warranty_basis" readonly="warranty_policy_applicable"/>
+                        <field name="card_grouping_mode" readonly="warranty_policy_applicable" invisible="1"/>
+                    </group>
+                </group>
+                <group string="Free Service Configuration" name="free_service_configuration">
+                    <group>
+                        <field name="default_free_service_count" readonly="warranty_policy_applicable"/>
                         <label for="free_service_frequency"/>
                         <div class="o_row">
-                            <field name="free_service_frequency"/>
-                            <field name="free_service_frequency_unit"/>
+                            <field name="free_service_frequency" readonly="warranty_policy_applicable"/>
+                            <field name="free_service_frequency_unit" readonly="warranty_policy_applicable"/>
                         </div>
-                        <field name="card_grouping_mode"/>
+                    </group>
+                    <group>
+                        <field name="default_schedule_method" readonly="warranty_policy_applicable"/>
+                        <field name="auto_create_services" readonly="warranty_policy_applicable"/>
                     </group>
                 </group>
             </xpath>

@@ -10,45 +10,90 @@
                     <group>
                         <group>
                             <field name="warranty_applicable"/>
-                            <field name="warranty_start_criterion" invisible="not warranty_applicable"/>
-                            <field name="warranty_basis" invisible="not warranty_applicable"/>
+                            <field name="warranty_policy_applicable" readonly="1"
+                                   invisible="not warranty_applicable"/>
+                            <field name="warranty_policy_id" groups="base.group_system"
+                                   options="{'no_create': True}"
+                                   invisible="not warranty_applicable"/>
+                            <field name="warranty_policy_id" groups="!base.group_system" readonly="1"
+                                   invisible="not warranty_applicable"/>
+                            <field name="warranty_start_criterion" invisible="not warranty_applicable"
+                                   readonly="warranty_policy_applicable"/>
+                            <field name="warranty_basis" invisible="not warranty_applicable"
+                                   readonly="warranty_policy_applicable"/>
                             <label for="default_warranty_period" invisible="not warranty_applicable"/>
                             <div class="o_row" invisible="not warranty_applicable">
-                                <field name="default_warranty_period"/>
-                                <field name="default_warranty_period_unit"/>
+                                <field name="default_warranty_period" readonly="warranty_policy_applicable"/>
+                                <field name="default_warranty_period_unit" readonly="warranty_policy_applicable"/>
                             </div>
                         </group>
                         <group invisible="not warranty_applicable">
-                            <field name="default_free_service_count"/>
+                            <field name="warranty_worksheet_template_id" readonly="warranty_policy_applicable"/>
+                        </group>
+                    </group>
+                    <group string="Free Services" name="warranty_free_services" invisible="not warranty_applicable">
+                        <group>
+                            <field name="default_free_service_count" readonly="warranty_policy_applicable"/>
                             <label for="free_service_frequency"/>
                             <div class="o_row">
-                                <field name="free_service_frequency"/>
-                                <field name="free_service_frequency_unit"/>
+                                <field name="free_service_frequency" readonly="warranty_policy_applicable"/>
+                                <field name="free_service_frequency_unit" readonly="warranty_policy_applicable"/>
                             </div>
-                            <field name="warranty_worksheet_template_id"/>
+                            <field name="default_schedule_method" readonly="warranty_policy_applicable"/>
+                            <field name="auto_create_services" readonly="warranty_policy_applicable"/>
                         </group>
                     </group>
                     <group string="Product + Pricelist Warranty Mapping" invisible="not warranty_applicable">
                         <field name="warranty_pricelist_rule_ids" nolabel="1" colspan="2"
-                               context="{'active_test': False}">
+                               context="{'active_test': False}"
+                               readonly="warranty_policy_applicable">
                             <list editable="bottom">
                                 <field name="pricelist_id"/>
                                 <field name="warranty_period"/>
-                                <field name="warranty_period_unit"/>
+                                <field name="warranty_period_unit" required="warranty_period"/>
                                 <field name="free_service_count"/>
                                 <field name="free_service_frequency"/>
                                 <field name="free_service_frequency_unit"/>
+                                <field name="default_schedule_method"/>
+                                <field name="auto_create_services"/>
                                 <field name="usage_limit"/>
                                 <field name="usage_unit"/>
                                 <field name="effective_from"/>
                                 <field name="effective_to"/>
                                 <field name="priority"/>
-                                <field name="active" widget="boolean_toggle"/>
+                                <field name="active" widget="boolean_toggle"
+                                       readonly="parent.warranty_policy_applicable"/>
                             </list>
                         </field>
                     </group>
                 </page>
             </xpath>
+        </field>
+    </record>
+
+    <record id="product_template_only_form_view_brand" model="ir.ui.view">
+        <field name="name">product.template.form.brand</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <field name="barcode" position="after">
+                <field name="product_brand_id" options="{'no_create': True}"/>
+                <field name="product_model_id" options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="product_template_search_view_warranty" model="ir.ui.view">
+        <field name="name">product.template.search.warranty</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <filter name="filter_to_sell" position="before">
+                <field name="warranty_policy_id"/>
+                <filter string="Warranty Policy Applicable" name="warranty_policy_applicable"
+                        domain="[('warranty_policy_applicable', '=', True)]"/>
+                <separator/>
+            </filter>
         </field>
     </record>
 </odoo>

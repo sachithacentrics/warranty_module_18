@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_service_entitlement_view_list" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.list</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="arch" type="xml">
+            <list string="Service Entitlements">
+                <field name="name"/>
+                <field name="warranty_card_id"/>
+                <field name="partner_id"/>
+                <field name="service_no"/>
+                <field name="service_type" optional="show"/>
+                <field name="due_date" decoration-danger="due_date_conflict"/>
+                <field name="due_date_conflict" optional="show"/>
+                <field name="due_status" widget="badge" optional="show"
+                       decoration-info="due_status == 'upcoming'"
+                       decoration-warning="due_status == 'due'"
+                       decoration-danger="due_status == 'overdue'"/>
+                <field name="grace_period_end_date" optional="hide"/>
+                <field name="usage_due" optional="show"/>
+                <field name="usage_unit" optional="show"/>
+                <field name="merge_status" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'"
+                       decoration-warning="state == 'missed'"
+                       decoration-danger="state == 'expired'"
+                       decoration-success="state == 'completed'"
+                       decoration-muted="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_service_entitlement_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.form</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="arch" type="xml">
+            <form string="Service Entitlement">
+                <header>
+                    <button name="action_open_due_date_wizard" type="object" string="Change Due Date"
+                            invisible="not id or state != 'draft'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,pending,scheduled,in_progress,completed"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="not due_date_conflict">
+                        The due date is after the warranty end date: manual decision required.
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="warranty_card_id" readonly="id"/>
+                            <field name="partner_id"/>
+                            <field name="service_no" readonly="id"/>
+                            <field name="service_type" readonly="id"/>
+                            <field name="worksheet_template_id"/>
+                        </group>
+                        <group>
+                            <field name="due_date" readonly="id"/>
+                            <field name="due_date_conflict"/>
+                            <field name="due_status"/>
+                            <field name="usage_due"/>
+                            <field name="usage_unit"/>
+                            <field name="merge_status"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Due Date History" name="due_date_history">
+                            <field name="due_date_log_ids">
+                                <list>
+                                    <field name="change_date"/>
+                                    <field name="user_id"/>
+                                    <field name="previous_due_date"/>
+                                    <field name="new_due_date"/>
+                                    <field name="reason"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Other Information" name="other_information">
+                            <group>
+                                <group>
+                                    <field name="grace_period_end_date"/>
+                                    <field name="alert_date"/>
+                                    <field name="expiry_reminder_date"/>
+                                    <field name="usage_threshold"/>
+                                </group>
+                                <group>
+                                    <field name="payment_eligibility"/>
+                                    <field name="reschedule_count"/>
+                                    <field name="due_alert_sent"/>
+                                    <field name="expiry_reminder_sent"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_service_entitlement_view_search" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.search</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="arch" type="xml">
+            <search string="Service Entitlements">
+                <field name="name"/>
+                <field name="warranty_card_id"/>
+                <field name="partner_id"/>
+                <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_missed" string="Missed" domain="[('state', '=', 'missed')]"/>
+                <filter name="filter_expired" string="Expired" domain="[('state', '=', 'expired')]"/>
+                <separator/>
+                <filter name="filter_upcoming" string="Upcoming" domain="[('due_status', '=', 'upcoming')]"/>
+                <filter name="filter_due" string="Due" domain="[('due_status', '=', 'due')]"/>
+                <filter name="filter_overdue" string="Overdue" domain="[('due_status', '=', 'overdue')]"/>
+                <separator/>
+                <filter name="filter_due_date_conflict" string="Due After Warranty End"
+                        domain="[('due_date_conflict', '=', True)]"/>
+                <filter name="filter_no_due_date" string="No Due Date"
+                        domain="[('due_date', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_card" string="Warranty Card" context="{'group_by': 'warranty_card_id'}"/>
+                    <filter name="group_partner" string="Customer" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_due_status" string="Due Indicator" context="{'group_by': 'due_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_service_entitlement" model="ir.actions.act_window">
+        <field name="name">Service Entitlements</field>
+        <field name="res_model">warranty.service.entitlement</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="warranty_service_entitlement_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No service entitlements yet</p>
+            <p>Draft free service entitlements are created when a warranty card that includes free services is confirmed.</p>
+        </field>
+    </record>
+</odoo>

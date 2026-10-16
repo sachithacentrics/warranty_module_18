@@ -4,7 +4,7 @@
         <field name="name">warranty.unit.list</field>
         <field name="model">warranty.unit</field>
         <field name="arch" type="xml">
-            <list string="Unit Warranty Numbers" create="false">
+            <list string="Warranty Unit Numbers" create="false">
                 <field name="name"/>
                 <field name="warranty_card_id"/>
                 <field name="sale_order_id"/>
@@ -59,7 +59,7 @@
         <field name="name">warranty.unit.search</field>
         <field name="model">warranty.unit</field>
         <field name="arch" type="xml">
-            <search string="Unit Warranty Numbers">
+            <search string="Warranty Unit Numbers">
                 <field name="name"/>
                 <field name="warranty_card_id"/>
                 <field name="product_id"/>
@@ -74,7 +74,7 @@
     </record>
 
     <record id="action_warranty_unit" model="ir.actions.act_window">
-        <field name="name">Unit Warranty Numbers</field>
+        <field name="name">Warranty Unit Numbers</field>
         <field name="res_model">warranty.unit</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="warranty_unit_view_search"/>

@@ -35,6 +35,13 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,ready,confirmed"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_service_entitlements" type="object"
+                                class="oe_stat_button" icon="fa-wrench"
+                                invisible="service_entitlement_count == 0">
+                            <field name="service_entitlement_count" widget="statinfo" string="Services"/>
+                        </button>
+                    </div>
                     <div class="alert alert-warning" role="alert" invisible="not missing_requirements">
                         <strong>Missing confirmation requirements:</strong>
                         <field name="missing_requirements" nolabel="1"/>
@@ -84,6 +91,81 @@
                                     <field name="state" widget="badge"/>
                                 </list>
                             </field>
+                        </page>
+                        <page string="Free Services" name="free_services">
+                            <field name="free_services_included" invisible="1"/>
+                            <div class="alert alert-warning" role="alert"
+                                 invisible="not free_service_schedule_note">
+                                <field name="free_service_schedule_note" nolabel="1"/>
+                            </div>
+                            <group>
+                                <group>
+                                    <field name="free_services_allowed"/>
+                                    <field name="schedule_method"/>
+                                    <label for="free_service_frequency"/>
+                                    <div class="o_row">
+                                        <field name="free_service_frequency"/>
+                                        <field name="free_service_frequency_unit"/>
+                                    </div>
+                                    <label for="free_service_period"/>
+                                    <div class="o_row">
+                                        <field name="free_service_period"/>
+                                        <field name="free_service_period_unit"/>
+                                    </div>
+                                </group>
+                                <group>
+                                    <field name="free_services_used"/>
+                                    <field name="free_services_missed"/>
+                                    <field name="free_services_expired"/>
+                                    <field name="free_services_cancelled"/>
+                                    <field name="free_services_balance"/>
+                                </group>
+                            </group>
+                            <group string="Service Due Monitoring (snapshot)" invisible="not service_monitoring_active">
+                                <group>
+                                    <field name="service_monitoring_active" invisible="1"/>
+                                    <field name="grace_period_days"/>
+                                    <field name="auto_expire_services"/>
+                                    <field name="carry_forward_allowed"/>
+                                </group>
+                                <group>
+                                    <field name="service_due_alert_days"/>
+                                    <field name="expiry_reminder_days"/>
+                                    <field name="usage_alert_percentage"/>
+                                    <field name="service_alert_user_ids" widget="many2many_tags"/>
+                                </group>
+                            </group>
+                            <field name="service_entitlement_ids"
+                                   readonly="state != 'confirmed' or not free_services_included or schedule_method == 'amc_plan'">
+                                <list editable="bottom">
+                                    <field name="name" readonly="1"/>
+                                    <field name="service_no" readonly="id"/>
+                                    <field name="service_type" readonly="id"/>
+                                    <field name="due_date" readonly="id" decoration-danger="due_date_conflict"/>
+                                    <field name="due_date_conflict"/>
+                                    <field name="due_status" widget="badge" optional="show"
+                                           decoration-info="due_status == 'upcoming'"
+                                           decoration-warning="due_status == 'due'"
+                                           decoration-danger="due_status == 'overdue'"/>
+                                    <field name="usage_due" optional="show"/>
+                                    <field name="usage_unit" optional="show"/>
+                                    <field name="merge_status" optional="hide"/>
+                                    <field name="state" widget="badge" decoration-info="state == 'draft'"
+                                           decoration-warning="state == 'missed'"
+                                           decoration-danger="state == 'expired'"/>
+                                    <button name="action_open_due_date_wizard" type="object" icon="fa-calendar"
+                                            title="Change Due Date" invisible="not id or state != 'draft'"/>
+                                </list>
+                            </field>
+                            <group string="Service Offsets (snapshot)" invisible="schedule_method != 'fixed_offsets'">
+                                <field name="service_offset_ids" nolabel="1" colspan="2">
+                                    <list>
+                                        <field name="service_no"/>
+                                        <field name="offset"/>
+                                        <field name="offset_unit"/>
+                                    </list>
+                                </field>
+                            </group>
                         </page>
                         <page string="Resolved Rule" name="resolved_rule">
                             <group>

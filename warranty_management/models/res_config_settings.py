@@ -1,11 +1,11 @@
-from odoo import fields, models
+from odoo import _, fields, models
+from odoo.exceptions import ValidationError
 
 
 class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
-    # res.config.settings reserves the 'default_' prefix for ir.default values,
-    # so the company fields are exposed here under a 'warranty_' prefix.
+
     warranty_scope_mode = fields.Selection(
         related='company_id.warranty_scope_mode', string='Warranty Scope Mode',
         readonly=False)
@@ -33,3 +33,30 @@ class ResConfigSettings(models.TransientModel):
     warranty_default_duration_unit = fields.Selection(
         related='company_id.default_warranty_duration_unit', string='Default Duration Unit',
         readonly=False)
+    warranty_default_free_service_count = fields.Integer(
+        related='company_id.default_free_service_count', string='Default Free Service Count',
+        readonly=False)
+    warranty_default_free_service_period = fields.Integer(
+        related='company_id.default_free_service_period', string='Default Free Service Period',
+        readonly=False)
+    warranty_default_free_service_period_unit = fields.Selection(
+        related='company_id.default_free_service_period_unit',
+        string='Default Free Service Period Unit', readonly=False)
+    warranty_default_schedule_method = fields.Selection(
+        related='company_id.default_schedule_method', string='Default Schedule Method',
+        readonly=False)
+    warranty_service_alert_user_ids = fields.Many2many(
+        related='company_id.warranty_service_alert_user_ids',
+        string='Service Alert Responsible Users', readonly=False)
+    warranty_timezone = fields.Selection(
+        related='company_id.warranty_timezone', string='Warranty Timezone', readonly=False)
+
+    def set_values(self):
+        for settings in self:
+            if settings.warranty_scope_mode and (
+                    settings.warranty_default_duration <= 0
+                    or not settings.warranty_default_duration_unit):
+                raise ValidationError(_(
+                    "Default Warranty Duration and unit are required when a Warranty Scope Mode "
+                    "is set."))
+        return super().set_values()

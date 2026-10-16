@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_grouping_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.grouping.wizard.form</field>
+        <field name="model">warranty.grouping.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Grouping">
+                <group>
+                    <group>
+                        <field name="sale_order_id"/>
+                        <field name="company_id" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="card_grouping_mode" widget="radio"/>
+                    </group>
+                </group>
+                <p class="text-muted">
+                    The selected mode applies to all warranty products of the Sales Order.
+                    Products with different warranty values (policy, duration, start criterion,
+                    free services, ...) are still placed on separate warranty cards.
+                </p>
+                <field name="line_ids" nolabel="1">
+                    <list>
+                        <field name="product_id"/>
+                        <field name="quantity"/>
+                        <field name="policy_id"/>
+                        <field name="policy_source"/>
+                        <field name="warranty_duration"/>
+                        <field name="warranty_duration_unit"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirm"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
