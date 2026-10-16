@@ -7,7 +7,6 @@
         <field name="arch" type="xml">
             <xpath expr="//group[@name='account_property']" position="after">
                 <group string="Default Warranty" name="default_warranty">
-                    <!-- Defaults readonly while an applicable category policy is mapped (UI only). -->
                     <group>
                         <field name="warranty_policy_id"/>
                         <field name="warranty_policy_applicable"/>

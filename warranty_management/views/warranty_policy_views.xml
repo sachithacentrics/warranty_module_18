@@ -87,14 +87,21 @@
                             <field name="overdue_claim_handling"/>
                             <field name="replacement_date_policy"/>
                         </group>
-                        <group string="Service Due Monitoring" name="service_due_monitoring">
-                            <field name="grace_period_days"/>
-                            <field name="auto_expire_services"/>
-                            <!--                            <field name="carry_forward_allowed"/>-->
+                    </group>
+                    <!-- Service due monitoring: the responsible users receive both the due alerts
+                         and the expiry reminders. -->
+                    <group name="service_due_monitoring">
+                        <group string="Service Due Alert Configuration" name="service_due_alert_configuration">
                             <field name="service_due_alert_days"/>
-                            <field name="expiry_reminder_days"/>
-                            <field name="usage_alert_percentage"/>
                             <field name="service_alert_user_ids" widget="many2many_tags"/>
+                            <field name="usage_alert_percentage" invisible="warranty_basis != 'usage'"/>
+                        </group>
+                        <group string="Service Expiry Configuration" name="service_expiry_configuration">
+                             <field name="auto_expire_services"/>
+                            <field name="grace_period_days"/>
+
+                            <!--                            <field name="carry_forward_allowed"/>-->
+                            <field name="expiry_reminder_days"/>
                         </group>
                     </group>
                     <div class="alert alert-info" role="alert"

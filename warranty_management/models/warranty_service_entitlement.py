@@ -47,7 +47,7 @@ class WarrantyServiceEntitlement(models.Model):
         ('units_produced', 'Units Produced'),
         ('other', 'Other'),
     ], string='Usage Unit', readonly=True)
-    # SRS 10.3 statuses; Draft is the approved initial status (SRS 2.5).
+
     state = fields.Selection([
         ('draft', 'Draft'),
         ('pending', 'Pending'),
@@ -313,6 +313,8 @@ class WarrantyServiceEntitlement(models.Model):
                         summary=_("Free Service %(number)s due on %(date)s",
                                   number=entitlement.service_no, date=entitlement.due_date),
                         user_id=user.id)
+                    entitlement._send_service_email(
+                        user, 'warranty_management.mail_template_free_service_due_alert')
                 else:
                     activities |= entitlement.activity_schedule(
                         'warranty_management.mail_activity_type_free_service_expiry',
@@ -321,6 +323,8 @@ class WarrantyServiceEntitlement(models.Model):
                                   number=entitlement.service_no,
                                   date=entitlement.grace_period_end_date),
                         user_id=user.id)
+                    entitlement._send_service_email(
+                        user, 'warranty_management.mail_template_free_service_expiry_reminder')
             if kind == 'due_alert':
                 entitlement.write({'due_alert_sent': True,
                                    'due_alert_activity_ids': [Command.set(activities.ids)]})
@@ -328,6 +332,43 @@ class WarrantyServiceEntitlement(models.Model):
                 entitlement.write({'expiry_reminder_sent': True,
                                    'expiry_reminder_activity_ids': [Command.set(activities.ids)]})
         return missing_user, skipped_users
+
+    def _send_service_email(self, user, template_xmlid):
+        """Queue the dedicated email `template_xmlid` (due alert, expiry reminder or service
+        expired) of this entitlement to `user`, whatever the user's notification preference
+        (A4, section 6a). The email is only queued (sent by the mail queue) and kept after
+        sending, so a delivery failure never blocks the activities / expiry and stays visible
+        and retryable in Emails. One email per user and event: the callers run once per alert,
+        reminder (Due Alert / Expiry Reminder Sent) or expiry (Expired is final)."""
+        self.ensure_one()
+        if not user.partner_id.email:
+            _logger.warning(
+                "Warranty email %s not sent for %s (warranty card %s): user %s (id %s) has no "
+                "email address.", template_xmlid, self.name, self.warranty_card_id.name,
+                user.login, user.id)
+            return
+        template = self.env.ref(template_xmlid, raise_if_not_found=False)
+        if not template:
+            _logger.warning("Warranty email template %s not found; no email sent for %s.",
+                            template_xmlid, self.name)
+            return
+        # Sender: the card company's email, else the server default sender address.
+        email_from = (self.warranty_card_id.company_id.email_formatted
+                      or self.env['ir.mail_server']._get_default_from_address())
+        email_values = {'recipient_ids': [Command.set(user.partner_id.ids)], 'auto_delete': False}
+        if email_from:
+            email_values.update(email_from=email_from, reply_to=email_from)
+        try:
+            # Own savepoint: an unexpected error only skips this email (logged); the
+            # activities and the Due Alert Sent mark are kept.
+            with self.env.cr.savepoint():
+                template.with_context(lang=user.lang).send_mail(
+                    self.id, force_send=False, email_values=email_values)
+        except Exception:
+            _logger.exception(
+                "Warranty email %s could not be prepared for %s (warranty card %s), user %s "
+                "(id %s).", template_xmlid, self.name, self.warranty_card_id.name, user.login,
+                user.id)
 
     def _apply_expiry_rules(self, today):
         """T1-T4: Draft/Pending -> Missed after the due date; -> Expired after the grace
@@ -345,6 +386,21 @@ class WarrantyServiceEntitlement(models.Model):
         to_miss.write({'state': 'missed'})
         to_expire.write({'state': 'expired'})
         to_expire._close_system_activities()
+        to_expire._send_service_expired_emails(today)
+
+    def _send_service_expired_emails(self, today):
+        """Service Expired email to each valid responsible user of the entitlements just
+        expired (once: Expired is final). `today` is the Expired On date."""
+        for entitlement in self:
+            users, __ = entitlement.warranty_card_id._resolve_service_alert_users()
+            if not users:
+                _logger.warning(
+                    "Warranty service expired email not sent for %s (warranty card %s): no "
+                    "valid Service Alert Responsible User.",
+                    entitlement.name, entitlement.warranty_card_id.name)
+            for user in users:
+                entitlement.with_context(warranty_expired_on=today)._send_service_email(
+                    user, 'warranty_management.mail_template_free_service_expired')
 
     def _close_system_activities(self):
         """Close only the due alert / expiry reminder activities created by the system;

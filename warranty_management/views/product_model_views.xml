@@ -54,7 +54,6 @@
         </field>
     </record>
 
-    <!-- Inventory > Products, directly after Product Brands (sequence 3). -->
     <menuitem id="menu_product_model"
               name="Product Models"
               action="product_model_action"

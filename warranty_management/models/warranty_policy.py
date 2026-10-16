@@ -140,8 +140,7 @@ class WarrantyPolicy(models.Model):
     auto_expire_services = fields.Boolean(
         string='Auto-expire',
         help="Expire free services automatically after the grace period.")
-    # Not shown on the policy form for now (always off); kept for the card snapshot and the
-    # approved Q4 expiry rule.
+
     carry_forward_allowed = fields.Boolean(
         string='Carry-forward Allowed',
         help="Missed free services are kept Missed and never expire automatically. "

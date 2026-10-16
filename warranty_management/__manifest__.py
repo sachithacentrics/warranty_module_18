@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management',
-    'version': '18.0.1.3.0',
+    'version': '18.0.1.0.0',
     'category': 'Sales/After-Sales',
     'summary': 'Configurable warranty engine: policies, product/pricelist rules, '
                'draft warranty cards and unit warranty numbers',
@@ -35,6 +35,7 @@ Warranty Management - Part 1 (Configuration + Warranty Card Creation)
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/mail_activity_type_data.xml',
+        'data/mail_template_data.xml',
         'data/ir_cron_data.xml',
         'report/warranty_card_report.xml',
         'views/warranty_card_views.xml',
