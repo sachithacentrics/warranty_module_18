@@ -64,8 +64,22 @@ class ResCompany(models.Model):
     default_schedule_method = fields.Selection([
         ('equal_interval', 'Equal Interval'),
         ('manual', 'Manual Schedule'),
-        ('calendar_month', 'Calendar Month'),
     ], string='Default Schedule Method')
+    # Warranty card PDF download approval (approved D1-D5).
+    warranty_download_approval_required = fields.Boolean(
+        string='Require PDF Download Approval',
+        help="From the download after the Free Download Count, every warranty card PDF "
+             "download needs an approved Download Approval Request.")
+    warranty_free_download_count = fields.Integer(
+        string='Free Download Count', default=1,
+        help="Downloads of a warranty card PDF allowed without approval (at least 1). The PDF "
+             "generated at warranty confirmation is not a download.")
+    warranty_download_approver_ids = fields.Many2many(
+        'res.users', 'warranty_company_download_approver_rel', 'company_id', 'user_id',
+        string='Download Approval Responsible Users', domain=[('share', '=', False)],
+        context={'active_test': False},
+        help="Users who approve or reject the warranty card PDF download requests of this "
+             "company (never their own requests).")
     warranty_service_alert_user_ids = fields.Many2many(
         'res.users', 'warranty_company_alert_user_rel', 'company_id', 'user_id',
         string='Service Alert Responsible Users', domain=[('share', '=', False)],
@@ -85,6 +99,21 @@ class ResCompany(models.Model):
                 raise ValidationError(_(
                     "The default free service count and period of %s must not be negative.",
                     company.name))
+
+    @api.constrains('warranty_free_download_count', 'warranty_download_approver_ids')
+    def _check_warranty_download_settings(self):
+        for company in self:
+            if company.warranty_free_download_count < 1:
+                raise ValidationError(_(
+                    "The Free Download Count of %s must be at least 1: the first download of a "
+                    "warranty card PDF never needs approval.", company.name))
+            users = company.warranty_download_approver_ids
+            invalid = users - get_valid_service_alert_users(users, company)
+            if invalid:
+                raise ValidationError(_(
+                    "The Download Approval Responsible Users of %(company)s must be active "
+                    "internal users allowed in that company: %(users)s",
+                    company=company.name, users=', '.join(invalid.mapped('name'))))
 
     @api.constrains('warranty_service_alert_user_ids')
     def _check_warranty_service_alert_users(self):

@@ -4,8 +4,6 @@ from . import warranty_policy_service_offset
 from . import warranty_product_pricelist_rule
 from . import product_template
 from . import product_category
-from . import product_brand
-from . import product_model
 from . import product_pricelist
 from . import res_company
 from . import res_config_settings
@@ -14,3 +12,6 @@ from . import warranty_unit
 from . import warranty_service_entitlement
 from . import sale_order
 from . import stock_picking
+from . import warranty_card_download
+from . import ir_actions_report
+from . import ir_binary

@@ -75,6 +75,22 @@
                             <field name="warranty_timezone"/>
                         </setting>
                     </block>
+                    <block title="Warranty Card PDF Download Approval" name="warranty_download_approval_settings">
+                        <setting id="warranty_download_approval_required" string="Require PDF Download Approval"
+                                 help="After the free downloads, each warranty card PDF download needs an approved request">
+                            <field name="warranty_download_approval_required"/>
+                        </setting>
+                        <setting id="warranty_free_download_count" string="Free Download Count"
+                                 help="Downloads per warranty card without approval (at least 1); the PDF generated at confirmation is not counted"
+                                 invisible="not warranty_download_approval_required">
+                            <field name="warranty_free_download_count"/>
+                        </setting>
+                        <setting id="warranty_download_approver_ids" string="Download Approval Responsible Users"
+                                 help="Approve or reject the download requests of this company (never their own)"
+                                 invisible="not warranty_download_approval_required">
+                            <field name="warranty_download_approver_ids" widget="many2many_tags"/>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>

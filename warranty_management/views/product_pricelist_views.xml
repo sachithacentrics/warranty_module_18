@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Warranty Policy of the pricelist (highest priority of the warranty resolution, see
+         doc/warranty_policy_resolution.md); the policy values are displayed readonly. -->
+    <record id="product_pricelist_view_form_warranty" model="ir.ui.view">
+        <field name="name">product.pricelist.form.warranty</field>
+        <field name="model">product.pricelist</field>
+        <field name="inherit_id" ref="product.product_pricelist_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Warranty" name="warranty">
+                    <group>
+                        <group>
+                            <field name="warranty_applicable"/>
+                            <field name="warranty_policy_id" options="{'no_create': True}"
+                                   invisible="not warranty_applicable"
+                                   required="warranty_applicable"/>
+                        </group>
+                    </group>
+                    <group invisible="not warranty_applicable or not warranty_policy_id">
+                        <group string="Warranty">
+                            <label for="warranty_policy_duration"/>
+                            <div class="o_row">
+                                <field name="warranty_policy_duration"/>
+                                <field name="warranty_policy_duration_unit"/>
+                            </div>
+                            <field name="warranty_policy_start_criterion"/>
+                            <field name="warranty_policy_basis"/>
+                            <label for="warranty_policy_usage_limit"
+                                   invisible="warranty_policy_basis != 'usage'"/>
+                            <div class="o_row" invisible="warranty_policy_basis != 'usage'">
+                                <field name="warranty_policy_usage_limit"/>
+                                <field name="warranty_policy_usage_unit"/>
+                            </div>
+                        </group>
+                        <group string="Free Services">
+                            <field name="warranty_policy_free_service_count"/>
+                            <label for="warranty_policy_frequency"/>
+                            <div class="o_row">
+                                <field name="warranty_policy_frequency"/>
+                                <field name="warranty_policy_frequency_unit"/>
+                            </div>
+                            <label for="warranty_policy_service_period"/>
+                            <div class="o_row">
+                                <field name="warranty_policy_service_period"/>
+                                <field name="warranty_policy_service_period_unit"/>
+                            </div>
+                            <field name="warranty_policy_schedule_method"/>
+                            <field name="warranty_policy_auto_create"/>
+                        </group>
+                        <group string="Service Due Alert Configuration">
+                            <field name="warranty_policy_due_alert_days"/>
+                            <field name="warranty_policy_alert_user_ids" widget="many2many_tags"/>
+                            <field name="warranty_policy_usage_alert_percentage"
+                                   invisible="warranty_policy_basis != 'usage'"/>
+                        </group>
+                        <group string="Service Expiry Configuration">
+                            <field name="warranty_policy_auto_expire"/>
+                            <field name="warranty_policy_grace_period_days"/>
+                            <field name="warranty_policy_expiry_reminder_days"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

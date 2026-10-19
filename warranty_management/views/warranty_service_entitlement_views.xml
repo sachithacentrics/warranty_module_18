@@ -16,9 +16,11 @@
                        decoration-info="due_status == 'upcoming'"
                        decoration-warning="due_status == 'due'"
                        decoration-danger="due_status == 'overdue'"/>
+                <field name="scheduled_date" optional="show"/>
                 <field name="grace_period_end_date" optional="hide"/>
-                <field name="usage_due" optional="show"/>
-                <field name="usage_unit" optional="show"/>
+                <field name="warranty_basis" column_invisible="1"/>
+                <field name="usage_due" optional="show" invisible="warranty_basis != 'usage'"/>
+                <field name="usage_unit" optional="show" invisible="warranty_basis != 'usage'"/>
                 <field name="merge_status" optional="hide"/>
                 <field name="company_id" groups="base.group_multi_company" optional="hide"/>
                 <field name="state" widget="badge" decoration-info="state == 'draft'"
@@ -36,10 +38,15 @@
         <field name="arch" type="xml">
             <form string="Service Entitlement">
                 <header>
+                    <button name="action_open_schedule_wizard" type="object" string="Schedule"
+                            class="btn-primary"
+                            invisible="not id or scheduled_date or state not in ('draft', 'pending', 'missed')"/>
+                    <button name="action_open_schedule_wizard" type="object" string="Reschedule"
+                            invisible="not id or not scheduled_date or state not in ('missed', 'scheduled', 'rescheduled')"/>
                     <button name="action_open_due_date_wizard" type="object" string="Change Due Date"
                             invisible="not id or state != 'draft'"/>
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,pending,scheduled,in_progress,completed"/>
+                           statusbar_visible="draft,scheduled,rescheduled,in_progress,completed"/>
                 </header>
                 <sheet>
                     <div class="alert alert-warning" role="alert" invisible="not due_date_conflict">
@@ -61,8 +68,11 @@
                             <field name="due_date" readonly="id"/>
                             <field name="due_date_conflict"/>
                             <field name="due_status"/>
-                            <field name="usage_due"/>
-                            <field name="usage_unit"/>
+                            <field name="scheduled_date"/>
+                            <field name="reschedule_count" invisible="not reschedule_count"/>
+                            <field name="warranty_basis" invisible="1"/>
+                            <field name="usage_due" invisible="warranty_basis != 'usage'"/>
+                            <field name="usage_unit" invisible="warranty_basis != 'usage'"/>
                             <field name="merge_status"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
@@ -75,6 +85,18 @@
                                     <field name="user_id"/>
                                     <field name="previous_due_date"/>
                                     <field name="new_due_date"/>
+                                    <field name="reason"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Schedule History" name="schedule_history">
+                            <field name="schedule_log_ids">
+                                <list>
+                                    <field name="change_date"/>
+                                    <field name="user_id"/>
+                                    <field name="action"/>
+                                    <field name="previous_scheduled_date"/>
+                                    <field name="scheduled_date"/>
                                     <field name="reason"/>
                                 </list>
                             </field>
@@ -113,6 +135,10 @@
                 <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
                 <filter name="filter_missed" string="Missed" domain="[('state', '=', 'missed')]"/>
                 <filter name="filter_expired" string="Expired" domain="[('state', '=', 'expired')]"/>
+                <filter name="filter_scheduled" string="Scheduled / Rescheduled"
+                        domain="[('state', 'in', ('scheduled', 'rescheduled'))]"/>
+                <filter name="filter_not_scheduled" string="Not Scheduled"
+                        domain="[('scheduled_date', '=', False)]"/>
                 <separator/>
                 <filter name="filter_upcoming" string="Upcoming" domain="[('due_status', '=', 'upcoming')]"/>
                 <filter name="filter_due" string="Due" domain="[('due_status', '=', 'due')]"/>
@@ -127,15 +153,47 @@
                     <filter name="group_partner" string="Customer" context="{'group_by': 'partner_id'}"/>
                     <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
                     <filter name="group_due_status" string="Due Indicator" context="{'group_by': 'due_status'}"/>
+                    <filter name="group_scheduled_month" string="Scheduled Month"
+                            context="{'group_by': 'scheduled_date:month'}"/>
                 </group>
             </search>
+        </field>
+    </record>
+
+    <!-- Free Service Calendar: one entry per scheduled free service on its Scheduled Service
+         Date; dates are only changed with Schedule / Reschedule (drag-and-drop is refused). -->
+    <record id="warranty_service_entitlement_view_calendar" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.calendar</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="arch" type="xml">
+            <calendar string="Free Service Calendar" date_start="scheduled_date" color="state"
+                      mode="month" quick_create="0" create="0" event_open_popup="0">
+                <field name="partner_id"/>
+                <field name="warranty_card_id"/>
+                <field name="service_no"/>
+                <field name="state" filters="1"/>
+            </calendar>
+        </field>
+    </record>
+
+    <record id="action_warranty_service_entitlement_calendar" model="ir.actions.act_window">
+        <field name="name">Free Service Calendar</field>
+        <field name="res_model">warranty.service.entitlement</field>
+        <field name="view_mode">calendar,list,form</field>
+        <field name="view_id" ref="warranty_service_entitlement_view_calendar"/>
+        <field name="search_view_id" ref="warranty_service_entitlement_view_search"/>
+        <field name="domain">[('scheduled_date', '!=', False)]</field>
+        <field name="context">{'search_default_filter_scheduled': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No scheduled free services yet</p>
+            <p>Use Schedule on a free service to book its service date.</p>
         </field>
     </record>
 
     <record id="action_warranty_service_entitlement" model="ir.actions.act_window">
         <field name="name">Service Entitlements</field>
         <field name="res_model">warranty.service.entitlement</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list,calendar,form</field>
         <field name="search_view_id" ref="warranty_service_entitlement_view_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No service entitlements yet</p>

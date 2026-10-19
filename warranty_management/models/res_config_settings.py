@@ -50,6 +50,15 @@ class ResConfigSettings(models.TransientModel):
         string='Service Alert Responsible Users', readonly=False)
     warranty_timezone = fields.Selection(
         related='company_id.warranty_timezone', string='Warranty Timezone', readonly=False)
+    warranty_download_approval_required = fields.Boolean(
+        related='company_id.warranty_download_approval_required',
+        string='Require PDF Download Approval', readonly=False)
+    warranty_free_download_count = fields.Integer(
+        related='company_id.warranty_free_download_count', string='Free Download Count',
+        readonly=False)
+    warranty_download_approver_ids = fields.Many2many(
+        related='company_id.warranty_download_approver_ids',
+        string='Download Approval Responsible Users', readonly=False)
 
     def set_values(self):
         for settings in self:

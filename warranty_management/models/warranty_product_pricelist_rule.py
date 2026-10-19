@@ -2,8 +2,11 @@ from odoo import fields, models
 
 
 class WarrantyProductPricelistRule(models.Model):
+    """Legacy Product + Pricelist Warranty Mapping (retired, approved D1): the records are kept
+    but no longer shown on the product and not used by the warranty resolution; the
+    pricelist's Warranty Policy replaces them."""
     _name = 'warranty.product.pricelist.rule'
-    _description = 'Product + Pricelist Warranty Mapping'
+    _description = 'Product + Pricelist Warranty Mapping (Legacy)'
     _order = 'priority, id'
 
     product_tmpl_id = fields.Many2one(
@@ -26,7 +29,6 @@ class WarrantyProductPricelistRule(models.Model):
     default_schedule_method = fields.Selection([
         ('equal_interval', 'Equal Interval'),
         ('manual', 'Manual Schedule'),
-        ('calendar_month', 'Calendar Month'),
     ], string='Default Schedule Method')
     auto_create_services = fields.Boolean(string='Auto-create Services')
     usage_limit = fields.Float(string='Usage Limit')
@@ -41,3 +43,4 @@ class WarrantyProductPricelistRule(models.Model):
     effective_to = fields.Date(string='Effective To')
     priority = fields.Integer(string='Priority', default=10)
     active = fields.Boolean(string='Active', default=True)
+

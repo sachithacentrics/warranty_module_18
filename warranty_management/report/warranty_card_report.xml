@@ -24,8 +24,6 @@
                     <div class="col-6">
                         <div><strong>Sale Order: </strong><span t-field="card.sale_order_id"/></div>
                         <div t-if="card.product_id"><strong>Product: </strong><span t-field="card.product_id"/></div>
-                        <div t-if="card.brand_id"><strong>Brand: </strong><span t-field="card.brand_id"/></div>
-                        <div t-if="card.model_id"><strong>Model: </strong><span t-field="card.model_id"/></div>
                         <div t-if="card.indoor_serial_id"><strong>Indoor Serial No.: </strong><span t-field="card.indoor_serial_id"/></div>
                         <div t-if="card.outdoor_serial_id"><strong>Outdoor Serial No.: </strong><span t-field="card.outdoor_serial_id"/></div>
                         <div><strong>Warranty Start Date: </strong><span t-field="card.warranty_start_date"/></div>

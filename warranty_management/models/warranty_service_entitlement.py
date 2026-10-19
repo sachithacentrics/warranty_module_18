@@ -13,6 +13,9 @@ _logger = logging.getLogger(__name__)
 
 OPEN_STATES = ('draft', 'pending', 'scheduled', 'in_progress', 'rescheduled', 'missed')
 MONITORED_STATES = ('draft', 'pending', 'missed')
+# Free service scheduling (approved S1-S7, S2 monitoring, R1).
+SCHEDULED_STATES = ('scheduled', 'rescheduled')
+SCHEDULABLE_STATES = ('draft', 'pending', 'missed')
 
 
 class WarrantyServiceEntitlement(models.Model):
@@ -105,6 +108,13 @@ class WarrantyServiceEntitlement(models.Model):
     ], string='Payment Eligibility', readonly=True)
     reschedule_count = fields.Integer(
         string='Reschedule Count', compute='_compute_reschedule_count')
+    scheduled_date = fields.Date(
+        string='Scheduled Service Date', readonly=True, copy=False, index=True, tracking=True,
+        help="Date booked for the free service (Schedule / Reschedule). The Due Date is not "
+             "changed.")
+    schedule_log_ids = fields.One2many(
+        'warranty.service.entitlement.schedule.log', 'entitlement_id',
+        string='Schedule History', readonly=True)
 
     due_date_log_ids = fields.One2many(
         'warranty.service.entitlement.date.log', 'entitlement_id',
@@ -113,6 +123,7 @@ class WarrantyServiceEntitlement(models.Model):
         related='warranty_card_id.partner_id', string='Customer', store=True, index=True)
     company_id = fields.Many2one(
         related='warranty_card_id.company_id', string='Company', store=True, index=True)
+    warranty_basis = fields.Selection(related='warranty_card_id.warranty_basis')
 
     _sql_constraints = [
         ('card_service_no_unique', 'UNIQUE (warranty_card_id, service_no)',
@@ -144,6 +155,11 @@ class WarrantyServiceEntitlement(models.Model):
             raise UserError(_(
                 "Use the Change Due Date action to change a due date; the previous date, "
                 "the new date and the reason are recorded in the due date history."))
+        # Also blocks the calendar drag-and-drop (approved S5).
+        if 'scheduled_date' in vals and not self.env.context.get('warranty_schedule_audited'):
+            raise UserError(_(
+                "Use the Schedule / Reschedule action to change the scheduled service date; "
+                "the change and its reason are recorded in the schedule history."))
         return super().write(vals)
 
     @api.ondelete(at_uninstall=False)
@@ -193,9 +209,11 @@ class WarrantyServiceEntitlement(models.Model):
                 entitlement.usage_due * card.usage_alert_percentage / 100, precision_digits=2) \
                 if card.service_monitoring_active else 0.0
 
+    @api.depends('schedule_log_ids.action')
     def _compute_reschedule_count(self):
-        # Rescheduling is delivered in a later part of the Development Mapping.
-        self.reschedule_count = 0
+        for entitlement in self:
+            entitlement.reschedule_count = len(entitlement.schedule_log_ids.filtered(
+                lambda log: log.action == 'reschedule'))
 
     @api.constrains('warranty_card_id', 'service_no')
     def _check_warranty_card(self):
@@ -372,10 +390,15 @@ class WarrantyServiceEntitlement(models.Model):
 
     def _apply_expiry_rules(self, today):
         """T1-T4: Draft/Pending -> Missed after the due date; -> Expired after the grace
-        period only when Auto-expire is on and Carry-forward is off."""
+        period only when Auto-expire is on and Carry-forward is off. Scheduled / Rescheduled
+        (approved S2): the same rules once the booked service date has passed as well."""
         to_miss = to_expire = self.browse()
-        for entitlement in self.filtered(lambda e: e.state in MONITORED_STATES):
+        for entitlement in self.filtered(
+                lambda e: e.state in MONITORED_STATES + SCHEDULED_STATES):
             if entitlement._is_expiry_blocked() or today <= entitlement.due_date:
+                continue
+            if entitlement.state in SCHEDULED_STATES and entitlement.scheduled_date \
+                    and today <= entitlement.scheduled_date:
                 continue
             card = entitlement.warranty_card_id
             if today > entitlement.grace_period_end_date and card.auto_expire_services \
@@ -475,6 +498,74 @@ class WarrantyServiceEntitlement(models.Model):
             entitlements._apply_expiry_rules(today)
             entitlements._update_due_status(today)
 
+    def _get_schedule_mode(self, today):
+        """'schedule' or 'reschedule' (the service already has a scheduled date); raises when
+        the service cannot be scheduled: confirmed card; Draft / Pending, Missed within the
+        grace period, or Scheduled / Rescheduled."""
+        self.ensure_one()
+        if self.warranty_card_id.state != 'confirmed':
+            raise UserError(_("Free service %s can only be scheduled on a confirmed warranty "
+                              "card.", self.name))
+        if self.state == 'missed' and (
+                not self.grace_period_end_date or today > self.grace_period_end_date):
+            raise UserError(_("Missed free service %s can only be scheduled within its grace "
+                              "period.", self.name))
+        if self.state not in SCHEDULABLE_STATES + SCHEDULED_STATES:
+            raise UserError(_(
+                "Free service %(service)s cannot be scheduled in status %(state)s.",
+                service=self.name,
+                state=dict(self._fields['state']._description_selection(self.env))[self.state]))
+        return 'reschedule' if self.scheduled_date else 'schedule'
+
+    def _schedule_service(self, scheduled_date, reason=False):
+        """Schedule / Reschedule (approved S1, S3, S4): save the Scheduled Service Date, set
+        Scheduled (first schedule) or Rescheduled, record the schedule history and mark the
+        open due alert activities Done. The Due Date and the expiry reminders are unchanged."""
+        self.ensure_one()
+        today = self.company_id._warranty_today()
+        mode = self._get_schedule_mode(today)
+        if scheduled_date < today:
+            raise UserError(_("The scheduled service date cannot be in the past."))
+        if self.grace_period_end_date and scheduled_date > self.grace_period_end_date:
+            raise UserError(_(
+                "The scheduled service date cannot be after the Grace Period End Date "
+                "(%(date)s) of %(service)s.",
+                date=self.grace_period_end_date, service=self.name))
+        if mode == 'reschedule':
+            if scheduled_date == self.scheduled_date:
+                raise UserError(_("Select a date other than the current scheduled service "
+                                  "date."))
+            if not (reason or '').strip():
+                raise UserError(_("A reason is required to reschedule a free service."))
+        self.env['warranty.service.entitlement.schedule.log'].create({
+            'entitlement_id': self.id,
+            'action': mode,
+            'previous_scheduled_date': self.scheduled_date,
+            'scheduled_date': scheduled_date,
+            'reason': reason,
+        })
+        self.with_context(warranty_schedule_audited=True).write({
+            'scheduled_date': scheduled_date,
+            'state': 'scheduled' if mode == 'schedule' else 'rescheduled',
+        })
+        due_activities = self.due_alert_activity_ids.filtered('active')
+        if due_activities:
+            due_activities.action_feedback(feedback=_("Service scheduled"))
+        self._update_due_status()
+
+    def action_open_schedule_wizard(self):
+        self.ensure_one()
+        mode = self._get_schedule_mode(self.company_id._warranty_today())
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Schedule Free Service") if mode == 'schedule'
+            else _("Reschedule Free Service"),
+            'res_model': 'warranty.service.entitlement.schedule.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_entitlement_id': self.id},
+        }
+
     def action_open_due_date_wizard(self):
         self.ensure_one()
         if self.state != 'draft':
@@ -505,5 +596,30 @@ class WarrantyServiceEntitlementDateLog(models.Model):
     previous_due_date = fields.Date(string='Previous Due Date')
     new_due_date = fields.Date(string='New Due Date')
     reason = fields.Text(string='Reason', required=True)
+    company_id = fields.Many2one(
+        related='entitlement_id.company_id', string='Company', store=True, index=True)
+
+
+class WarrantyServiceEntitlementScheduleLog(models.Model):
+    """Schedule history of a free service: every Schedule / Reschedule by a user (date,
+    user, previous / new scheduled service date, reason)."""
+    _name = 'warranty.service.entitlement.schedule.log'
+    _description = 'Free Service Schedule History'
+    _order = 'change_date desc, id desc'
+
+    entitlement_id = fields.Many2one(
+        'warranty.service.entitlement', string='Service Entitlement', required=True,
+        ondelete='cascade', index=True)
+    action = fields.Selection([
+        ('schedule', 'Scheduled'),
+        ('reschedule', 'Rescheduled'),
+    ], string='Action', required=True)
+    user_id = fields.Many2one(
+        'res.users', string='Changed By', required=True, default=lambda self: self.env.user)
+    change_date = fields.Datetime(
+        string='Changed On', required=True, default=fields.Datetime.now)
+    previous_scheduled_date = fields.Date(string='Previous Scheduled Date')
+    scheduled_date = fields.Date(string='Scheduled Service Date', required=True)
+    reason = fields.Text(string='Reason / Note')
     company_id = fields.Many2one(
         related='entitlement_id.company_id', string='Company', store=True, index=True)

@@ -6,7 +6,6 @@
         <field name="arch" type="xml">
             <list string="Warranty Policies">
                 <field name="name"/>
-                <field name="applies_to"/>
                 <field name="warranty_duration"/>
                 <field name="warranty_duration_unit"/>
                 <field name="start_date_basis"/>
@@ -31,36 +30,9 @@
                         </h1>
                     </div>
                     <group>
-                        <group string="Applicability">
-                            <field name="active" invisible="1"/>
-                            <field name="applies_to"/>
-                            <field name="product_tmpl_ids" widget="many2many_tags"
-                                   invisible="applies_to != 'product'"
-                                   required="applies_to == 'product'"/>
-                            <!-- Products assigned directly from the product form (other Applies To). -->
-                            <field name="product_tmpl_ids" string="Directly Assigned Products"
-                                   widget="many2many_tags" readonly="1"
-                                   invisible="applies_to == 'product' or not product_tmpl_ids"/>
-                            <field name="product_categ_ids" widget="many2many_tags"
-                                   invisible="applies_to != 'product_category'"
-                                   required="applies_to == 'product_category'"/>
-                            <field name="product_brand_ids" widget="many2many_tags"
-                                   options="{'no_create': True}"
-                                   invisible="applies_to != 'brand'"
-                                   required="applies_to == 'brand'"/>
-                            <field name="product_model_ids" widget="many2many_tags"
-                                   options="{'no_create': True}"
-                                   invisible="applies_to != 'model'"
-                                   required="applies_to == 'model'"/>
-                            <field name="pricelist_ids" widget="many2many_tags"
-                                   invisible="applies_to != 'customer_type'"
-                                   required="applies_to == 'customer_type'"/>
-                            <field name="sale_order_type_id"
-                                   invisible="applies_to != 'sale_order_type'"
-                                   required="applies_to == 'sale_order_type'"/>
-                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
-                        </group>
                         <group string="Warranty">
+                            <field name="active" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
                             <label for="warranty_duration"/>
                             <div class="o_row">
                                 <field name="warranty_duration"/>
@@ -68,7 +40,10 @@
                             </div>
                             <field name="start_date_basis"/>
                             <field name="warranty_basis"/>
-                            <field name="usage_unit" invisible="warranty_basis != 'usage'"/>
+                            <field name="usage_limit" invisible="warranty_basis != 'usage'"
+                                   required="warranty_basis == 'usage'"/>
+                            <field name="usage_unit" invisible="warranty_basis != 'usage'"
+                                   required="warranty_basis == 'usage'"/>
                             <field name="card_grouping_mode" invisible="1"/>
                         </group>
                         <group string="Free Services">
@@ -77,6 +52,12 @@
                             <div class="o_row">
                                 <field name="free_service_period"/>
                                 <field name="free_service_period_unit"/>
+                            </div>
+                            <label for="free_service_frequency"/>
+                            <div class="o_row">
+                                <field name="free_service_frequency"/>
+                                <field name="free_service_frequency_unit"
+                                       required="free_service_frequency"/>
                             </div>
                             <field name="schedule_method"/>
                             <field name="auto_create_services"/>

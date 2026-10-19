@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
@@ -9,6 +10,13 @@ from odoo.tools import float_round
 
 from .res_company import get_valid_service_alert_users
 
+_logger = logging.getLogger(__name__)
+
+
+# Internal marker of the system generation of the warranty card PDF (cannot be sent by a
+# client: not JSON-serializable); see ir.actions.report / ir.binary.
+SYSTEM_PDF_TOKEN = object()
+PDF_PROTECTION_PARAM = 'warranty_management.card_pdfs_protected'
 
 # Service entitlements in these states are kept for history and cannot be deleted.
 PROTECTED_ENTITLEMENT_STATES = ('completed', 'missed', 'expired', 'cancelled')
@@ -48,8 +56,6 @@ class WarrantyCard(models.Model):
         string='Warranty Card No.', required=True, readonly=True, copy=False, default='New')
     partner_id = fields.Many2one('res.partner', string='Customer', required=True, index=True)
     product_id = fields.Many2one('product.product', string='Product')
-    brand_id = fields.Char(string='Brand')
-    model_id = fields.Char(string='Model')
     indoor_serial_id = fields.Many2one('stock.lot', string='Indoor Serial No.')
     outdoor_serial_id = fields.Many2one('stock.lot', string='Outdoor Serial No.')
     sale_order_id = fields.Many2one('sale.order', string='Sale Order', index=True, readonly=True)
@@ -87,9 +93,26 @@ class WarrantyCard(models.Model):
     replacement_count = fields.Integer(
         string='Replacement Count', compute='_compute_replacement_count')
     current_active_serial = fields.Boolean(string='Current Active Serial Flag', default=True)
+    # The PDF soft copy is a protected field attachment (approved D1 / D5): not listed with the
+    # normal attachments and only delivered through Download PDF.
+    pdf_file = fields.Binary(
+        string='Warranty Card PDF', attachment=True, copy=False, groups='base.group_system')
     pdf_attachment_id = fields.Many2one(
-        'ir.attachment', string='PDF Soft Copy', readonly=True, copy=False)
-    print_count = fields.Integer(string='Print Count', compute='_compute_print_count')
+        'ir.attachment', string='PDF Soft Copy', readonly=True, copy=False,
+        groups='base.group_system')
+    print_count = fields.Integer(
+        string='Download Count', compute='_compute_print_count',
+        help="Authorized downloads of the warranty card PDF (the PDF generated at confirmation "
+             "is not counted).")
+    download_log_ids = fields.One2many(
+        'warranty.card.download.log', 'warranty_card_id', string='Download History',
+        readonly=True)
+    download_request_ids = fields.One2many(
+        'warranty.card.download.request', 'warranty_card_id',
+        string='Download Approval Requests', readonly=True)
+    download_history_ids = fields.One2many(
+        'warranty.card.download.history', 'warranty_card_id', string='Download History',
+        readonly=True)
 
     card_grouping_mode = fields.Selection([
         ('per_so', 'Per Sales Order'),
@@ -117,14 +140,18 @@ class WarrantyCard(models.Model):
     policy_id = fields.Many2one('warranty.policy', string='Warranty Policy', readonly=True)
     pricelist_id = fields.Many2one('product.pricelist', string='Pricelist', readonly=True)
     policy_source = fields.Selection([
-        ('pricelist_rule', 'Product + Pricelist Rule'),
+        ('pricelist_policy', 'Pricelist Warranty Policy'),
         ('product_policy', 'Product Warranty Policy'),
-        ('model_policy', 'Model Warranty Policy'),
-        ('brand_policy', 'Brand Warranty Policy'),
-        ('customer_type_policy', 'Customer Type Warranty Policy'),
+        ('category_policy', 'Product Category Policy'),
+        ('company_policy', 'Company Default Policy'),
         ('product', 'Product Default Rule'),
         ('category', 'Product Category Rule'),
         ('company', 'Company Fallback Rule'),
+        # Legacy sources, kept for the existing warranty cards.
+        ('pricelist_rule', 'Product + Pricelist Rule'),
+        ('model_policy', 'Model Warranty Policy'),
+        ('brand_policy', 'Brand Warranty Policy'),
+        ('customer_type_policy', 'Customer Type Warranty Policy'),
     ], string='Policy Source', readonly=True)
 
     warranty_duration = fields.Integer(string='Warranty Duration', readonly=True)
@@ -155,7 +182,6 @@ class WarrantyCard(models.Model):
         ('equal_interval', 'Equal Interval'),
         ('fixed_offsets', 'Fixed Offsets'),
         ('manual', 'Manual Schedule'),
-        ('calendar_month', 'Calendar Month'),
         ('amc_plan', 'AMC Plan'),
     ], string='Schedule Method', readonly=True, copy=False)
     free_service_period = fields.Integer(string='Free Service Period', readonly=True, copy=False)
@@ -260,8 +286,13 @@ class WarrantyCard(models.Model):
     def _compute_replacement_count(self):
         self.replacement_count = 0
 
+    @api.depends('download_log_ids')
     def _compute_print_count(self):
-        self.print_count = 0
+        # sudo: the count includes every download of the card, whoever downloaded it.
+        counts = dict(self.env['warranty.card.download.log'].sudo()._read_group(
+            [('warranty_card_id', 'in', self.ids)], ['warranty_card_id'], ['__count']))
+        for card in self:
+            card.print_count = counts.get(card.sudo(), 0) if card.id else 0
 
     @api.depends(*REQUIREMENT_DEPENDS)
     def _compute_state(self):
@@ -398,25 +429,10 @@ class WarrantyCard(models.Model):
             'free_services', 'amc_free_services')
 
     @api.model
-    def _get_free_service_levels(self, template, company, product_policy, policy):
-        """Free service configuration levels after the Product + Pricelist line (approved
-        priority, see doc/warranty_policy_resolution.md section 3f): for a product with a
-        mapped Warranty Policy, the product-level policy resolved for the Sales Order
-        (``product_policy``, e.g. the order pricelist's Customer Type policy), else the
-        product; the category's Default Warranty Policy, else the category; the applicable
-        (card) policy; the Company Default Warranty Policy. The Company Warranty Settings are
-        the final fallback of the callers. Without a product (card of several products) the
-        product and category levels are skipped."""
-        levels = []
-        if template:
-            # A mapped product never uses its own (readonly) values.
-            levels.append(product_policy
-                          if template.with_company(company).warranty_policy_applicable
-                          else template)
-            category = template.categ_id
-            levels.append(category.warranty_policy_id or category)
-        levels += [policy, company.default_warranty_policy_id]
-        return [level for level in levels if level]
+    def _get_own_value_levels(self, template):
+        """Own-value levels used when no Warranty Policy applies (P5): the product, then its
+        category. Without a product (card of several products) there is none."""
+        return [level for level in (template, template.categ_id) if level] if template else []
 
     def _get_card_sale_line(self):
         """The Sales Order line of the card's product; empty for a card of several products."""
@@ -426,36 +442,16 @@ class WarrantyCard(models.Model):
         return self.sale_order_line_ids.filtered(
             lambda line: line.product_id == self.product_id)[:1]
 
-    def _get_card_pricelist_rule(self):
-        """The Product + Pricelist mapping line the card's Sales Order line matched; empty for
-        a card of several products."""
-        self.ensure_one()
-        line = self._get_card_sale_line()
-        return (line._warranty_pricelist_rule() if line
-                else self.env['warranty.product.pricelist.rule'])
-
-    def _get_card_free_service_levels(self):
-        self.ensure_one()
-        # Product-level policy as resolved for the card's Sales Order line.
-        line = self._get_card_sale_line()
-        product_policy = (line._warranty_product_policy()[0] if line
-                          else self.env['warranty.policy'])
-        return self._get_free_service_levels(
-            self.product_id.product_tmpl_id, self.company_id, product_policy, self.policy_id)
-
     def _auto_create_services_enabled(self):
-        """Ticked on the matched Product + Pricelist mapping line enables it. Otherwise the
-        first level that is a policy decides (an unticked policy is not overridden); a product
-        / category without a policy enables it when ticked; the Company Warranty Settings are
+        """The card's Warranty Policy decides alone (strict priority). Without a policy (P5):
+        ticked on the product or its category enables it; the Company Warranty Settings are
         the final fallback."""
         self.ensure_one()
-        if self._get_card_pricelist_rule().auto_create_services:
+        if self.policy_id:
+            return self.policy_id.auto_create_services
+        if any(level.auto_create_services
+                for level in self._get_own_value_levels(self.product_id.product_tmpl_id)):
             return True
-        for level in self._get_card_free_service_levels():
-            if level._name == 'warranty.policy':
-                return level.auto_create_services
-            if level.auto_create_services:
-                return True
         return self.company_id.warranty_auto_create_services
 
     def _resolve_service_alert_users(self):
@@ -484,21 +480,21 @@ class WarrantyCard(models.Model):
                 policy.service_alert_user_ids, card.company_id) \
                 or get_valid_service_alert_users(
                     card.company_id.warranty_service_alert_user_ids, card.company_id)
-            # Schedule method and free service period: the first level with a value, else the
-            # Company Warranty Settings.
+            # Schedule method and free service period: the card's Warranty Policy, its empty
+            # values filled by the Company Warranty Settings. Without a policy (P5): the product
+            # or category schedule method, and the Company Warranty Settings.
             company = card.company_id
-            levels = card._get_card_free_service_levels()
-            # Product + Pricelist mapping line first (the line the Sales Order matched).
-            rule = card._get_card_pricelist_rule()
-            schedule_method = rule.default_schedule_method or next(filter(None, (
-                level.schedule_method if level._name == 'warranty.policy'
-                else level.default_schedule_method
-                for level in levels)), company.default_schedule_method)
-            period, period_unit = next((
-                (level.free_service_period, level.free_service_period_unit)
-                for level in levels if level._name == 'warranty.policy'
-                and level.free_service_period > 0 and level.free_service_period_unit), (
-                company.default_free_service_period, company.default_free_service_period_unit))
+            if policy:
+                schedule_method = policy.schedule_method or company.default_schedule_method
+            else:
+                schedule_method = next(filter(None, (
+                    level.default_schedule_method for level in card._get_own_value_levels(
+                        card.product_id.product_tmpl_id))), company.default_schedule_method)
+            if policy.free_service_period > 0 and policy.free_service_period_unit:
+                period, period_unit = policy.free_service_period, policy.free_service_period_unit
+            else:
+                period = company.default_free_service_period
+                period_unit = company.default_free_service_period_unit
             card.write({
                 'schedule_method': schedule_method,
                 'free_service_period': period,
@@ -583,10 +579,7 @@ class WarrantyCard(models.Model):
             notes.append(_(
                 "AMC Plan: free service schedules are managed by the separate AMC module; no "
                 "service entitlements are generated by the warranty module."))
-        elif method == 'calendar_month':
-            notes.append(_(
-                "Calendar Month: the due date calculation is pending a business decision. "
-                "Enter the due dates manually."))
+
         elif method == 'manual':
             notes.append(_("Manual Schedule: enter the due dates manually."))
         elif method == 'fixed_offsets' and not self._has_complete_service_offsets():
@@ -678,15 +671,104 @@ class WarrantyCard(models.Model):
         return True
 
     def _generate_soft_copy(self):
+        """Generate the warranty card PDF (unchanged report) and store it in the protected
+        field attachment; this is not a download (approved: Download Count unchanged)."""
         report = self.env.ref('warranty_management.action_report_warranty_card')
         for card in self:
-            pdf_content, __ = self.env['ir.actions.report']._render_qweb_pdf(report, card.ids)
-            attachment = self.env['ir.attachment'].create({
+            pdf_content, __ = self.env['ir.actions.report'].with_context(
+                warranty_card_pdf_token=SYSTEM_PDF_TOKEN)._render_qweb_pdf(report, card.ids)
+            # sudo: system generation of the protected PDF (field restricted to administrators).
+            attachment = self.env['ir.attachment'].sudo().create({
                 'name': '%s.pdf' % card.name.replace('/', '_'),
                 'type': 'binary',
                 'raw': pdf_content,
                 'mimetype': 'application/pdf',
                 'res_model': card._name,
                 'res_id': card.id,
+                'res_field': 'pdf_file',
             })
-            card.pdf_attachment_id = attachment
+            card.sudo().pdf_attachment_id = attachment
+
+    def _get_pdf_attachment(self):
+        """The protected PDF attachment of the card (sudo record); generated when missing."""
+        self.ensure_one()
+        Attachment = self.env['ir.attachment'].sudo()
+        attachment = Attachment.search([
+            ('res_model', '=', self._name), ('res_id', '=', self.id),
+            ('res_field', '=', 'pdf_file')], limit=1)
+        if not attachment:
+            self._generate_soft_copy()
+            attachment = Attachment.search([
+                ('res_model', '=', self._name), ('res_id', '=', self.id),
+                ('res_field', '=', 'pdf_file')], limit=1)
+        return attachment
+
+    def action_download_pdf(self):
+        """Download PDF (approved D1-D5): the free downloads, then one approved request per
+        download; the file is delivered by a single-use ticket of the current user."""
+        self.ensure_one()
+        self.check_access('read')
+        if self.state != 'confirmed':
+            raise UserError(_("The PDF can only be downloaded for a confirmed warranty card."))
+        self._get_pdf_attachment()
+        request = self.env['warranty.card.download.request']
+        if self._download_approval_needed():
+            request = request.sudo().search([
+                ('warranty_card_id', '=', self.id), ('requested_by_id', '=', self.env.uid),
+                ('state', '=', 'approved')], order='id', limit=1)
+            if not request:
+                pending = self.env['warranty.card.download.request'].sudo().search([
+                    ('warranty_card_id', '=', self.id), ('requested_by_id', '=', self.env.uid),
+                    ('state', '=', 'to_approve')], limit=1)
+                if pending:
+                    raise UserError(_(
+                        "Your download approval request %s is waiting for approval.",
+                        pending.name))
+                return {
+                    'type': 'ir.actions.act_window',
+                    'name': _("Request Download Approval"),
+                    'res_model': 'warranty.card.download.request.wizard',
+                    'view_mode': 'form',
+                    'target': 'new',
+                    'context': {'default_warranty_card_id': self.id},
+                }
+        ticket = self.env['warranty.card.download.ticket']._issue(self, request)
+        return {
+            'type': 'ir.actions.act_url',
+            'url': '/warranty/card/pdf/%s' % ticket.token,
+            'target': 'self',
+        }
+
+    def _download_approval_needed(self):
+        self.ensure_one()
+        company = self.company_id
+        return company.warranty_download_approval_required \
+            and self.print_count >= company.warranty_free_download_count
+
+    @api.model
+    def _migrate_protect_card_pdfs(self):
+        """One-time (approved D1): move the existing warranty card PDF soft copies (the
+        attachment of PDF Soft Copy) into the protected field attachment. Same attachment
+        records and content; other attachments are not changed; no download is recorded."""
+        ICP = self.env['ir.config_parameter'].sudo()
+        if ICP.get_param(PDF_PROTECTION_PARAM):
+            return
+        # sudo: system migration over every company.
+        for card in self.sudo().search([('pdf_attachment_id', '!=', False)]):
+            attachment = card.pdf_attachment_id
+            if attachment.res_field == 'pdf_file':
+                continue
+            if attachment.res_model != card._name or attachment.res_id != card.id:
+                _logger.warning("Warranty card PDF protection: attachment %s of %s belongs to "
+                                "another record; not changed.", attachment.id, card.name)
+                continue
+            if self.env['ir.attachment'].sudo().search_count([
+                    ('res_model', '=', card._name), ('res_id', '=', card.id),
+                    ('res_field', '=', 'pdf_file')]):
+                _logger.warning("Warranty card PDF protection: %s already has a protected PDF; "
+                                "attachment %s not changed.", card.name, attachment.id)
+                continue
+            attachment.write({'res_field': 'pdf_file'})
+            _logger.info("Warranty card PDF protection: %s (attachment %s) protected.",
+                         card.name, attachment.id)
+        ICP.set_param(PDF_PROTECTION_PARAM, fields.Datetime.now())

@@ -36,7 +36,6 @@ class ProductCategory(models.Model):
     default_schedule_method = fields.Selection([
         ('equal_interval', 'Equal Interval'),
         ('manual', 'Manual Schedule'),
-        ('calendar_month', 'Calendar Month'),
     ], string='Default Schedule Method')
     auto_create_services = fields.Boolean(string='Auto-create Services')
     card_grouping_mode = fields.Selection([

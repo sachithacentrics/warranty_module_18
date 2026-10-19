@@ -182,83 +182,92 @@ class SaleOrderLine(models.Model):
         qty = self.product_uom._compute_quantity(self.product_uom_qty, self.product_id.uom_id)
         return int(float_round(qty, precision_digits=0))
 
-    def _warranty_product_policy(self):
-        """Product-level warranty policy of this line for the order: the product's Product /
-        Model / Brand policy, else the Customer Type policy of the order's pricelist, else the
-        Default Warranty Policy inherited from its category. Returns (policy, assigned directly
-        to the product, inherited from the category)."""
+    def _warranty_policy_levels(self):
+        """The four Warranty Policy levels of this line, in the approved strict priority:
+        [(policy source, level label, selected policy)]."""
         self.ensure_one()
         order = self.order_id
-        template = self.product_id.product_tmpl_id
         company = order.company_id
-        Policy = self.env['warranty.policy']
-        product_policy = Policy._get_product_policy(template, company, include_category=False)
-        # A policy the product is assigned to directly (any Applies To) is a Product policy.
-        direct_policy = template in product_policy.product_tmpl_ids
-        if not direct_policy and (
-                not product_policy or product_policy.applies_to == 'customer_type'):
-            # Customer Type policy of the order's pricelist; no product link to the pricelist
-            # (mapping line or price rule) is required.
-            product_policy = Policy._get_customer_type_policy_map(
-                company, order.pricelist_id.ids).get(order.pricelist_id.id, Policy)
-        # Lowest priority: the active Default Warranty Policy of the category (order company
-        # or shared), inherited by the product.
-        category_policy = template.categ_id.warranty_policy_id
-        inherited = bool(not product_policy and category_policy.active
-                         and category_policy.company_id in (company, self.env['res.company']))
-        if inherited:
-            product_policy = category_policy
-        return product_policy, direct_policy, inherited
+        template = self.product_id.product_tmpl_id
+        pricelist = order.pricelist_id
+        return [
+            ('pricelist_policy', _("Pricelist %s", pricelist.name),
+             pricelist.warranty_policy_id if pricelist.warranty_applicable
+             else self.env['warranty.policy']),
+            ('product_policy', _("Product"), template.with_company(company).warranty_policy_id),
+            ('category_policy', _("Product Category"), template.categ_id.warranty_policy_id),
+            ('company_policy', _("Company Default Warranty Policy"),
+             company.default_warranty_policy_id),
+        ]
 
-    def _warranty_pricelist_rule(self):
-        """Product + Pricelist mapping line of this line: the order's pricelist, valid on the
-        order date, highest priority."""
+    def _warranty_selected_policy(self):
+        """(policy, policy source, level label) of the first level whose policy applies to the
+        order company (active, of the order company or shared); empty policy when none."""
         self.ensure_one()
-        order = self.order_id
-        order_date = order.date_order.date()
-        return self.product_id.product_tmpl_id.warranty_pricelist_rule_ids.filtered(
-            lambda r: r.pricelist_id == order.pricelist_id
-            and (not r.effective_from or r.effective_from <= order_date)
-            and (not r.effective_to or r.effective_to >= order_date)
-        ).sorted(lambda r: (r.priority, r.id))[:1]
+        company = self.order_id.company_id
+        for source, level, policy in self._warranty_policy_levels():
+            if policy and policy._is_applicable_for_company(company):
+                return policy, source, level
+        return self.env['warranty.policy'], False, False
 
     def _warranty_resolve_rule(self):
-        """Resolve the applicable warranty configuration. The first valid rule wins:
-        Product + Pricelist rule > Product warranty policy (Product > Model > Brand policy)
-        > Product default > Product category > Company fallback (approved change to SRS §2.2, see
-        doc/warranty_policy_resolution.md).
-        Values the winning rule does not hold fall back product > category > policy > company."""
+        """Resolve the applicable warranty configuration (approved strict priority, see
+        doc/warranty_policy_resolution.md):
+        P1 Sales Order pricelist policy (Warranty Applicable pricelist) > P2 Product policy >
+        P3 Product Category policy > P4 Company Default Warranty Policy: every value comes from
+        the selected policy (no values of lower levels); the Company Warranty Settings only
+        fill its empty Warranty Basis / Start Criterion (and, at confirmation, Free Service
+        Period / Schedule Method). A selected policy without a valid duration, or usage-based
+        without usage limit / unit, is a configuration error.
+        P5 (no policy at any level): the own values, product > category > Company Warranty
+        Settings. The legacy Product + Pricelist Warranty Mapping lines are not used."""
+        self.ensure_one()
+        order = self.order_id
+        company = order.company_id
+        policy, source, level = self._warranty_selected_policy()
+        if policy:
+            warranty_basis = policy.warranty_basis or company.default_warranty_basis
+            policy._check_warranty_configuration(level, self.product_id, order, warranty_basis)
+            frequency = policy.free_service_frequency > 0 and policy.free_service_frequency_unit
+            values = {
+                'policy': policy,
+                'policy_source': source,
+                'warranty_duration': policy.warranty_duration,
+                'warranty_duration_unit': policy.warranty_duration_unit,
+                'free_service_count': policy.free_service_count,
+                'free_service_frequency': policy.free_service_frequency if frequency else 0,
+                'free_service_frequency_unit': frequency or False,
+                'usage_limit': policy.usage_limit,
+                'usage_unit': policy.usage_unit,
+                'start_criterion': policy.start_date_basis or company.default_start_criterion,
+                'warranty_basis': warranty_basis,
+            }
+        else:
+            values = self._warranty_resolve_own_values()
+        missing = [label for key, label in (
+            ('start_criterion', _("Start Criterion")),
+            ('warranty_basis', _("Warranty Basis")),
+        ) if not values[key]]
+        if missing:
+            raise UserError(_(
+                "Configuration Required: %(fields)s could not be resolved for product "
+                "\"%(product)s\" on %(order)s.",
+                fields=', '.join(missing), product=self.product_id.display_name,
+                order=order.name))
+        return values
+
+    def _warranty_resolve_own_values(self):
+        """P5 - no Warranty Policy at any level: the own warranty values. Duration: product
+        default > category default > Company Warranty Settings; for each other value the first
+        level with a value wins (0 / empty is not a value). No policy is linked to the card."""
         self.ensure_one()
         order = self.order_id
         template = self.product_id.product_tmpl_id
         category = template.categ_id
         company = order.company_id
 
-        product_policy, direct_policy, category_policy = self._warranty_product_policy()
-        policy = product_policy or category.warranty_policy_id \
-            or company.default_warranty_policy_id
-        rule = self._warranty_pricelist_rule()
-
-        values = {'usage_limit': 0.0, 'usage_unit': False}
-        if rule:
-            values.update({
-                'policy_source': 'pricelist_rule',
-                'warranty_duration': rule.warranty_period,
-                'warranty_duration_unit': rule.warranty_period_unit,
-                'usage_limit': rule.usage_limit,
-                'usage_unit': rule.usage_unit,
-            })
-        elif product_policy.warranty_duration > 0:
-            values.update({
-                'policy_source': 'category' if category_policy
-                else 'product_policy' if direct_policy else {
-                    'model': 'model_policy', 'brand': 'brand_policy',
-                    'customer_type': 'customer_type_policy'}.get(
-                    product_policy.applies_to, 'product_policy'),
-                'warranty_duration': product_policy.warranty_duration,
-                'warranty_duration_unit': product_policy.warranty_duration_unit,
-            })
-        elif template.default_warranty_period > 0:
+        values = {'policy': self.env['warranty.policy'], 'usage_limit': 0.0, 'usage_unit': False}
+        if template.default_warranty_period > 0:
             values.update({
                 'policy_source': 'product',
                 'warranty_duration': template.default_warranty_period,
@@ -276,57 +285,29 @@ class SaleOrderLine(models.Model):
                 'warranty_duration': company.default_warranty_duration,
                 'warranty_duration_unit': company.default_warranty_duration_unit,
             })
-        elif company.default_warranty_policy_id.warranty_duration > 0:
-            company_policy = company.default_warranty_policy_id
-            values.update({
-                'policy_source': 'company',
-                'warranty_duration': company_policy.warranty_duration,
-                'warranty_duration_unit': company_policy.warranty_duration_unit,
-            })
         else:
             raise UserError(_(
                 "Configuration Required: no warranty rule was found for product "
-                "\"%(product)s\" on %(order)s. Configure a Product + Pricelist rule, a product "
-                "default rule, a product category rule or the company fallback rule.",
+                "\"%(product)s\" on %(order)s. Select a Warranty Policy (pricelist, product, "
+                "product category or company default) or configure the warranty values of the "
+                "product, the product category or the company.",
                 product=self.product_id.display_name, order=order.name))
 
-        # Free service values, resolved separately from the duration (approved priority):
-        # Product + Pricelist line > product's mapped policy, else product > category's
-        # policy, else category > applicable policy > Company Default Warranty Policy >
-        # Company Warranty Settings; for each value the first level with a value wins
-        # (0 / empty is not a value). Policies have no frequency: their Free Service Period
-        # is used at card confirmation.
-        levels = self.env['warranty.card']._get_free_service_levels(
-            template, company, product_policy, policy)
-        values['free_service_count'] = next((count for count in [rule.free_service_count] + [
-            level.free_service_count if level._name == 'warranty.policy'
-            else level.default_free_service_count for level in levels] + [
+        levels = self.env['warranty.card']._get_own_value_levels(template)
+        values['free_service_count'] = next((count for count in [
+            level.default_free_service_count for level in levels] + [
             company.default_free_service_count] if count > 0), 0)
         values['free_service_frequency'], values['free_service_frequency_unit'] = next((
             (level.free_service_frequency, level.free_service_frequency_unit)
-            for level in [rule] + levels if level._name != 'warranty.policy'
-            and level.free_service_frequency > 0 and level.free_service_frequency_unit),
+            for level in levels
+            if level.free_service_frequency > 0 and level.free_service_frequency_unit),
             (0, False))
         values.update({
-            'policy': policy,
-            'usage_unit': values['usage_unit'] or policy.usage_unit,
             'start_criterion': (template.warranty_start_criterion
                                 or category.warranty_start_criterion
-                                or policy.start_date_basis
                                 or company.default_start_criterion),
             'warranty_basis': (template.warranty_basis
                                or category.warranty_basis
-                               or policy.warranty_basis
                                or company.default_warranty_basis),
         })
-        missing = [label for key, label in (
-            ('start_criterion', _("Start Criterion")),
-            ('warranty_basis', _("Warranty Basis")),
-        ) if not values[key]]
-        if missing:
-            raise UserError(_(
-                "Configuration Required: %(fields)s could not be resolved for product "
-                "\"%(product)s\" on %(order)s.",
-                fields=', '.join(missing), product=self.product_id.display_name,
-                order=order.name))
         return values

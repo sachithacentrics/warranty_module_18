@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_unit_view_list_kit_serials" model="ir.ui.view">
+        <field name="name">warranty.unit.list.kit.serials</field>
+        <field name="model">warranty.unit</field>
+        <field name="inherit_id" ref="warranty_management.warranty_unit_view_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='serial_ids']" position="after">
+                <field name="indoor_serial_id" optional="show"/>
+                <field name="outdoor_serial_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_unit_view_form_kit_serials" model="ir.ui.view">
+        <field name="name">warranty.unit.form.kit.serials</field>
+        <field name="model">warranty.unit</field>
+        <field name="inherit_id" ref="warranty_management.warranty_unit_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='serial_ids']" position="after">
+                <field name="indoor_serial_id" readonly="1"/>
+                <field name="outdoor_serial_id" readonly="1"/>
+                <field name="kit_serials_corrected"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_unit_view_search_kit_serials" model="ir.ui.view">
+        <field name="name">warranty.unit.search.kit.serials</field>
+        <field name="model">warranty.unit</field>
+        <field name="inherit_id" ref="warranty_management.warranty_unit_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='serial_ids']" position="after">
+                <field name="indoor_serial_id"/>
+                <field name="outdoor_serial_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

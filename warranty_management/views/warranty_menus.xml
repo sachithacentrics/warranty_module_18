@@ -8,10 +8,16 @@
               parent="menu_warranty_cards_root" sequence="10"/>
     <menuitem id="menu_warranty_unit" name="Warranty Unit Numbers" action="action_warranty_unit"
               parent="menu_warranty_cards_root" sequence="20"/>
+    <menuitem id="menu_warranty_card_download_request" name="Download Approval Requests"
+              action="action_warranty_card_download_request"
+              parent="menu_warranty_cards_root" sequence="30"/>
 
     <menuitem id="menu_warranty_service_entitlement" name="Service Entitlements"
               action="action_warranty_service_entitlement"
               parent="menu_warranty_root" sequence="20"/>
+    <menuitem id="menu_warranty_service_entitlement_calendar" name="Free Service Calendar"
+              action="action_warranty_service_entitlement_calendar"
+              parent="menu_warranty_root" sequence="25"/>
 
     <menuitem id="menu_warranty_configuration" name="Configuration"
               parent="menu_warranty_root" sequence="100"/>

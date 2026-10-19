@@ -32,6 +32,8 @@
                 <header>
                     <button name="action_confirm_warranty" type="object" string="Confirm Warranty"
                             class="btn-primary" invisible="state != 'ready'"/>
+                    <button name="action_download_pdf" type="object" string="Download PDF"
+                            icon="fa-download" invisible="state != 'confirmed'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,ready,confirmed"/>
                 </header>
                 <sheet>
@@ -54,8 +56,6 @@
                         <group>
                             <field name="partner_id" readonly="state not in ('draft', 'ready')"/>
                             <field name="product_id" readonly="state not in ('draft', 'ready')"/>
-                            <field name="brand_id" readonly="state not in ('draft', 'ready')"/>
-                            <field name="model_id" readonly="state not in ('draft', 'ready')"/>
                             <field name="indoor_serial_id" readonly="state not in ('draft', 'ready')"/>
                             <field name="outdoor_serial_id" readonly="state not in ('draft', 'ready')"/>
                             <field name="sale_order_id"/>
@@ -147,8 +147,11 @@
                                            decoration-info="due_status == 'upcoming'"
                                            decoration-warning="due_status == 'due'"
                                            decoration-danger="due_status == 'overdue'"/>
-                                    <field name="usage_due" optional="show"/>
-                                    <field name="usage_unit" optional="show"/>
+                                    <field name="scheduled_date" optional="show"/>
+                                    <field name="usage_due" optional="show"
+                                           column_invisible="parent.warranty_basis != 'usage'"/>
+                                    <field name="usage_unit" optional="show"
+                                           column_invisible="parent.warranty_basis != 'usage'"/>
                                     <field name="merge_status" optional="hide"/>
                                     <field name="state" widget="badge" decoration-info="state == 'draft'"
                                            decoration-warning="state == 'missed'"
@@ -167,7 +170,7 @@
                                 </field>
                             </group>
                         </page>
-                        <page string="Resolved Rule" name="resolved_rule">
+                        <page string="Policy" name="policy">
                             <group>
                                 <group>
                                     <field name="policy_source"/>
@@ -202,10 +205,32 @@
                                     <field name="replacement_count"/>
                                 </group>
                                 <group>
-                                    <field name="pdf_attachment_id"/>
+                                    <field name="pdf_attachment_id" groups="base.group_system"/>
                                     <field name="print_count"/>
                                 </group>
                             </group>
+                        </page>
+                        <!-- Single Download History: downloads with their approval request, and the
+                             requests without download yet. Requests are approved / rejected from the
+                             approvers' activities (request form). -->
+                        <page string="Download History" name="pdf_downloads" invisible="state != 'confirmed'">
+                            <field name="download_history_ids">
+                                <list create="0" delete="0" no_open="1">
+                                    <field name="event_date"/>
+                                    <field name="entry_type"/>
+                                    <field name="download_no"/>
+                                    <field name="downloaded_by_id"/>
+                                    <field name="request_id"/>
+                                    <field name="request_state" widget="badge"
+                                           decoration-info="request_state == 'to_approve'"
+                                           decoration-success="request_state in ('approved', 'used')"
+                                           decoration-danger="request_state == 'rejected'"/>
+                                    <field name="requested_by_id"/>
+                                    <field name="reason"/>
+                                    <field name="decided_by_id"/>
+                                    <field name="decision_date"/>
+                                </list>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
