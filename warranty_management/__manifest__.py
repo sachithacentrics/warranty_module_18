@@ -37,6 +37,7 @@ Warranty Management - Part 1 (Configuration + Warranty Card Creation)
         'data/mail_activity_type_data.xml',
         'data/mail_template_data.xml',
         'data/ir_cron_data.xml',
+        'data/warranty_policy_migration_data.xml',
         'report/warranty_card_report.xml',
         'views/warranty_card_views.xml',
         'views/warranty_unit_views.xml',

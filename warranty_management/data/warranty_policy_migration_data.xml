@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Strict policy priority: one-time copy of the legacy direct product assignments
+         (Applicable Products) to the per-company product Warranty Policy. Runs once per
+         database (ir.config_parameter marker); see
+         warranty.policy._migrate_legacy_product_policies. -->
+    <function model="warranty.policy" name="_migrate_legacy_product_policies"/>
+    <!-- Pricelist Warranty Policy (approved D1): the retired Product + Pricelist Warranty
+         Mapping lines are logged once for review; nothing is converted or changed. -->
+    <function model="warranty.policy" name="_log_legacy_pricelist_rules"/>
+    <!-- Warranty card PDF download approval (approved D1): the existing PDF soft copies are
+         moved once into the protected field attachment (same records and content). -->
+    <function model="warranty.card" name="_migrate_protect_card_pdfs"/>
+</odoo>
