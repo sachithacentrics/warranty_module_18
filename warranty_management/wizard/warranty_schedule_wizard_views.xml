@@ -14,8 +14,6 @@
                         <field name="current_scheduled_date" invisible="mode != 'reschedule'"/>
                     </group>
                     <group>
-                        <!-- Monthly date picker; the Grace Period End limit is checked on
-                             confirmation. -->
                         <field name="scheduled_date" options="{'min_date': 'today'}"/>
                     </group>
                 </group>

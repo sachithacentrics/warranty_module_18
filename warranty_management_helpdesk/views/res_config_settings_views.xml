@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_warranty_helpdesk" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.helpdesk</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management.res_config_settings_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_download_approval_settings']" position="after">
+                <block title="Warranty Case Approvals and Exceptions" name="warranty_overdue_approval_settings">
+                    <setting id="warranty_overdue_approver_ids" string="Overdue Claim Approval Users"
+                             help="Approve the payment exceptions of warranty cases of this company (Overdue Claim Handling = Approval Required), never their own requests">
+                        <field name="warranty_overdue_approver_ids" widget="many2many_tags"/>
+                    </setting>
+                    <setting id="warranty_case_approver_ids" string="Warranty Case Approval Users"
+                             help="Approve the eligible warranty cases of this company (approved Part 3.6a), never a case they created or whose latest eligibility check they ran">
+                        <field name="warranty_case_approver_ids" widget="many2many_tags"/>
+                    </setting>
+                    <setting id="warranty_escalation_user_ids" string="Repeated Failure Escalation Users"
+                             help="Manager / GM confirming the warranty of repeated failure cases of this company (approved Part 3.5), never their own escalations">
+                        <field name="warranty_escalation_user_ids" widget="many2many_tags"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

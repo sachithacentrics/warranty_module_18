@@ -22,8 +22,6 @@ class WarrantyPolicy(models.Model):
     company_id = fields.Many2one(
         'res.company', string='Company', default=lambda self: self.env.company)
 
-    # Legacy applicability mapping (before 18.0.1.4.0). Kept to preserve the existing data;
-    # not shown and not used by the warranty resolution any more.
     applies_to = fields.Selection([
         ('product', 'Product'),
         ('product_category', 'Product Category'),
@@ -252,7 +250,7 @@ class WarrantyPolicy(models.Model):
 
     @api.model
     def _log_legacy_pricelist_rules(self):
-        """One-time review log (approved D1): the Product + Pricelist Warranty Mapping lines are
+        """The Product + Pricelist Warranty Mapping lines are
         retired without conversion; each active line is logged once so that it can be
         reconfigured as a product or pricelist Warranty Policy. Nothing is changed."""
         ICP = self.env['ir.config_parameter'].sudo()

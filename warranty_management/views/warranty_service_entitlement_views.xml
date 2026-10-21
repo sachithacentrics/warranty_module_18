@@ -160,8 +160,7 @@
         </field>
     </record>
 
-    <!-- Free Service Calendar: one entry per scheduled free service on its Scheduled Service
-         Date; dates are only changed with Schedule / Reschedule (drag-and-drop is refused). -->
+
     <record id="warranty_service_entitlement_view_calendar" model="ir.ui.view">
         <field name="name">warranty.service.entitlement.calendar</field>
         <field name="model">warranty.service.entitlement</field>

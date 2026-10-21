@@ -69,8 +69,6 @@
                             <field name="replacement_date_policy"/>
                         </group>
                     </group>
-                    <!-- Service due monitoring: the responsible users receive both the due alerts
-                         and the expiry reminders. -->
                     <group name="service_due_monitoring">
                         <group string="Service Due Alert Configuration" name="service_due_alert_configuration">
                             <field name="service_due_alert_days"/>

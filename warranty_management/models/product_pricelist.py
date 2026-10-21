@@ -5,8 +5,7 @@ from odoo.exceptions import ValidationError
 class ProductPricelist(models.Model):
     _inherit = 'product.pricelist'
 
-    # Legacy reverse side of the policies' Customer Type pricelists (before the strict policy
-    # priority); kept for the existing data, not used.
+
     warranty_policy_ids = fields.Many2many(
         'warranty.policy', 'warranty_policy_pricelist_rel', 'pricelist_id', 'policy_id',
         string='Customer Type Warranty Policies', readonly=True, copy=False)
@@ -66,7 +65,7 @@ class ProductPricelist(models.Model):
 
     @api.constrains('warranty_applicable', 'warranty_policy_id', 'company_id')
     def _check_warranty_policy(self):
-        """Approved D2 / D3: a Warranty Policy is required when Warranty Applicable is ticked;
+        """ Warranty Policy is required when Warranty Applicable is ticked;
         a company pricelist uses a policy of its company or a shared one, a shared pricelist
         only a shared policy."""
         for pricelist in self:

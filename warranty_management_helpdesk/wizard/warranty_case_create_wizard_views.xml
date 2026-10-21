@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_case_create_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.create.wizard.form</field>
+        <field name="model">warranty.case.create.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Warranty Case">
+                <group>
+                    <group>
+                        <field name="helpdesk_ticket_id"/>
+                        <field name="partner_id"/>
+                        <field name="commercial_partner_id" invisible="1"/>
+                        <field name="case_type"/>
+                        <field name="priority" widget="priority"/>
+                    </group>
+                    <group>
+                        <field name="site_id" options="{'no_create': True}"/>
+                        <field name="product_id" options="{'no_create': True}"/>
+                        <field name="serial_id" options="{'no_create': True}"/>
+                    </group>
+                </group>
+                <group>
+                    <field name="customer_complaint"/>
+                    <field name="merged_adhoc_request"/>
+                    <field name="merged_adhoc_description" invisible="not merged_adhoc_request"/>
+                </group>
+                <field name="available_service_ids" invisible="1"/>
+                <separator string="Link Pending Services (optional)"/>
+                <field name="service_entitlement_ids" options="{'no_create': True}">
+                    <list>
+                        <field name="name"/>
+                        <field name="warranty_card_id"/>
+                        <field name="service_no"/>
+                        <field name="due_date"/>
+                        <field name="scheduled_date"/>
+                        <field name="state" widget="badge"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_create" type="object" string="Create" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

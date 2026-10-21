@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_service_entitlement_view_form_helpdesk" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.form.helpdesk</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="inherit_id" ref="warranty_management.warranty_service_entitlement_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='merge_status']" position="after">
+                <field name="helpdesk_ticket_id"/>
+                <field name="warranty_case_ids" widget="many2many_tags"
+                       invisible="not warranty_case_ids"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

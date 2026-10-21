@@ -52,8 +52,6 @@ class ResCompany(models.Model):
         ('months', 'Months'),
         ('years', 'Years'),
     ], string='Default Duration Unit')
-    # Company free service defaults: used at the company fallback level (count) and when the
-    # card's policy has no schedule method / free service period (see warranty.card).
     default_free_service_count = fields.Integer(string='Default Free Service Count')
     default_free_service_period = fields.Integer(string='Default Free Service Period')
     default_free_service_period_unit = fields.Selection([
@@ -65,7 +63,6 @@ class ResCompany(models.Model):
         ('equal_interval', 'Equal Interval'),
         ('manual', 'Manual Schedule'),
     ], string='Default Schedule Method')
-    # Warranty card PDF download approval (approved D1-D5).
     warranty_download_approval_required = fields.Boolean(
         string='Require PDF Download Approval',
         help="From the download after the Free Download Count, every warranty card PDF "

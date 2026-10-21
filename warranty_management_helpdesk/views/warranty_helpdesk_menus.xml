@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_warranty_case" name="Warranty Cases" action="action_warranty_case"
+              parent="warranty_management.menu_warranty_root" sequence="15"/>
+    <menuitem id="menu_helpdesk_warranty_case" name="Warranty Cases" action="action_warranty_case"
+              parent="helpdesk.helpdesk_ticket_menu_main" sequence="50"/>
+</odoo>

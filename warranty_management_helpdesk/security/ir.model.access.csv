@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_warranty_case_user,warranty.case user,model_warranty_case,base.group_user,1,0,0,0
+access_warranty_case_helpdesk_user,warranty.case helpdesk user,model_warranty_case,helpdesk.group_helpdesk_user,1,1,1,0
+access_warranty_case_helpdesk_manager,warranty.case helpdesk manager,model_warranty_case,helpdesk.group_helpdesk_manager,1,1,1,1
+access_warranty_case_create_wizard_helpdesk_user,warranty.case.create.wizard helpdesk user,model_warranty_case_create_wizard,helpdesk.group_helpdesk_user,1,1,1,0
+access_warranty_case_excluded_item_user,warranty.case.excluded.item user,model_warranty_case_excluded_item,base.group_user,1,0,0,0
+access_warranty_case_excluded_item_helpdesk_user,warranty.case.excluded.item helpdesk user,model_warranty_case_excluded_item,helpdesk.group_helpdesk_user,1,1,1,1
+access_warranty_case_chargeable_wizard_helpdesk_user,warranty.case.chargeable.wizard helpdesk user,model_warranty_case_chargeable_wizard,helpdesk.group_helpdesk_user,1,1,1,0
+access_warranty_case_decline_wizard_helpdesk_user,warranty.case.decline.wizard helpdesk user,model_warranty_case_decline_wizard,helpdesk.group_helpdesk_user,1,1,1,0
+access_warranty_case_reject_wizard_user,warranty.case.reject.wizard user,model_warranty_case_reject_wizard,base.group_user,1,1,1,0

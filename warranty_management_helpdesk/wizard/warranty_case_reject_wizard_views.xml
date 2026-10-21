@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_case_reject_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.reject.wizard.form</field>
+        <field name="model">warranty.case.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject Warranty Case">
+                <group>
+                    <field name="case_id"/>
+                    <field name="eligibility_result"/>
+                    <field name="rejection_reason"/>
+                    <field name="rejection_note" required="rejection_reason == 'other'"
+                           placeholder="Explain the rejection (required for Other)"/>
+                </group>
+                <footer>
+                    <button name="action_reject" type="object" string="Reject Case" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

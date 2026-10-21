@@ -155,7 +155,6 @@ class WarrantyServiceEntitlement(models.Model):
             raise UserError(_(
                 "Use the Change Due Date action to change a due date; the previous date, "
                 "the new date and the reason are recorded in the due date history."))
-        # Also blocks the calendar drag-and-drop (approved S5).
         if 'scheduled_date' in vals and not self.env.context.get('warranty_schedule_audited'):
             raise UserError(_(
                 "Use the Schedule / Reschedule action to change the scheduled service date; "

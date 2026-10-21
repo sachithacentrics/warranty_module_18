@@ -17,8 +17,6 @@ class WarrantyCard(models.Model):
     def write(self, vals):
         if 'unit_warranty_ids' not in vals:
             return super().write(vals)
-        # Pairing corrections of several units in one save (e.g. swapping two serials) are
-        # checked once all of them are written.
         result = super(WarrantyCard, self.with_context(warranty_defer_kit_check=True)).write(vals)
         self.unit_warranty_ids._check_kit_serials()
         return result

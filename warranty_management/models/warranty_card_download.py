@@ -4,7 +4,6 @@ from datetime import timedelta
 from odoo import _, api, fields, models, tools
 from odoo.exceptions import AccessError, UserError
 
-# Approved D3: a download ticket is single-use and valid for 10 minutes.
 TICKET_VALIDITY = timedelta(minutes=10)
 
 
@@ -90,8 +89,6 @@ class WarrantyCardDownloadRequest(models.Model):
             and user in self.company_id.warranty_download_approver_ids
 
     def write(self, vals):
-        # Status changes only through the actions (sudo); users may only edit the note of a
-        # request they can decide.
         if not self.env.su:
             if set(vals) - {'decision_note'} or not all(r.can_decide for r in self):
                 raise AccessError(_(

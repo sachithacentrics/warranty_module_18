@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_case_chargeable_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.chargeable.wizard.form</field>
+        <field name="model">warranty.case.chargeable.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Convert to Chargeable">
+                <group>
+                    <field name="case_id"/>
+                    <field name="eligibility_result"/>
+                    <field name="chargeable_type"/>
+                </group>
+                <p class="text-muted">
+                    The case becomes Chargeable. A draft quotation is created for the inspection
+                    (when the Helpdesk team requires it) and for Excluded Items. No Service Job is
+                    created.
+                </p>
+                <footer>
+                    <button name="action_convert" type="object" string="Convert to Chargeable" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_case_decline_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.decline.wizard.form</field>
+        <field name="model">warranty.case.decline.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Customer Declined">
+                <group>
+                    <field name="excluded_item_ids" widget="many2many_tags"/>
+                    <field name="decline_reason" placeholder="Why did the customer decline?"/>
+                </group>
+                <footer>
+                    <button name="action_decline" type="object" string="Record Customer Declined" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

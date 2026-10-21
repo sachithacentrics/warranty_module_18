@@ -2,7 +2,6 @@ from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.tools import float_compare
 
-# Warranty Component Role -> warranty.unit serial field (approved K2).
 ROLE_FIELDS = {
     'indoor': 'indoor_serial_id',
     'outdoor': 'outdoor_serial_id',

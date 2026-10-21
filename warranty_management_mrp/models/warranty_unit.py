@@ -41,8 +41,6 @@ class WarrantyUnit(models.Model):
         """Serials actually delivered (done outgoing moves) for the unit's Sales Order line
         and the component of `role`."""
         self.ensure_one()
-        # sudo: the integrity check must see the deliveries whatever the stock rights of the
-        # warranty user; only lot ids are returned.
         moves = self.sudo().sale_order_line_id.move_ids.filtered(
             lambda move: move.state == 'done' and move.picking_code == 'outgoing'
             and move.bom_line_id.warranty_component_role == role)

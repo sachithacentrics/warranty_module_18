@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_policy_view_form_helpdesk" model="ir.ui.view">
+        <field name="name">warranty.policy.form.helpdesk</field>
+        <field name="model">warranty.policy</field>
+        <field name="inherit_id" ref="warranty_management.warranty_policy_view_form"/>
+        <field name="arch" type="xml">
+            <field name="overdue_claim_handling" position="after">
+                <field name="repeated_failure_threshold"/>
+                <field name="repeated_failure_period_days"/>
+            </field>
+        </field>
+    </record>
+</odoo>

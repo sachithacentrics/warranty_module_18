@@ -1,157 +1,214 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
-        <!-- Dedicated Free Service emails (due alert, expiry reminder, service expired), sent
-             to each responsible user in addition to the activities / automatic expiry
-             (doc/part2_design_decisions.md, A4 / section 6a). The sender, Reply-To and recipient
-             are set when the email is queued. -->
         <record id="mail_template_free_service_due_alert" model="mail.template">
             <field name="name">Warranty: Free Service Due Alert</field>
             <field name="model_id" ref="model_warranty_service_entitlement"/>
-            <field name="subject">Free Service {{ object.service_no }} due on {{ format_date(object.due_date) }} – {{ object.warranty_card_id.name }}</field>
+            <field name="subject">Free Service {{ object.service_no }} due on {{ format_date(object.due_date) }} – {{
+                object.warranty_card_id.name }}
+            </field>
             <field name="email_from">{{ object.warranty_card_id.company_id.email_formatted or '' }}</field>
             <field name="auto_delete" eval="False"/>
             <field name="body_html" type="html">
-<div style="margin: 0; padding: 0;">
-    <p>Hello,</p>
-    <p>
-        Free Service <t t-out="object.service_no or ''"/> of warranty card
-        <t t-out="object.warranty_card_id.name or ''"/> is due on
-        <strong><t t-out="format_date(object.due_date) or ''"/></strong>.
-    </p>
-    <table style="border-collapse: collapse;">
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Warranty Card</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.name or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Customer</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.partner_id.display_name or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Product</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.product_id.display_name or ', '.join(object.warranty_card_id.sale_order_line_ids.product_id.mapped('display_name'))"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Service No.</td>
-            <td style="padding: 2px 0;"><t t-out="object.service_no or ''"/> (<t t-out="object.name or ''"/>)</td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Due Date</td>
-            <td style="padding: 2px 0;"><t t-out="format_date(object.due_date) or ''"/></td>
-        </tr>
-    </table>
-    <p style="margin-top: 16px;">
-        <a t-att-href="'%s/mail/view?model=warranty.service.entitlement&amp;res_id=%s' % (object.get_base_url(), object.id)"
-           style="background-color: #875A7B; padding: 8px 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">
-            View Free Service
-        </a>
-    </p>
-</div>
+                <div style="margin: 0; padding: 0;">
+                    <p>Hello,</p>
+                    <p>
+                        Free Service
+                        <t t-out="object.service_no or ''"/>
+                        of warranty card
+                        <t t-out="object.warranty_card_id.name or ''"/>
+                        is due on
+                        <strong>
+                            <t t-out="format_date(object.due_date) or ''"/>
+                        </strong>
+                        .
+                    </p>
+                    <table style="border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Warranty Card</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.name or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Customer</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.partner_id.display_name or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Product</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.product_id.display_name or ', '.join(object.warranty_card_id.sale_order_line_ids.product_id.mapped('display_name'))"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Service No.</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.service_no or ''"/>
+                                (<t t-out="object.name or ''"/>)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Due Date</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="format_date(object.due_date) or ''"/>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style="margin-top: 16px;">
+                        <a t-att-href="'%s/mail/view?model=warranty.service.entitlement&amp;res_id=%s' % (object.get_base_url(), object.id)"
+                           style="background-color: #875A7B; padding: 8px 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            View Free Service
+                        </a>
+                    </p>
+                </div>
             </field>
         </record>
 
         <record id="mail_template_free_service_expiry_reminder" model="mail.template">
             <field name="name">Warranty: Free Service Expiry Reminder</field>
             <field name="model_id" ref="model_warranty_service_entitlement"/>
-            <field name="subject">Free Service {{ object.service_no }} expires after {{ format_date(object.grace_period_end_date) }} – {{ object.warranty_card_id.name }}</field>
+            <field name="subject">Free Service {{ object.service_no }} expires after {{
+                format_date(object.grace_period_end_date) }} – {{ object.warranty_card_id.name }}
+            </field>
             <field name="email_from">{{ object.warranty_card_id.company_id.email_formatted or '' }}</field>
             <field name="auto_delete" eval="False"/>
             <field name="body_html" type="html">
-<div style="margin: 0; padding: 0;">
-    <p>Hello,</p>
-    <p>
-        Free Service <t t-out="object.service_no or ''"/> of warranty card
-        <t t-out="object.warranty_card_id.name or ''"/> will <strong>expire</strong> if it is not
-        completed by <strong><t t-out="format_date(object.grace_period_end_date) or ''"/></strong>.
-    </p>
-    <table style="border-collapse: collapse;">
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Warranty Card</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.name or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Customer</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.partner_id.display_name or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Product</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.product_id.display_name or ', '.join(object.warranty_card_id.sale_order_line_ids.product_id.mapped('display_name'))"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Service No.</td>
-            <td style="padding: 2px 0;"><t t-out="object.service_no or ''"/> (<t t-out="object.name or ''"/>)</td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Due Date</td>
-            <td style="padding: 2px 0;"><t t-out="format_date(object.due_date) or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Grace Period End Date</td>
-            <td style="padding: 2px 0;"><t t-out="format_date(object.grace_period_end_date) or ''"/></td>
-        </tr>
-    </table>
-    <p style="margin-top: 16px;">
-        <a t-att-href="'%s/mail/view?model=warranty.service.entitlement&amp;res_id=%s' % (object.get_base_url(), object.id)"
-           style="background-color: #875A7B; padding: 8px 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">
-            View Free Service
-        </a>
-    </p>
-</div>
+                <div style="margin: 0; padding: 0;">
+                    <p>Hello,</p>
+                    <p>
+                        Free Service
+                        <t t-out="object.service_no or ''"/>
+                        of warranty card
+                        <t t-out="object.warranty_card_id.name or ''"/>
+                        will <strong>expire</strong> if it is not
+                        completed by
+                        <strong>
+                            <t t-out="format_date(object.grace_period_end_date) or ''"/>
+                        </strong>
+                        .
+                    </p>
+                    <table style="border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Warranty Card</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.name or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Customer</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.partner_id.display_name or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Product</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.product_id.display_name or ', '.join(object.warranty_card_id.sale_order_line_ids.product_id.mapped('display_name'))"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Service No.</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.service_no or ''"/>
+                                (<t t-out="object.name or ''"/>)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Due Date</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="format_date(object.due_date) or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Grace Period End Date</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="format_date(object.grace_period_end_date) or ''"/>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style="margin-top: 16px;">
+                        <a t-att-href="'%s/mail/view?model=warranty.service.entitlement&amp;res_id=%s' % (object.get_base_url(), object.id)"
+                           style="background-color: #875A7B; padding: 8px 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            View Free Service
+                        </a>
+                    </p>
+                </div>
             </field>
         </record>
 
         <record id="mail_template_free_service_expired" model="mail.template">
             <field name="name">Warranty: Free Service Expired</field>
             <field name="model_id" ref="model_warranty_service_entitlement"/>
-            <field name="subject">EXPIRED: Free Service {{ object.service_no }} – {{ object.warranty_card_id.name }}</field>
+            <field name="subject">EXPIRED: Free Service {{ object.service_no }} – {{ object.warranty_card_id.name }}
+            </field>
             <field name="email_from">{{ object.warranty_card_id.company_id.email_formatted or '' }}</field>
             <field name="auto_delete" eval="False"/>
             <field name="body_html" type="html">
-<div style="margin: 0; padding: 0;">
-    <p>Hello,</p>
-    <p style="color: #C0392B;">
-        <strong>Free Service <t t-out="object.service_no or ''"/> (<t t-out="object.name or ''"/>)
-        has expired</strong> and can no longer be used: it was not completed before the end of
-        its grace period.
-    </p>
-    <table style="border-collapse: collapse;">
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Warranty Card</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.name or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Customer</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.partner_id.display_name or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Product</td>
-            <td style="padding: 2px 0;"><t t-out="object.warranty_card_id.product_id.display_name or ', '.join(object.warranty_card_id.sale_order_line_ids.product_id.mapped('display_name'))"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Service No.</td>
-            <td style="padding: 2px 0;"><t t-out="object.service_no or ''"/> (<t t-out="object.name or ''"/>)</td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Due Date</td>
-            <td style="padding: 2px 0;"><t t-out="format_date(object.due_date) or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Expiry Date (Grace Period End)</td>
-            <td style="padding: 2px 0;"><t t-out="format_date(object.grace_period_end_date) or ''"/></td>
-        </tr>
-        <tr>
-            <td style="padding: 2px 12px 2px 0;">Expired On</td>
-            <td style="padding: 2px 0;"><t t-out="format_date(ctx.get('warranty_expired_on')) or ''"/></td>
-        </tr>
-    </table>
-    <p style="margin-top: 16px;">
-        <a t-att-href="'%s/mail/view?model=warranty.service.entitlement&amp;res_id=%s' % (object.get_base_url(), object.id)"
-           style="background-color: #875A7B; padding: 8px 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">
-            View Free Service
-        </a>
-    </p>
-</div>
+                <div style="margin: 0; padding: 0;">
+                    <p>Hello,</p>
+                    <p style="color: #C0392B;">
+                        <strong>Free Service
+                            <t t-out="object.service_no or ''"/>
+                            (<t t-out="object.name or ''"/>)
+                            has expired
+                        </strong>
+                        and can no longer be used: it was not completed before the end of
+                        its grace period.
+                    </p>
+                    <table style="border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Warranty Card</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.name or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Customer</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.partner_id.display_name or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Product</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.warranty_card_id.product_id.display_name or ', '.join(object.warranty_card_id.sale_order_line_ids.product_id.mapped('display_name'))"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Service No.</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="object.service_no or ''"/>
+                                (<t t-out="object.name or ''"/>)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Due Date</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="format_date(object.due_date) or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Expiry Date (Grace Period End)</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="format_date(object.grace_period_end_date) or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 2px 12px 2px 0;">Expired On</td>
+                            <td style="padding: 2px 0;">
+                                <t t-out="format_date(ctx.get('warranty_expired_on')) or ''"/>
+                            </td>
+                        </tr>
+                    </table>
+                    <p style="margin-top: 16px;">
+                        <a t-att-href="'%s/mail/view?model=warranty.service.entitlement&amp;res_id=%s' % (object.get_base_url(), object.id)"
+                           style="background-color: #875A7B; padding: 8px 16px; color: #ffffff; text-decoration: none; border-radius: 5px;">
+                            View Free Service
+                        </a>
+                    </p>
+                </div>
             </field>
         </record>
     </data>

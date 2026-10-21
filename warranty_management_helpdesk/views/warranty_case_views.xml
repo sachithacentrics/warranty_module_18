@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_case_view_list" model="ir.ui.view">
+        <field name="name">warranty.case.list</field>
+        <field name="model">warranty.case</field>
+        <field name="arch" type="xml">
+            <list string="Warranty Cases">
+                <field name="name"/>
+                <field name="helpdesk_ticket_id"/>
+                <field name="partner_id"/>
+                <field name="case_type"/>
+                <field name="product_id" optional="show"/>
+                <field name="serial_id" optional="show"/>
+                <field name="warranty_card_id" optional="show"/>
+                <field name="priority" optional="show"/>
+                <field name="warranty_unit_id" optional="hide"/>
+                <field name="eligibility_result" optional="show"/>
+                <field name="payment_eligibility" optional="show"/>
+                <field name="payment_hold" optional="show" widget="badge" decoration-danger="payment_hold"/>
+                <field name="repeated_failure_flag" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge" decoration-info="state == 'new'"
+                       decoration-danger="state == 'rejected'"
+                       decoration-muted="state == 'closed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.form</field>
+        <field name="model">warranty.case</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Case">
+                <header>
+                    <field name="can_approve_payment" invisible="1"/>
+                    <field name="can_confirm_escalation" invisible="1"/>
+                    <field name="can_approve_case" invisible="1"/>
+                    <field name="can_reject_case" invisible="1"/>
+                    <button name="action_confirm_repeated_failure" type="object"
+                            string="Confirm Warranty (Repeated Failure)" class="btn-primary"
+                            invisible="not can_confirm_escalation"/>
+                    <button name="action_approve_payment_exception" type="object"
+                            string="Approve Payment Exception" class="btn-primary"
+                            invisible="not can_approve_payment"/>
+                    <field name="excluded_decision_pending" invisible="1"/>
+                    <button name="action_create_excluded_quotation" type="object"
+                            string="Create Excluded Items Quotation" groups="helpdesk.group_helpdesk_user"
+                            invisible="state != 'eligibility_checked' or eligibility_result != 'partial'"/>
+                    <button name="action_open_chargeable_wizard" type="object" string="Convert to Chargeable"
+                            groups="helpdesk.group_helpdesk_user"
+                            invisible="not ((state == 'eligibility_checked' and eligibility_result in ('not_eligible', 'out_of_warranty', 'manual_review')) or (state == 'new' and case_type in ('chargeable_inspection', 'chargeable_repair')))"/>
+                    <!-- Option C: Approve / Reject Case take the place and style of Check
+                         Eligibility for authorized users (never shown together). -->
+                    <button name="action_approve_case" type="object" string="Approve Case"
+                            class="btn-primary" invisible="not can_approve_case"/>
+                    <button name="action_open_reject_wizard" type="object" string="Reject Case"
+                            class="btn-primary" invisible="not can_reject_case"/>
+                    <button name="action_check_eligibility" type="object" string="Check Eligibility"
+                            class="btn-primary" groups="helpdesk.group_helpdesk_user"
+                            invisible="state not in ('new', 'eligibility_checked') or case_type in ('chargeable_inspection', 'chargeable_repair') or can_approve_case or can_reject_case"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="new,eligibility_checked,approved,job_created,completed,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_quotations" type="object" class="oe_stat_button"
+                                icon="fa-pencil-square-o" groups="sales_team.group_sale_salesman"
+                                invisible="not quotation_count">
+                            <field name="quotation_count" widget="statinfo" string="Quotations"/>
+                        </button>
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not excluded_decision_pending">
+                        Excluded items: waiting for the customer decision on the chargeable quotation - the covered warranty work continues only after the decision.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not overdue_warning">
+                        <strong>Overdue Warning: </strong><field name="overdue_warning" class="d-inline"/>
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="not payment_hold">
+                        Payment: <field name="payment_hold" class="d-inline"/> - see the latest eligibility check in the chatter.
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="not escalation_pending">
+                        Escalated - repeated failure: waiting for the warranty confirmation of the Manager / GM.
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="helpdesk_ticket_id" readonly="id"/>
+                            <field name="partner_id"/>
+                            <field name="commercial_partner_id" invisible="1"/>
+                            <field name="site_id" readonly="state != 'new'"/>
+                            <field name="case_type" readonly="state != 'new'"/>
+                            <field name="priority" widget="priority"/>
+                        </group>
+                        <group>
+                            <!-- Correctable while the eligibility can be checked again (approved Q12). -->
+                            <field name="product_id" readonly="state not in ('new', 'eligibility_checked')"/>
+                            <field name="serial_id" readonly="state not in ('new', 'eligibility_checked')"/>
+                            <field name="warranty_card_id" options="{'no_create': True}"
+                                   readonly="state not in ('new', 'eligibility_checked')"/>
+                            <field name="warranty_unit_id" options="{'no_create': True}"
+                                   readonly="state not in ('new', 'eligibility_checked')"/>
+                            <field name="warranty_basis" invisible="1"/>
+                            <label for="current_usage" invisible="warranty_basis != 'usage'"/>
+                            <div class="o_row" invisible="warranty_basis != 'usage'">
+                                <field name="current_usage"
+                                       readonly="state not in ('new', 'eligibility_checked')"/>
+                                <field name="usage_unit"/>
+                            </div>
+                            <field name="eligibility_result" decoration-danger="eligibility_result in ('not_eligible', 'out_of_warranty')"
+                                   decoration-warning="eligibility_result == 'manual_review'"/>
+                            <field name="eligibility_checked_by_id" invisible="not eligibility_checked_by_id"/>
+                            <field name="case_approved_by_id" invisible="not case_approved_by_id"/>
+                            <field name="case_approved_date" invisible="not case_approved_by_id"/>
+                            <field name="rejection_reason" invisible="state != 'rejected'"/>
+                            <field name="rejection_note" invisible="state != 'rejected'"/>
+                            <field name="rejected_by_id" invisible="state != 'rejected'"/>
+                            <field name="rejected_date" invisible="state != 'rejected'"/>
+                            <field name="chargeable_type" invisible="state != 'chargeable'"/>
+                            <field name="chargeable_converted_by_id" invisible="state != 'chargeable'"/>
+                            <field name="chargeable_converted_date" invisible="state != 'chargeable'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="customer_complaint" placeholder="Issue described by the customer"/>
+                        <field name="requested_item_ids" widget="many2many_tags" options="{'no_create': True}"
+                               readonly="state not in ('new', 'eligibility_checked')"
+                               placeholder="Requested services / items, e.g. Standard Service, Gas Refill"/>
+                        <field name="merged_adhoc_request"/>
+                        <field name="merged_adhoc_description" invisible="not merged_adhoc_request"/>
+                    </group>
+                    <group string="Payment" name="payment">
+                        <group>
+                            <field name="payment_eligibility"/>
+                            <field name="payment_hold" invisible="not payment_hold"/>
+                            <field name="payment_approval_requested_by_id" invisible="not payment_approval_requested_by_id"/>
+                        </group>
+                        <group invisible="not payment_waiver_user_id">
+                            <field name="payment_waiver_user_id"/>
+                            <field name="payment_waiver_date"/>
+                            <field name="payment_waiver_conditions"/>
+                        </group>
+                    </group>
+                    <group string="Repeated Failure" name="repeated_failure">
+                        <group>
+                            <field name="failure_category"/>
+                            <field name="repeated_failure_flag"/>
+                            <field name="repeated_failure_count"/>
+                            <field name="escalation_pending" invisible="not escalation_pending"/>
+                            <field name="escalation_requested_by_id" invisible="not escalation_requested_by_id"/>
+                        </group>
+                        <group invisible="not escalation_confirmed_by_id">
+                            <field name="escalation_confirmed_by_id"/>
+                            <field name="escalation_confirmed_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Excluded Items" name="excluded_items" invisible="not excluded_item_ids">
+                            <field name="excluded_item_ids">
+                                <list create="0" delete="0">
+                                    <field name="coverage_item_id"/>
+                                    <field name="product_id"/>
+                                    <field name="customer_decision" widget="badge"
+                                           decoration-success="customer_decision == 'approved'"
+                                           decoration-warning="customer_decision in ('quotation_required', 'waiting')"
+                                           decoration-muted="customer_decision == 'declined'"/>
+                                    <field name="quoted_qty"/>
+                                    <field name="confirmed_qty"/>
+                                    <field name="sale_order_id" groups="sales_team.group_sale_salesman"/>
+                                    <field name="declined" column_invisible="1"/>
+                                    <field name="decline_reason" optional="show"/>
+                                    <field name="decided_by_id" optional="show"/>
+                                    <field name="decided_date" optional="hide"/>
+                                    <button name="action_open_decline_wizard" type="object" string="Customer Declined"
+                                            icon="fa-times" groups="helpdesk.group_helpdesk_user"
+                                            invisible="declined or customer_decision == 'approved' or parent.state not in ('eligibility_checked', 'chargeable')"/>
+                                    <button name="action_undo_decline" type="object" string="Undo Decline"
+                                            icon="fa-undo" groups="helpdesk.group_helpdesk_user"
+                                            invisible="not declined or parent.state not in ('eligibility_checked', 'chargeable')"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Linked Free Services" name="linked_services">
+                            <field name="service_entitlement_ids" readonly="state != 'new'"
+                                   domain="[('id', 'in', pending_service_ids)]"
+                                   options="{'no_create': True}">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="warranty_card_id"/>
+                                    <field name="service_no"/>
+                                    <field name="due_date"/>
+                                    <field name="scheduled_date"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Pending Customer Services" name="pending_services">
+                            <field name="pending_service_ids">
+                                <list create="0" delete="0">
+                                    <field name="name"/>
+                                    <field name="warranty_card_id"/>
+                                    <field name="service_no"/>
+                                    <field name="due_date"/>
+                                    <field name="scheduled_date"/>
+                                    <field name="grace_period_end_date" optional="show"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_search" model="ir.ui.view">
+        <field name="name">warranty.case.search</field>
+        <field name="model">warranty.case</field>
+        <field name="arch" type="xml">
+            <search string="Warranty Cases">
+                <field name="name"/>
+                <field name="helpdesk_ticket_id"/>
+                <field name="partner_id"/>
+                <field name="serial_id"/>
+                <field name="warranty_card_id"/>
+                <filter name="filter_new" string="New" domain="[('state', '=', 'new')]"/>
+                <filter name="filter_checked" string="Eligibility Checked" domain="[('state', '=', 'eligibility_checked')]"/>
+                <filter name="filter_manual_review" string="Manual Review" domain="[('eligibility_result', '=', 'manual_review')]"/>
+                <filter name="filter_payment_hold" string="Payment Hold / Approval / Block" domain="[('payment_hold', '!=', False)]"/>
+                <filter name="filter_repeated_failure" string="Repeated Failure" domain="[('repeated_failure_flag', '=', True)]"/>
+                <filter name="filter_waiting_approval" string="Waiting for Approval" domain="[('state', '=', 'eligibility_checked'), ('eligibility_result', '=', 'eligible')]"/>
+                <filter name="filter_approved" string="Approved" domain="[('state', '=', 'approved')]"/>
+                <filter name="filter_rejected" string="Rejected" domain="[('state', '=', 'rejected')]"/>
+                <filter name="filter_chargeable" string="Chargeable" domain="[('state', '=', 'chargeable')]"/>
+                <filter name="filter_escalation_pending" string="Escalated - Pending Confirmation" domain="[('escalation_pending', '=', True)]"/>
+                <separator/>
+                <filter name="filter_complaint" string="Warranty Complaint" domain="[('case_type', '=', 'warranty_complaint')]"/>
+                <filter name="filter_free_service" string="Free Service" domain="[('case_type', '=', 'free_service')]"/>
+                <filter name="filter_amc" string="AMC" domain="[('case_type', '=', 'amc')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_type" string="Case Type" context="{'group_by': 'case_type'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_eligibility" string="Eligibility Result" context="{'group_by': 'eligibility_result'}"/>
+                    <filter name="group_ticket" string="Helpdesk Ticket" context="{'group_by': 'helpdesk_ticket_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_case" model="ir.actions.act_window">
+        <field name="name">Warranty Cases</field>
+        <field name="res_model">warranty.case</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="warranty_case_view_search"/>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No warranty cases yet</p>
+            <p>Warranty cases are created from a Helpdesk ticket with "Create Warranty Case".</p>
+        </field>
+    </record>
+</odoo>

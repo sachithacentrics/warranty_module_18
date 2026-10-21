@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Helpdesk Warranty Panel (SRS): site, product, serial, pending free services and the
+        . -->
+    <record id="helpdesk_ticket_view_form_warranty" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_create_warranty_case" type="object" string="Create Warranty Case"
+                        class="btn-primary" invisible="not partner_id"
+                        groups="helpdesk.group_helpdesk_user"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_cases" type="object" class="oe_stat_button"
+                        icon="fa-shield" invisible="not warranty_case_count">
+                    <field name="warranty_case_count" widget="statinfo" string="Warranty Cases"/>
+                </button>
+            </xpath>
+            <xpath expr="//notebook/page[@name='description']" position="after">
+                <page string="Warranty" name="warranty">
+                    <div class="alert alert-warning" role="alert" invisible="not warranty_overdue_warning">
+                        <strong>Overdue Warning: </strong><field name="warranty_overdue_warning" class="d-inline"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="commercial_partner_id" invisible="1"/>
+                            <field name="warranty_site_id" options="{'no_create': True}"/>
+                            <field name="warranty_product_id" options="{'no_create': True}"/>
+                            <field name="warranty_serial_id" options="{'no_create': True}"/>
+                        </group>
+                        <group>
+                            <field name="warranty_card_id"/>
+                            <field name="warranty_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Pending Services"/>
+                    <field name="warranty_pending_service_ids" readonly="1">
+                        <list create="0" delete="0">
+                            <field name="name"/>
+                            <field name="warranty_card_id"/>
+                            <field name="service_no"/>
+                            <field name="due_date"/>
+                            <field name="scheduled_date"/>
+                            <field name="grace_period_end_date" optional="show"/>
+                            <field name="due_status" widget="badge" optional="show"/>
+                            <field name="state" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

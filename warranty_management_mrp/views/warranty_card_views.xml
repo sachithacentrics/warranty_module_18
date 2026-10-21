@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Unit Warranty Numbers: Indoor / Outdoor serials of kit units, correctable while the
-         card is Draft / Ready to Confirm (approved K3 / K4); only delivered serials of the
-         same Sales Order line and role can be selected. -->
     <record id="warranty_card_view_form_kit_serials" model="ir.ui.view">
         <field name="name">warranty.card.form.kit.serials</field>
         <field name="model">warranty.card</field>

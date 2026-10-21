@@ -19,9 +19,6 @@
                                    invisible="not warranty_applicable"/>
                             <field name="warranty_category_policy_id"
                                    invisible="not warranty_applicable or warranty_policy_id or not warranty_category_policy_id"/>
-                            <!-- While a policy applies (product or category), the applied policy's
-                                 values are displayed readonly instead of the product's own values,
-                                 which are kept unchanged. -->
                             <field name="warranty_applied_policy_id" invisible="1"/>
                             <field name="warranty_start_criterion"
                                    invisible="not warranty_applicable or warranty_policy_applicable"

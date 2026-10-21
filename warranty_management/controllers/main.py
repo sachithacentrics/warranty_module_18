@@ -9,5 +9,4 @@ class WarrantyCardPdfController(http.Controller):
         """Deliver the protected warranty card PDF for a single-use ticket of the current user
         and record the download (approved D1-D5)."""
         attachment = request.env['warranty.card.download.ticket']._consume(token)
-        # Not cached by the browser: every download goes through a new ticket.
         return attachment._to_http_stream().get_response(as_attachment=True, max_age=0)

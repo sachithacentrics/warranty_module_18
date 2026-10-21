@@ -32,7 +32,6 @@ class ProductCategory(models.Model):
         ('months', 'Months'),
         ('years', 'Years'),
     ], string='Free Service Frequency Unit')
-    # Same choices as the company Default Schedule Method.
     default_schedule_method = fields.Selection([
         ('equal_interval', 'Equal Interval'),
         ('manual', 'Manual Schedule'),
