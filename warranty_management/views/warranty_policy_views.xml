@@ -83,6 +83,15 @@
                             <field name="expiry_reminder_days"/>
                         </group>
                     </group>
+                    <group name="service_date_rules">
+                        <group string="Service Date Rules" name="service_date_rules_left">
+                            <field name="early_service_rule" placeholder="Standard (from the Alert Date)"/>
+                            <field name="early_service_days" invisible="early_service_rule != 'days'"
+                                   required="early_service_rule == 'days'"/>
+                            <field name="late_service_handling" invisible="not early_service_rule"/>
+                            <field name="service_sequence_required"/>
+                        </group>
+                    </group>
                     <div class="alert alert-info" role="alert"
                          invisible="service_alert_user_ids or (not service_due_alert_days and not expiry_reminder_days)">
                         No Service Alert Responsible Users on this policy: due alerts and expiry reminders

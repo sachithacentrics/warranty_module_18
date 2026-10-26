@@ -21,15 +21,25 @@
                 </group>
                 <group>
                     <field name="customer_complaint"/>
-                    <field name="merged_adhoc_request"/>
-                    <field name="merged_adhoc_description" invisible="not merged_adhoc_request"/>
+                    <field name="warranty_free_services_enabled" invisible="1"/>
+                    <field name="merged_adhoc_request" invisible="not warranty_free_services_enabled"/>
+                    <field name="merged_adhoc_description"
+                           invisible="not merged_adhoc_request or not warranty_free_services_enabled"/>
                 </group>
                 <field name="available_service_ids" invisible="1"/>
-                <separator string="Link Pending Services (optional)"/>
-                <field name="service_entitlement_ids" options="{'no_create': True}">
+                <separator string="Pending Services" invisible="not warranty_free_services_enabled"/>
+                <div invisible="not warranty_free_services_enabled">
+                    <button name="action_add_all_pending" type="object" string="Add All Pending"
+                            class="btn-secondary" icon="fa-plus"/>
+                    <span class="text-muted ms-2">Several units / warranty cards: leave Product and
+                        Serial empty (they narrow the list to one unit).</span>
+                </div>
+                <field name="service_entitlement_ids" options="{'no_create': True}"
+                       invisible="not warranty_free_services_enabled">
                     <list>
                         <field name="name"/>
                         <field name="warranty_card_id"/>
+                        <field name="warranty_units_display"/>
                         <field name="service_no"/>
                         <field name="due_date"/>
                         <field name="scheduled_date"/>

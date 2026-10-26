@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 4.10 (approved C1): Job Trigger of chargeable cases on the Helpdesk team. -->
+    <record id="helpdesk_team_view_form_warranty_job_trigger" model="ir.ui.view">
+        <field name="name">helpdesk.team.form.warranty.job.trigger</field>
+        <field name="model">helpdesk.team</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.helpdesk_team_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='warranty_inspection']" position="after">
+                <setting id="warranty_job_trigger" string="Chargeable Job Trigger"
+                         help="When the service job of a chargeable warranty case is created">
+                    <field name="warranty_job_trigger" widget="radio"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Quotation: chargeable purpose (read-only). -->
+    <record id="sale_order_view_form_warranty_chargeable" model="ir.ui.view">
+        <field name="name">sale.order.form.warranty.chargeable</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="payment_term_id" position="after">
+                <field name="warranty_chargeable_purpose" invisible="not warranty_chargeable_purpose"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Warranty case: Prepare Service Job also on Chargeable cases, Customer Declined Repair,
+         chargeable outcome. -->
+    <record id="warranty_case_view_form_fsm_chargeable" model="ir.ui.view">
+        <field name="name">warranty.case.form.fsm.chargeable</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_case_view_form_fsm"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_prepare_service_job']" position="attributes">
+                <attribute name="invisible">open_service_job_id or not (state == 'chargeable' or (state == 'approved' and eligibility_result == 'eligible'))</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_prepare_service_job']" position="after">
+                <button name="action_open_decline_repair_wizard" type="object"
+                        string="Customer Declined Repair" groups="helpdesk.group_helpdesk_user"
+                        invisible="state != 'chargeable' or chargeable_type != 'repair' or open_service_job_id"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="after">
+                <field name="warranty_chargeable_outcome" invisible="not warranty_chargeable_outcome"
+                       readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Service job: type, chargeable order, inspection result, approved excluded items. -->
+    <record id="warranty_service_job_view_form_chargeable" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.chargeable</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <field name="merge_type" position="before">
+                <field name="job_type"/>
+                <field name="chargeable_order_id" invisible="not chargeable_order_id"/>
+                <field name="repair_quotation_id" invisible="not repair_quotation_id"/>
+            </field>
+            <xpath expr="//notebook[@name='notebook']" position="inside">
+                <page string="Inspection Result" name="inspection_result"
+                      invisible="job_type != 'chargeable_inspection'">
+                    <group>
+                        <field name="inspection_diagnosis"/>
+                        <field name="inspection_repair_required"/>
+                        <field name="inspection_repair_details"
+                               invisible="inspection_repair_required != 'yes'"/>
+                    </group>
+                </page>
+                <page string="Approved Excluded Items" name="approved_excluded_items"
+                      invisible="not approved_excluded_items">
+                    <field name="approved_excluded_items" nolabel="1"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_list_chargeable" model="ir.ui.view">
+        <field name="name">warranty.service.job.list.chargeable</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_service_job_view_list"/>
+        <field name="arch" type="xml">
+            <field name="warranty_case_id" position="after">
+                <field name="job_type" optional="show"/>
+            </field>
+        </field>
+    </record>
+</odoo>

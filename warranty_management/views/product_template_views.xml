@@ -51,10 +51,14 @@
                             </div>
                         </group>
                         <group invisible="not warranty_applicable">
-                            <field name="warranty_worksheet_template_id" readonly="warranty_policy_applicable"/>
+                            <!-- SRS 2.7: always defined on the product master (not a policy value): editable
+                                 also when a Warranty Policy applies. -->
+                            <field name="warranty_worksheet_template_id"/>
                         </group>
                     </group>
-                    <group string="Free Services" name="warranty_free_services" invisible="not warranty_applicable">
+                    <field name="warranty_free_services_enabled" invisible="1"/>
+                    <group string="Free Services" name="warranty_free_services"
+                           invisible="not warranty_applicable or not warranty_free_services_enabled">
                         <group>
                             <field name="default_free_service_count" invisible="warranty_policy_applicable"
                                    readonly="warranty_policy_applicable"/>

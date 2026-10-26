@@ -1,6 +1,8 @@
 from odoo import api, fields, models
 from odoo.tools import html2plaintext
 
+from odoo.addons.warranty_management.models.res_company import FREE_SERVICE_SCOPE_MODES
+
 from ..models.warranty_case import CASE_PRIORITIES, CASE_TYPES
 
 
@@ -40,6 +42,16 @@ class WarrantyCaseCreateWizard(models.TransientModel):
         domain="[('id', 'in', available_service_ids)]")
     merged_adhoc_request = fields.Boolean(string='Merged Ad-hoc Request')
     merged_adhoc_description = fields.Text(string='Ad-hoc Request')
+    # Free service UI shown only when the company's Warranty Scope Mode includes free
+    # services (approved; display only, nothing stored).
+    warranty_free_services_enabled = fields.Boolean(
+        compute='_compute_warranty_free_services_enabled')
+
+    @api.depends('helpdesk_ticket_id.company_id.warranty_scope_mode')
+    def _compute_warranty_free_services_enabled(self):
+        for record in self:
+            record.warranty_free_services_enabled = \
+                record.helpdesk_ticket_id.company_id.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES
 
     @api.depends('helpdesk_ticket_id')
     def _compute_from_ticket(self):
@@ -60,6 +72,18 @@ class WarrantyCaseCreateWizard(models.TransientModel):
             wizard.available_service_ids = Entitlement._warranty_pending_services(
                 ticket.partner_id, ticket.company_id, wizard.site_id, wizard.product_id,
                 wizard.serial_id)
+
+    def action_add_all_pending(self):
+        """Add All Pending (approved UI 2)."""
+        self.ensure_one()
+        self.service_entitlement_ids = self.available_service_ids
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
 
     def action_create(self):
         self.ensure_one()

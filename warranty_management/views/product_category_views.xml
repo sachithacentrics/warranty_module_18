@@ -22,7 +22,9 @@
                         <field name="card_grouping_mode" readonly="warranty_policy_applicable" invisible="1"/>
                     </group>
                 </group>
-                <group string="Free Service Configuration" name="free_service_configuration">
+                <field name="warranty_free_services_enabled" invisible="1"/>
+                <group string="Free Service Configuration" name="free_service_configuration"
+                       invisible="not warranty_free_services_enabled">
                     <group>
                         <field name="default_free_service_count" readonly="warranty_policy_applicable"/>
                         <label for="free_service_frequency"/>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cross-card service merge (approved UI 1-3). -->
+    <record id="warranty_service_entitlement_view_list_pending" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.list.pending</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <list string="Pending Services" create="0" delete="0" edit="0">
+                <header>
+                    <button name="action_create_warranty_case_from_services" type="object"
+                            string="Create Warranty Case" class="btn-primary"
+                            groups="helpdesk.group_helpdesk_user"/>
+                </header>
+                <field name="name"/>
+                <field name="warranty_card_id"/>
+                <field name="warranty_units_display"/>
+                <field name="service_no"/>
+                <field name="due_date"/>
+                <field name="warranty_window_display"/>
+                <field name="grace_period_end_date" optional="hide"/>
+                <field name="due_status" widget="badge" optional="show"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="helpdesk_ticket_view_form_warranty_pending" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty.pending</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk_ticket_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_view_warranty_cases']" position="before">
+                <button name="action_view_warranty_pending_services" type="object"
+                        class="oe_stat_button" icon="fa-list-ul"
+                        invisible="not warranty_pending_service_count or not warranty_free_services_enabled">
+                    <field name="warranty_pending_service_count" widget="statinfo" string="Pending Services"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_form_service_merge" model="ir.ui.view">
+        <field name="name">warranty.case.form.service.merge</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='warranty_unit_id']" position="after">
+                <field name="service_card_ids" widget="many2many_tags"
+                       invisible="not service_card_ids"/>
+                <field name="service_card_unit_ids" invisible="1"/>
+                <field name="service_unit_ids" widget="many2many_tags" options="{'no_create': True}"
+                       invisible="not service_entitlement_ids"
+                       readonly="state not in ('new', 'eligibility_checked')"/>
+                <field name="site_confirmed_partner_ids" widget="many2many_tags"
+                       invisible="not site_confirmed_partner_ids"/>
+                <field name="site_confirmation_reason" invisible="not site_confirmed_partner_ids"/>
+                <field name="site_confirmed_by_id" invisible="not site_confirmed_partner_ids"/>
+                <field name="site_confirmed_date" invisible="not site_confirmed_partner_ids"/>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_open_site_wizard" type="object" string="Confirm Same Site"
+                        groups="helpdesk.group_helpdesk_manager"
+                        invisible="not service_entitlement_ids or state not in ('new', 'eligibility_checked')"/>
+            </xpath>
+            <xpath expr="//field[@name='service_entitlement_ids']" position="attributes">
+                <attribute name="readonly">state not in ('new', 'eligibility_checked')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='service_entitlement_ids']/list/field[@name='warranty_card_id']" position="after">
+                <field name="warranty_units_display"/>
+                <field name="warranty_window_display"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_case_site_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.site.wizard.form</field>
+        <field name="model">warranty.case.site.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirm Same Site">
+                <field name="candidate_ids" invisible="1"/>
+                <group>
+                    <field name="case_id"/>
+                    <field name="address_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    <field name="reason" placeholder="How was it verified that these addresses are the same physical site?"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Confirm" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

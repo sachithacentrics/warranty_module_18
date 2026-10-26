@@ -3,12 +3,18 @@ from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
 
+import pytz
+from markupsafe import Markup
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.fields import Command
-from odoo.tools import float_round
+from odoo.tools import float_round, format_date
+
+from .res_company import FREE_SERVICE_SCOPE_MODES
 
 from .res_company import get_valid_service_alert_users
+from .warranty_policy import EARLY_SERVICE_RULES, LATE_SERVICE_HANDLING
 
 _logger = logging.getLogger(__name__)
 
@@ -50,6 +56,8 @@ REQUIREMENT_DEPENDS = [
 class WarrantyCard(models.Model):
     _name = 'warranty.card'
     _description = 'Warranty Card'
+    # Chatter (approved): successful PDF downloads are logged as internal notes.
+    _inherit = ['mail.thread']
     _order = 'id desc'
 
     name = fields.Char(
@@ -199,6 +207,10 @@ class WarrantyCard(models.Model):
         string='Service Entitlement Count', compute='_compute_service_entitlement_count')
     free_services_included = fields.Boolean(
         string='Free Services Included', compute='_compute_free_services_included')
+    # Free Services tab shown only when the card company's Scope Mode includes free services
+    # (approved; display only, nothing stored).
+    warranty_free_services_enabled = fields.Boolean(
+        compute='_compute_warranty_free_services_enabled')
     free_service_schedule_note = fields.Text(
         string='Free Service Schedule Notice', compute='_compute_free_service_schedule_note')
 
@@ -212,6 +224,16 @@ class WarrantyCard(models.Model):
     service_due_alert_days = fields.Integer(
         string='Service Due Alert Days', readonly=True, copy=False)
     expiry_reminder_days = fields.Integer(string='Expiry Reminder Days', readonly=True, copy=False)
+    # Flexible service dates (BA-approved enhancement K1 / K2): policy snapshot; an empty rule
+    # (cards confirmed before the enhancement) keeps the standard date rules.
+    early_service_rule = fields.Selection(EARLY_SERVICE_RULES, string='Early Service Rule',
+                                          readonly=True, copy=False)
+    early_service_days = fields.Integer(string='Early Service Days', readonly=True, copy=False)
+    late_service_handling = fields.Selection(LATE_SERVICE_HANDLING,
+                                             string='Late Service Handling', readonly=True,
+                                             copy=False)
+    service_sequence_required = fields.Boolean(string='Enforce Service Sequence', readonly=True,
+                                               copy=False)
     usage_alert_percentage = fields.Float(string='Usage Alert %', readonly=True, copy=False)
     service_alert_user_ids = fields.Many2many(
         'res.users', 'warranty_card_alert_user_rel', 'card_id', 'user_id',
@@ -226,7 +248,9 @@ class WarrantyCard(models.Model):
                     if vals.get('company_id') else self.env.company
                 vals['name'] = self.env['ir.sequence'].with_company(company) \
                     .next_by_code('warranty.card') or 'New'
-        return super().create(vals_list)
+        # The chatter only logs downloads: no creation note, no automatic followers.
+        return super(WarrantyCard, self.with_context(
+            mail_create_nolog=True, mail_create_nosubscribe=True)).create(vals_list)
 
     @api.depends('sale_order_line_ids.invoice_lines.move_id')
     def _compute_invoice_ids(self):
@@ -251,6 +275,11 @@ class WarrantyCard(models.Model):
     def _compute_service_entitlement_count(self):
         for card in self:
             card.service_entitlement_count = len(card.service_entitlement_ids)
+
+    @api.depends('company_id.warranty_scope_mode')
+    def _compute_warranty_free_services_enabled(self):
+        for card in self:
+            card.warranty_free_services_enabled =                 card.company_id.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES
 
     @api.depends('free_services_allowed', 'company_id.warranty_scope_mode')
     def _compute_free_services_included(self):
@@ -506,6 +535,11 @@ class WarrantyCard(models.Model):
                 'service_due_alert_days': policy.service_due_alert_days,
                 'expiry_reminder_days': policy.expiry_reminder_days,
                 'usage_alert_percentage': policy.usage_alert_percentage,
+                'early_service_rule': policy.early_service_rule,
+                'early_service_days': policy.early_service_days,
+                'late_service_handling': policy.early_service_rule
+                and policy.late_service_handling or False,
+                'service_sequence_required': policy.service_sequence_required,
                 'service_alert_user_ids': [Command.set(alert_users.ids)],
             })
             # Snapshot lines are system records; users cannot create offset lines.
@@ -702,6 +736,23 @@ class WarrantyCard(models.Model):
                 ('res_model', '=', self._name), ('res_id', '=', self.id),
                 ('res_field', '=', 'pdf_file')], limit=1)
         return attachment
+
+    def _log_pdf_download(self, log):
+        """One internal chatter note per successful PDF download (approved): user, date, time
+        (downloading user's timezone, UTC without one) and download number. Written in the
+        same locked transaction as the download log, so a refused or retried link logs
+        nothing; no email, no notification."""
+        self.ensure_one()
+        user = log.user_id
+        tz_name = user.tz or 'UTC'
+        local = pytz.utc.localize(log.download_date).astimezone(pytz.timezone(tz_name))
+        body = Markup('<p>%s</p>') % _(
+            "Warranty card PDF downloaded - Download No. %(number)s by %(user)s on %(date)s at "
+            "%(time)s (%(tz)s)", number=log.download_no, user=user.name,
+            date=format_date(self.env, local.date()), time=local.strftime('%H:%M'),
+            tz=tz_name)
+        # sudo: the downloading user may not have write access to the card.
+        self.sudo()._message_log(body=body, author_id=user.partner_id.id)
 
     def action_download_pdf(self):
         """Download PDF (approved D1-D5): the free downloads, then one approved request per

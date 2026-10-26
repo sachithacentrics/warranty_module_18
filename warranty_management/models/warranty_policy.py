@@ -8,6 +8,17 @@ _logger = logging.getLogger(__name__)
 LEGACY_PRODUCT_POLICY_PARAM = 'warranty_management.legacy_product_policies_migrated'
 LEGACY_PRICELIST_RULE_PARAM = 'warranty_management.legacy_pricelist_rules_logged'
 
+# Flexible service dates (BA-approved enhancement F2 / F5).
+EARLY_SERVICE_RULES = [
+    ('alert', 'From Alert Date'),
+    ('days', 'Days Before Due'),
+    ('any', 'Any Date'),
+]
+LATE_SERVICE_HANDLING = [
+    ('block', 'Block after Grace Period End'),
+    ('approval', 'Manager Approval after Grace Period End'),
+]
+
 
 class WarrantyPolicy(models.Model):
     """Reusable warranty configuration. A policy is selected where it applies: Product +
@@ -49,10 +60,9 @@ class WarrantyPolicy(models.Model):
         ('years', 'Years'),
     ], string='Warranty Duration Unit')
     start_date_basis = fields.Selection([
-        ('installation', 'Installation/Commissioning'),
+        ('installation', 'Installation Date'),
         ('delivery', 'Delivery'),
-        ('invoice', 'Invoice'),
-        ('custom', 'Custom Date Range'),
+        ('invoice', 'Invoice')
     ], string='Start Date Basis')
     free_service_count = fields.Integer(string='Free Service Count')
     free_service_period = fields.Integer(string='Free Service Period')
@@ -148,6 +158,33 @@ class WarrantyPolicy(models.Model):
         context={'active_test': False},
         help="Users receiving the due alerts and expiry reminders; each user receives their "
              "own activity. When empty, the company Service Alert Responsible Users are used.")
+
+    # Flexible service dates (BA-approved enhancement F1-F4 / K1-K2, 2026-10-24): copied to the
+    # card at warranty confirmation. Empty Early Service Rule: the standard date rules (job
+    # planning from the Alert Date, Part 2 scheduling from today, up to the Grace Period End).
+    early_service_rule = fields.Selection(
+        EARLY_SERVICE_RULES, string='Early Service Rule',
+        help="Earliest permitted service date: the Alert Date, a number of days before the due "
+             "date, or any date of the warranty period. Empty: standard date rules.")
+    early_service_days = fields.Integer(
+        string='Early Service Days', help="Days Before Due: earliest date = due date - days.")
+    late_service_handling = fields.Selection(
+        LATE_SERVICE_HANDLING, string='Late Service Handling', default='block',
+        help="After the Grace Period End: blocked, or allowed up to a date approved by a "
+             "Helpdesk manager (Late Service Exception, never after the warranty end date).")
+    service_sequence_required = fields.Boolean(
+        string='Enforce Service Sequence', default=True,
+        help="A free service is completed only after the previous free services of the card are "
+             "Completed, Expired or Cancelled; free services of one card are not merged.")
+
+    @api.constrains('early_service_rule', 'early_service_days')
+    def _check_early_service_days(self):
+        for policy in self:
+            if policy.early_service_days < 0 or (
+                    policy.early_service_rule == 'days' and policy.early_service_days <= 0):
+                raise ValidationError(_(
+                    "Early Service Days of policy %s must be greater than zero for the rule Days "
+                    "Before Due (and never negative).", policy.name))
 
     @api.constrains('grace_period_days', 'service_due_alert_days', 'expiry_reminder_days',
                     'usage_alert_percentage')

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_visit_noncompletion_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.visit.noncompletion.wizard.form</field>
+        <field name="model">warranty.visit.noncompletion.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Visit Not Completed">
+                <group>
+                    <field name="task_id"/>
+                    <field name="reason"/>
+                    <field name="next_action" widget="radio"/>
+                    <field name="notes" placeholder="What happened, what is still to be done..."/>
+                </group>
+                <field name="can_plan" invisible="1"/>
+                <field name="technician_candidate_ids" invisible="1"/>
+                <group string="Next Visit (optional)" invisible="not can_plan or next_action != 'reschedule'">
+                    <field name="planned_date"/>
+                    <field name="main_technician_id" options="{'no_create': True}"/>
+                    <field name="support_technician_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Confirm" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_plan_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.job.plan.wizard.form</field>
+        <field name="model">warranty.service.job.plan.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Plan Next Visit">
+                <field name="technician_candidate_ids" invisible="1"/>
+                <group>
+                    <field name="job_id"/>
+                    <field name="planned_date"/>
+                    <field name="main_technician_id" options="{'no_create': True}"/>
+                    <field name="support_technician_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Plan Visit" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_cancel_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.job.cancel.wizard.form</field>
+        <field name="model">warranty.service.job.cancel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cancel Job">
+                <group>
+                    <field name="job_id"/>
+                    <field name="reason"/>
+                </group>
+                <p class="text-muted">Open visits are cancelled, the free services are released
+                    (not consumed) and the warranty case goes back to Approved.</p>
+                <footer>
+                    <button name="action_apply" type="object" string="Cancel Job" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

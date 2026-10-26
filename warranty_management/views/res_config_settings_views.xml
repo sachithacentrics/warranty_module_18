@@ -14,8 +14,33 @@
                             <field name="warranty_scope_mode"/>
                         </setting>
                         <setting id="warranty_default_policy" string="Default Warranty Policy"
-                                 help="Company fallback warranty policy">
-                            <field name="warranty_default_policy_id"/>
+                                 help="Company fallback warranty policy (of this company or shared); its values are shown read-only, edit the policy to change them">
+                            <field name="warranty_default_policy_id"
+                                   domain="[('company_id', 'in', [company_id, False])]"/>
+                            <div class="mt8" invisible="not warranty_default_policy_id">
+                                <div class="row">
+                                    <label for="warranty_default_policy_basis" class="col-lg-5 o_light_label"/>
+                                    <field name="warranty_default_policy_basis"/>
+                                </div>
+                                <div class="row">
+                                    <label for="warranty_default_policy_duration" class="col-lg-5 o_light_label"/>
+                                    <div class="col-lg-7 o_row">
+                                        <field name="warranty_default_policy_duration"/>
+                                        <field name="warranty_default_policy_duration_unit"/>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="warranty_default_policy_start_criterion" class="col-lg-5 o_light_label"/>
+                                    <field name="warranty_default_policy_start_criterion"/>
+                                </div>
+                                <div class="row" invisible="warranty_default_policy_basis != 'usage'">
+                                    <label for="warranty_default_policy_usage_limit" class="col-lg-5 o_light_label"/>
+                                    <div class="col-lg-7 o_row">
+                                        <field name="warranty_default_policy_usage_limit"/>
+                                        <field name="warranty_default_policy_usage_unit"/>
+                                    </div>
+                                </div>
+                            </div>
                         </setting>
 
                         <setting id="warranty_default_card_grouping" string="Default Card Grouping Mode"
@@ -23,36 +48,70 @@
                             <field name="warranty_default_card_grouping_mode"/>
                         </setting>
                         <setting id="warranty_default_basis" string="Default Warranty Basis"
-                                 help="Date-based (Period) or meter-based (Usage) validity">
+                                 help="Date-based (Period) or meter-based (Usage) validity; with a policy, used only when the policy has none"
+                                 invisible="warranty_default_policy_id and warranty_default_policy_basis">
                             <field name="warranty_default_basis"/>
                         </setting>
                         <setting id="warranty_default_start_criterion" string="Default Start Criterion"
-                                 help="Date source used to start the warranty">
+                                 help="Date source used to start the warranty; with a policy, used only when the policy has none"
+                                 invisible="warranty_default_policy_id and warranty_default_policy_start_criterion">
                             <field name="warranty_default_start_criterion"/>
                         </setting>
                         <setting id="warranty_default_duration" string="Default Warranty Duration"
-                                 help="Company fallback warranty duration">
+                                 help="Company fallback warranty duration"
+                                 invisible="warranty_default_policy_id">
                             <div class="o_row">
-                                <field name="warranty_default_duration" required="warranty_scope_mode"/>
-                                <field name="warranty_default_duration_unit" required="warranty_scope_mode"/>
+                                <field name="warranty_default_duration" required="warranty_scope_mode and not warranty_default_policy_id"/>
+                                <field name="warranty_default_duration_unit" required="warranty_scope_mode and not warranty_default_policy_id"/>
                             </div>
                         </setting>
                     </block>
                     <block title="Free Service Settings" name="warranty_free_service_settings"
                            invisible="warranty_scope_mode not in ('free_services', 'amc_free_services')">
+                        <setting id="warranty_default_policy_free_services" string="Default Warranty Policy Free Services"
+                                 help="Values of the Default Warranty Policy (read-only): edit the policy to change them"
+                                 invisible="not warranty_default_policy_id">
+                            <div class="mt8">
+                                <div class="row">
+                                    <label for="warranty_default_policy_free_service_count" class="col-lg-5 o_light_label"/>
+                                    <field name="warranty_default_policy_free_service_count"/>
+                                </div>
+                                <div class="row">
+                                    <label for="warranty_default_policy_free_service_period" class="col-lg-5 o_light_label"/>
+                                    <div class="col-lg-7 o_row">
+                                        <field name="warranty_default_policy_free_service_period"/>
+                                        <field name="warranty_default_policy_free_service_period_unit"/>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="warranty_default_policy_free_service_frequency" class="col-lg-5 o_light_label"/>
+                                    <div class="col-lg-7 o_row">
+                                        <field name="warranty_default_policy_free_service_frequency"/>
+                                        <field name="warranty_default_policy_free_service_frequency_unit"/>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <label for="warranty_default_policy_schedule_method" class="col-lg-5 o_light_label"/>
+                                    <field name="warranty_default_policy_schedule_method"/>
+                                </div>
+                            </div>
+                        </setting>
                         <setting id="warranty_default_free_service_count" string="Default Free Service Count"
-                                 help="Free services at the company fallback level">
+                                 help="Free services at the company fallback level"
+                                 invisible="warranty_default_policy_id">
                             <field name="warranty_default_free_service_count"/>
                         </setting>
                         <setting id="warranty_default_free_service_period" string="Default Free Service Period"
-                                 help="Period in which the free services are scheduled, when the warranty policy has none">
+                                 help="Period in which the free services are scheduled, when the warranty policy has none"
+                                 invisible="warranty_default_policy_id and warranty_default_policy_free_service_period and warranty_default_policy_free_service_period_unit">
                             <div class="o_row">
                                 <field name="warranty_default_free_service_period"/>
                                 <field name="warranty_default_free_service_period_unit"/>
                             </div>
                         </setting>
                         <setting id="warranty_default_schedule_method" string="Default Schedule Method"
-                                 help="How free service due dates are calculated, when the warranty policy has none">
+                                 help="How free service due dates are calculated, when the warranty policy has none"
+                                 invisible="warranty_default_policy_id and warranty_default_policy_schedule_method">
                             <field name="warranty_default_schedule_method"/>
                         </setting>
                         <setting id="warranty_auto_create_services" string="Auto-create Services"

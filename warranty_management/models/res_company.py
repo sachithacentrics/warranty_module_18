@@ -18,6 +18,10 @@ def get_valid_service_alert_users(users, company):
     return users.filtered(lambda user: is_valid_service_alert_user(user, company))
 
 
+# Warranty Scope Modes with free services (SRS: the scope mode enables capability blocks).
+FREE_SERVICE_SCOPE_MODES = ('free_services', 'amc_free_services')
+
+
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
@@ -96,6 +100,16 @@ class ResCompany(models.Model):
                 raise ValidationError(_(
                     "The default free service count and period of %s must not be negative.",
                     company.name))
+
+    @api.constrains('default_warranty_policy_id')
+    def _check_default_warranty_policy_company(self):
+        for company in self:
+            policy = company.default_warranty_policy_id
+            if policy and not policy._is_applicable_for_company(company):
+                raise ValidationError(_(
+                    "The Default Warranty Policy of %(company)s must be an active policy of "
+                    "this company or a shared one (%(policy)s is not).",
+                    company=company.name, policy=policy.name))
 
     @api.constrains('warranty_free_download_count', 'warranty_download_approver_ids')
     def _check_warranty_download_settings(self):

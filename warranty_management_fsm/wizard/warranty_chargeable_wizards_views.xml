@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_inspection_result_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.inspection.result.wizard.form</field>
+        <field name="model">warranty.inspection.result.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Inspection Result">
+                <group>
+                    <field name="task_id"/>
+                    <field name="diagnosis" placeholder="What did you find?"/>
+                    <field name="repair_required" widget="radio"/>
+                    <field name="repair_details" required="repair_required == 'yes'"
+                           invisible="repair_required != 'yes'"
+                           placeholder="Work and parts needed (used for the draft repair quotation)"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Complete Inspection" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_case_repair_decline_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.repair.decline.wizard.form</field>
+        <field name="model">warranty.case.repair.decline.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Customer Declined Repair">
+                <group>
+                    <field name="case_id"/>
+                    <field name="reason"/>
+                </group>
+                <p class="text-muted">The inspection is kept, the open repair quotations are
+                    cancelled and the case is completed as inspection only.</p>
+                <footer>
+                    <button name="action_apply" type="object" string="Confirm" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

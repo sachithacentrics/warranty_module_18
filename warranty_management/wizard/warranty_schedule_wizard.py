@@ -21,6 +21,8 @@ class WarrantyServiceEntitlementScheduleWizard(models.TransientModel):
     due_date = fields.Date(related='entitlement_id.due_date', string='Due Date')
     grace_period_end_date = fields.Date(
         related='entitlement_id.grace_period_end_date', string='Grace Period End Date')
+    earliest_service_date = fields.Date(related='entitlement_id.earliest_service_date')
+    latest_service_date = fields.Date(related='entitlement_id.latest_service_date')
     current_scheduled_date = fields.Date(
         related='entitlement_id.scheduled_date', string='Current Scheduled Date')
     scheduled_date = fields.Date(string='Scheduled Service Date', required=True)
@@ -38,7 +40,10 @@ class WarrantyServiceEntitlementScheduleWizard(models.TransientModel):
             today = entitlement.company_id._warranty_today()
             date = entitlement.scheduled_date or entitlement.due_date or today
             date = max(date, today)
-            if entitlement.grace_period_end_date:
+            window = entitlement._warranty_allowed_range()
+            if window:
+                date = min(max(date, window[0]), window[1])
+            elif entitlement.grace_period_end_date:
                 date = min(date, entitlement.grace_period_end_date)
             values['scheduled_date'] = date
         return values

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <menuitem id="menu_warranty_root" name="Warranty" sequence="45"/>
+    <menuitem id="menu_warranty_root" name="Warranty" sequence="45"
+              web_icon="warranty_management,static/description/icon.png"/>
 
     <menuitem id="menu_warranty_cards_root" name="Warranty Cards"
               parent="menu_warranty_root" sequence="10"/>
@@ -15,7 +16,7 @@
     <menuitem id="menu_warranty_service_entitlement" name="Service Entitlements"
               action="action_warranty_service_entitlement"
               parent="menu_warranty_root" sequence="20"/>
-    <menuitem id="menu_warranty_service_entitlement_calendar" name="Free Service Calendar"
+    <menuitem id="menu_warranty_service_entitlement_calendar" name="Service Calendar"
               action="action_warranty_service_entitlement_calendar"
               parent="menu_warranty_root" sequence="25"/>
 

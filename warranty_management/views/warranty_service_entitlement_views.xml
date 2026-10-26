@@ -67,6 +67,8 @@
                         <group>
                             <field name="due_date" readonly="id"/>
                             <field name="due_date_conflict"/>
+                            <field name="earliest_service_date" invisible="not earliest_service_date"/>
+                            <field name="latest_service_date" invisible="not latest_service_date"/>
                             <field name="due_status"/>
                             <field name="scheduled_date"/>
                             <field name="reschedule_count" invisible="not reschedule_count"/>

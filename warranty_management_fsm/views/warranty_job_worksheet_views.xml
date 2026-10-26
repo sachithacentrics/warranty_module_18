@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_job_worksheet_view_list" model="ir.ui.view">
+        <field name="name">warranty.job.worksheet.list</field>
+        <field name="model">warranty.job.worksheet</field>
+        <field name="arch" type="xml">
+            <list string="Worksheets" create="0" delete="0">
+                <field name="name"/>
+                <field name="task_id" optional="show"/>
+                <field name="warranty_case_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="template_id"/>
+                <field name="usage_required" optional="show"/>
+                <field name="current_usage" optional="show"/>
+                <field name="usage_unit" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'todo'"
+                       decoration-warning="state == 'in_progress'"
+                       decoration-success="state == 'completed'"/>
+                <button name="action_open_worksheet" type="object" string="Open Worksheet"
+                        icon="fa-pencil" invisible="not template_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_job_worksheet_view_form" model="ir.ui.view">
+        <field name="name">warranty.job.worksheet.form</field>
+        <field name="model">warranty.job.worksheet</field>
+        <field name="arch" type="xml">
+            <form string="Worksheet" create="0" delete="0">
+                <header>
+                    <button name="action_open_worksheet" type="object" string="Open Worksheet"
+                            class="btn-primary" invisible="not template_id"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="job_id"/>
+                            <field name="task_id"/>
+                            <field name="warranty_case_id"/>
+                            <field name="entitlement_id" invisible="not entitlement_id"/>
+                            <field name="warranty_card_id"/>
+                            <field name="unit_id" invisible="not unit_id"/>
+                            <field name="serial_display" invisible="not serial_display"/>
+                        </group>
+                        <group>
+                            <field name="product_id"/>
+                            <field name="template_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Usage Reading" invisible="not usage_required">
+                        <group>
+                            <field name="usage_required"/>
+                            <label for="current_usage"/>
+                            <div class="o_row">
+                                <field name="current_usage" readonly="state == 'completed'"/>
+                                <field name="usage_unit" readonly="state == 'completed'"/>
+                            </div>
+                        </group>
+                    </group>
+                    <group string="Attachments and Notes">
+                        <field name="attachment_ids" widget="many2many_binary" readonly="state == 'completed'"/>
+                        <field name="notes" readonly="state == 'completed'"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Field Service task: Worksheets button; the standard Worksheet buttons stay for a single
+         instance and are hidden for warranty tasks with several instances (approved W4). -->
+    <record id="project_task_view_form_warranty_worksheets" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.worksheets</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="industry_fsm_report.view_task_form2_inherit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_fsm_worksheet'][1]" position="attributes">
+                <attribute name="invisible" add="warranty_hide_standard_worksheet" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='action_fsm_worksheet'][2]" position="attributes">
+                <attribute name="invisible" add="warranty_hide_standard_worksheet" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='action_fsm_worksheet'][1]" position="before">
+                <field name="warranty_worksheet_count" invisible="1"/>
+                <field name="warranty_hide_standard_worksheet" invisible="1"/>
+                <button class="oe_stat_button" name="action_view_warranty_worksheets" type="object"
+                        icon="fa-list" invisible="not warranty_hide_standard_worksheet">
+                    <field name="warranty_worksheet_count" widget="statinfo" string="Worksheets"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Approved shared-worksheet fix: the Warranty Worksheet checklists of each instance in
+         the Field Service report and its portal page (signed by the customer). -->
+    <template id="worksheet_custom_page_warranty" inherit_id="industry_fsm.worksheet_custom_page">
+        <div name="worksheet_signature" position="before">
+            <t t-foreach="(warranty_checklist_map or {}).get(doc.id, [])" t-as="pair">
+                <div style="page-break-inside: avoid">
+                    <br/>
+                    <h2 t-esc="pair[0].name"/>
+                    <t t-set="worksheet" t-value="pair[1]"/>
+                    <t t-call="#{pair[0].template_id.sudo().report_view_id.id}"/>
+                </div>
+            </t>
+        </div>
+    </template>
+    <template id="portal_my_task_warranty" inherit_id="industry_fsm.portal_my_task">
+        <xpath expr="//div[@name='worksheet_signature']" position="before">
+            <t t-foreach="(warranty_checklist_map or {}).get(task.id, [])" t-as="pair">
+                <div style="page-break-inside: avoid">
+                    <hr class="mt-4 mb-4"/>
+                    <h5 class="mt-2 mb-2" t-esc="pair[0].name"/>
+                    <t t-set="worksheet" t-value="pair[1]"/>
+                    <t t-call="#{pair[0].template_id.sudo().report_view_id.id}"/>
+                </div>
+            </t>
+        </xpath>
+    </template>
+</odoo>

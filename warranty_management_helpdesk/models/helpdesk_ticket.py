@@ -1,6 +1,8 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from odoo.addons.warranty_management.models.res_company import FREE_SERVICE_SCOPE_MODES
+
 
 class HelpdeskTicket(models.Model):
     """Helpdesk Warranty Panel (SRS): site, product and serial of the request, pending free
@@ -17,6 +19,8 @@ class HelpdeskTicket(models.Model):
     warranty_pending_service_ids = fields.Many2many(
         'warranty.service.entitlement', string='Pending Services',
         compute='_compute_warranty_pending_service_ids')
+    warranty_pending_service_count = fields.Integer(
+        compute='_compute_warranty_pending_service_ids')
     warranty_card_id = fields.Many2one(
         'warranty.card', string='Warranty Card', compute='_compute_warranty_card_unit')
     warranty_unit_id = fields.Many2one(
@@ -27,6 +31,16 @@ class HelpdeskTicket(models.Model):
     warranty_case_ids = fields.One2many(
         'warranty.case', 'helpdesk_ticket_id', string='Warranty Cases', readonly=True)
     warranty_case_count = fields.Integer(compute='_compute_warranty_case_count')
+    # Free service UI shown only when the company's Warranty Scope Mode includes free
+    # services (approved; display only, nothing stored).
+    warranty_free_services_enabled = fields.Boolean(
+        compute='_compute_warranty_free_services_enabled')
+
+    @api.depends('company_id.warranty_scope_mode')
+    def _compute_warranty_free_services_enabled(self):
+        for record in self:
+            record.warranty_free_services_enabled = \
+                record.company_id.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES
 
     @api.depends('partner_id', 'company_id', 'warranty_site_id', 'warranty_product_id',
                  'warranty_serial_id')
@@ -36,6 +50,22 @@ class HelpdeskTicket(models.Model):
             ticket.warranty_pending_service_ids = Entitlement._warranty_pending_services(
                 ticket.partner_id, ticket.company_id, ticket.warranty_site_id,
                 ticket.warranty_product_id, ticket.warranty_serial_id)
+            ticket.warranty_pending_service_count = len(ticket.warranty_pending_service_ids)
+
+    def action_view_warranty_pending_services(self):
+        """Pending Services (approved UI 1): multi-select -> Create Warranty Case."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Pending Services"),
+            'res_model': 'warranty.service.entitlement',
+            'view_mode': 'list',
+            'views': [(self.env.ref(
+                'warranty_management_helpdesk.warranty_service_entitlement_view_list_pending').id,
+                'list')],
+            'domain': [('id', 'in', self.warranty_pending_service_ids.ids)],
+            'context': {'warranty_ticket_id': self.id, 'create': False},
+        }
 
     @api.depends('partner_id', 'company_id', 'warranty_product_id', 'warranty_serial_id')
     def _compute_warranty_card_unit(self):

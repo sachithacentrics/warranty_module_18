@@ -10,6 +10,11 @@ class ResConfigSettings(models.TransientModel):
     warranty_escalation_user_ids = fields.Many2many(
         related='company_id.warranty_escalation_user_ids',
         string='Repeated Failure Escalation Users', readonly=False)
+    warranty_case_approval_required = fields.Boolean(
+        related='company_id.warranty_case_approval_required', readonly=False)
     warranty_case_approver_ids = fields.Many2many(
         related='company_id.warranty_case_approver_ids',
         string='Warranty Case Approval Users', readonly=False)
+    warranty_late_service_approver_ids = fields.Many2many(
+        related='company_id.warranty_late_service_approver_ids',
+        string='Late Service Exception Approvers', readonly=False)

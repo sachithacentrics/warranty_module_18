@@ -29,6 +29,8 @@ coverage, free service and repeated failure eligibility checks:
         'views/res_config_settings_views.xml',
         'views/warranty_policy_views.xml',
         'views/warranty_chargeable_views.xml',
+        'views/warranty_service_merge_views.xml',
+        'views/warranty_service_date_exception_views.xml',
     ],
     'installable': True,
     'license': 'LGPL-3',

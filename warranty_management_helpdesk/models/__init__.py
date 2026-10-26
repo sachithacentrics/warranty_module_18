@@ -8,3 +8,4 @@ from . import sale_order
 from . import helpdesk_team
 from . import warranty_coverage_item
 from . import res_config_settings
+from . import warranty_service_date_exception

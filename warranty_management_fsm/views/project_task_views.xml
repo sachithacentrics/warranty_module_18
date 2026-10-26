@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Field Service visit of a warranty Service Job (Phase 4.3). -->
+    <record id="project_task_view_form_warranty_fsm" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.fsm</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <xpath expr="(//field[@name='partner_id'])[1]" position="after">
+                <field name="warranty_service_job_id" invisible="not warranty_service_job_id"/>
+                <field name="warranty_case_id" invisible="not warranty_service_job_id"/>
+                <field name="warranty_visit_no" invisible="not warranty_service_job_id"/>
+                <field name="warranty_visit_outcome" invisible="not warranty_visit_outcome"/>
+                <field name="warranty_noncompletion_reason" invisible="not warranty_noncompletion_reason"/>
+                <field name="warranty_noncompletion_notes" invisible="not warranty_noncompletion_notes"/>
+                <field name="warranty_entitlement_ids" widget="many2many_tags"
+                       invisible="not warranty_entitlement_ids"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Phase 4.7 (approved K1): Complete Visit replaces Mark as done on warranty visits;
+         other Field Service tasks keep the standard buttons. -->
+    <record id="project_task_view_form_warranty_complete" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.complete</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="industry_fsm.view_task_form2_inherit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-primary')]" position="attributes">
+                <attribute name="invisible" add="warranty_service_job_id" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-secondary')]" position="attributes">
+                <attribute name="invisible" add="warranty_service_job_id" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-primary')]" position="after">
+                <button name="action_warranty_complete_visit" type="object" string="Complete Visit"
+                        class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="not warranty_service_job_id or fsm_done or state in ('1_done', '1_canceled')"
+                        confirm="Complete this warranty visit? The service job and the warranty case are completed and the linked free services are consumed."/>
+                <!-- Phase 4.8 (approved L1). -->
+                <button name="action_warranty_visit_not_completed" type="object"
+                        string="Visit Not Completed"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="not warranty_service_job_id or fsm_done or state in ('1_done', '1_canceled')"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

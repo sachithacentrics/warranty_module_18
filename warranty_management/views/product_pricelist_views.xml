@@ -12,6 +12,7 @@
                     <group>
                         <group>
                             <field name="warranty_applicable"/>
+                            <field name="warranty_free_services_enabled" invisible="1"/>
                             <field name="warranty_policy_id" options="{'no_create': True}"
                                    invisible="not warranty_applicable"
                                    required="warranty_applicable"/>
@@ -33,7 +34,7 @@
                                 <field name="warranty_policy_usage_unit"/>
                             </div>
                         </group>
-                        <group string="Free Services">
+                        <group string="Free Services" invisible="not warranty_free_services_enabled">
                             <field name="warranty_policy_free_service_count"/>
                             <label for="warranty_policy_frequency"/>
                             <div class="o_row">
@@ -48,13 +49,13 @@
                             <field name="warranty_policy_schedule_method"/>
                             <field name="warranty_policy_auto_create"/>
                         </group>
-                        <group string="Service Due Alert Configuration">
+                        <group string="Service Due Alert Configuration" invisible="not warranty_free_services_enabled">
                             <field name="warranty_policy_due_alert_days"/>
                             <field name="warranty_policy_alert_user_ids" widget="many2many_tags"/>
                             <field name="warranty_policy_usage_alert_percentage"
                                    invisible="warranty_policy_basis != 'usage'"/>
                         </group>
-                        <group string="Service Expiry Configuration">
+                        <group string="Service Expiry Configuration" invisible="not warranty_free_services_enabled">
                             <field name="warranty_policy_auto_expire"/>
                             <field name="warranty_policy_grace_period_days"/>
                             <field name="warranty_policy_expiry_reminder_days"/>

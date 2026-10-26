@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Approved D5: project of the warranty Field Service tasks. -->
+    <record id="res_config_settings_view_form_warranty_fsm" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.fsm</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management.res_config_settings_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_general_settings']" position="inside">
+                <setting id="warranty_fsm_project" string="Warranty Field Service Project"
+                         help="Field Service project of the warranty visits (empty: the company's standard Field Service project)">
+                    <field name="warranty_fsm_project_id" options="{'no_create': True}"/>
+                </setting>
+                <!-- Phase 4.7 (approved K2 / K3): warranty visit completion checks. -->
+                <setting id="warranty_signoff_required" string="Customer Sign-off Required"
+                         help="Complete Visit needs the customer's signature (Sign Report)">
+                    <field name="warranty_signoff_required"/>
+                </setting>
+                <setting id="warranty_worksheet_checklist_required" string="Worksheet Checklist Required"
+                         help="Complete Visit needs every worksheet checklist filled in, with its required answers">
+                    <field name="warranty_worksheet_checklist_required"/>
+                </setting>
+                <setting id="warranty_worksheet_attachment_required" string="Worksheet Attachment Required"
+                         help="Complete Visit needs at least one attachment on every worksheet">
+                    <field name="warranty_worksheet_attachment_required"/>
+                </setting>
+                <!-- Phase 4.11 (approved E4 / E10): automatic Draft Job from Service. -->
+                <setting id="warranty_draft_job_team" string="Draft Job Helpdesk Team"
+                         help="Helpdesk team of the tickets created for the free services of cards with Draft Job from Service">
+                    <field name="warranty_draft_job_team_id" options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_draft_job_user" string="Draft Job Automation User"
+                         help="Helpdesk user who creates and checks the automatic tickets, warranty cases and draft service jobs (never approves)">
+                    <field name="warranty_draft_job_user_id" options="{'no_create': True}"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

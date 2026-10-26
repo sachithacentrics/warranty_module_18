@@ -1,9 +1,22 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from .res_company import FREE_SERVICE_SCOPE_MODES
+
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
+
+    # Approved Scope Mode visibility: free service configuration shown only when the current
+    # company's Warranty Scope Mode includes free services (display only, nothing stored).
+    warranty_free_services_enabled = fields.Boolean(
+        compute='_compute_warranty_free_services_enabled')
+
+    @api.depends_context('company')
+    def _compute_warranty_free_services_enabled(self):
+        enabled = self.env.company.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES
+        for record in self:
+            record.warranty_free_services_enabled = enabled
 
     warranty_applicable = fields.Boolean(string='Warranty Applicable')
     warranty_start_criterion = fields.Selection([

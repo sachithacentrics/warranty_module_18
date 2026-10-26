@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 4.11 - Draft Job from Service (approved E2 / Q24 resolution). -->
+    <record id="warranty_policy_view_form_draft_job" model="ir.ui.view">
+        <field name="name">warranty.policy.form.draft.job</field>
+        <field name="model">warranty.policy</field>
+        <field name="inherit_id" ref="warranty_management.warranty_policy_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='draft_job_from_service']" position="after">
+                <field name="auto_case_item_ids" widget="many2many_tags"
+                       invisible="not draft_job_from_service"
+                       domain="[('id', 'in', covered_item_ids)]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_card_view_form_draft_job" model="ir.ui.view">
+        <field name="name">warranty.card.form.draft.job</field>
+        <field name="model">warranty.card</field>
+        <field name="inherit_id" ref="warranty_management.warranty_card_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='service_due_alert_days']" position="after">
+                <field name="draft_job_from_service"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_entitlement_view_form_draft_job" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.form.draft.job</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="inherit_id" ref="warranty_management.warranty_service_entitlement_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='merge_status']" position="after">
+                <field name="warranty_auto_job_state" invisible="not warranty_auto_job_state"/>
+                <field name="warranty_auto_case_id" invisible="not warranty_auto_case_id"/>
+                <field name="warranty_auto_job_note" invisible="not warranty_auto_job_note"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_entitlement_view_search_draft_job" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.search.draft.job</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="inherit_id" ref="warranty_management.warranty_service_entitlement_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter name="filter_auto_job_blocked" string="Automatic Draft Job Blocked"
+                        domain="[('warranty_auto_job_state', '=', 'blocked')]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_form_draft_job" model="ir.ui.view">
+        <field name="name">warranty.case.form.draft.job</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet//field[@name='case_type']" position="after">
+                <field name="warranty_auto_created" invisible="not warranty_auto_created"/>
+                <field name="warranty_auto_manual_change" invisible="not warranty_auto_manual_change"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_search_draft_job" model="ir.ui.view">
+        <field name="name">warranty.case.search.draft.job</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='filter_free_service']" position="after">
+                <filter name="filter_auto_created" string="Created by Draft Job from Service"
+                        domain="[('warranty_auto_created', '=', True)]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form_draft_job" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.draft.job</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='left']/field[@name='warranty_case_id']" position="after">
+                <field name="warranty_auto_created" invisible="not warranty_auto_created"/>
+            </xpath>
+            <!-- Flexible service dates (BA-approved F5, requirement 4). -->
+            <xpath expr="//header" position="inside">
+                <button name="action_open_late_service_wizard" type="object"
+                        string="Request Late Service Exception" groups="helpdesk.group_helpdesk_user"
+                        invisible="not entitlement_ids or state in ('completed', 'cancelled')"/>
+            </xpath>
+            <xpath expr="//field[@name='planned_date']" position="after">
+                <field name="actual_completion_date" invisible="not actual_completion_date"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_date_exception_group_view_form_fsm" model="ir.ui.view">
+        <field name="name">warranty.service.date.exception.group.form.fsm</field>
+        <field name="model">warranty.service.date.exception.group</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_service_date_exception_group_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='case_id']" position="after">
+                <field name="job_id" invisible="not job_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_date_exception_wizard_view_form_fsm" model="ir.ui.view">
+        <field name="name">warranty.service.date.exception.wizard.form.fsm</field>
+        <field name="model">warranty.service.date.exception.wizard</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_service_date_exception_wizard_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='case_id']" position="after">
+                <field name="job_id" invisible="not job_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_service_job_hold_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.job.hold.wizard.form</field>
+        <field name="model">warranty.service.job.hold.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Service Job">
+                <group>
+                    <field name="job_id"/>
+                    <field name="hold_action"/>
+                    <field name="reason" placeholder="e.g. compressor not in stock / unit taken to the workshop / parts received"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Confirm" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

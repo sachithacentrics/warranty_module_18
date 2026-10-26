@@ -7,4 +7,15 @@
             <field name="domain_force">[('company_id', 'in', company_ids)]</field>
         </record>
     </data>
+    <!-- Late Service Exceptions (BA-approved enhancement F5): company of the free service. -->
+    <record id="warranty_service_date_exception_company_rule" model="ir.rule">
+        <field name="name">Late Service Exception: multi-company</field>
+        <field name="model_id" ref="model_warranty_service_date_exception"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="warranty_service_date_exception_group_company_rule" model="ir.rule">
+        <field name="name">Late Service Request: multi-company</field>
+        <field name="model_id" ref="model_warranty_service_date_exception_group"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

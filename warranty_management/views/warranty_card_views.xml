@@ -92,7 +92,9 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Free Services" name="free_services">
+                        <page string="Free Services" name="free_services"
+                              invisible="not warranty_free_services_enabled">
+                            <field name="warranty_free_services_enabled" invisible="1"/>
                             <field name="free_services_included" invisible="1"/>
                             <div class="alert alert-warning" role="alert"
                                  invisible="not free_service_schedule_note">
@@ -130,6 +132,10 @@
                                 </group>
                                 <group>
                                     <field name="service_due_alert_days"/>
+                                    <field name="early_service_rule" invisible="not early_service_rule"/>
+                                    <field name="early_service_days" invisible="early_service_rule != 'days'"/>
+                                    <field name="late_service_handling" invisible="not early_service_rule"/>
+                                    <field name="service_sequence_required"/>
                                     <field name="expiry_reminder_days"/>
                                     <field name="usage_alert_percentage"/>
                                     <field name="service_alert_user_ids" widget="many2many_tags"/>
@@ -210,30 +216,9 @@
                                 </group>
                             </group>
                         </page>
-                        <!-- Single Download History: downloads with their approval request, and the
-                             requests without download yet. Requests are approved / rejected from the
-                             approvers' activities (request form). -->
-                        <page string="Download History" name="pdf_downloads" invisible="state != 'confirmed'">
-                            <field name="download_history_ids">
-                                <list create="0" delete="0" no_open="1">
-                                    <field name="event_date"/>
-                                    <field name="entry_type"/>
-                                    <field name="download_no"/>
-                                    <field name="downloaded_by_id"/>
-                                    <field name="request_id"/>
-                                    <field name="request_state" widget="badge"
-                                           decoration-info="request_state == 'to_approve'"
-                                           decoration-success="request_state in ('approved', 'used')"
-                                           decoration-danger="request_state == 'rejected'"/>
-                                    <field name="requested_by_id"/>
-                                    <field name="reason"/>
-                                    <field name="decided_by_id"/>
-                                    <field name="decision_date"/>
-                                </list>
-                            </field>
-                        </page>
                     </notebook>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>

@@ -6,7 +6,10 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import format_amount, html2plaintext
 
-from odoo.addons.warranty_management.models.res_company import get_valid_service_alert_users
+from .warranty_service_entitlement import warranty_same_site
+
+from odoo.addons.warranty_management.models.res_company import (
+    FREE_SERVICE_SCOPE_MODES, get_valid_service_alert_users)
 
 
 CASE_TYPES = [
@@ -71,6 +74,11 @@ ELIGIBILITY_RESULTS = [
 CHECKED_CASE_TYPES = ('warranty_complaint', 'free_service', 'replacement', 'repeat_complaint')
 CHARGEABLE_CASE_TYPES = ('chargeable_inspection', 'chargeable_repair')
 CHECKABLE_STATES = ('new', 'eligibility_checked')
+# Cross-card service merge (approved D2 / D6): selection fields changeable before approval.
+SELECTION_FIELDS = {'service_entitlement_ids', 'service_unit_ids'}
+SELECTION_STATES = ('new', 'eligibility_checked')
+SITE_CONFIRMATION_FIELDS = {'site_confirmed_partner_ids', 'site_confirmation_reason',
+                            'site_confirmed_by_id', 'site_confirmed_date'}
 PAYMENT_ELIGIBILITY = [
     ('not_required', 'Not Required'),
     ('pending', 'Pending'),
@@ -132,16 +140,25 @@ class WarrantyCase(models.Model):
         'stock.lot', string='Serial No.', compute='_compute_from_ticket', store=True,
         readonly=False,
         domain="[('product_id', '=', product_id)] if product_id else []")
+    # Approved card selection fix: manual selection offers only Confirmed cards of the case
+    # company / customer, product (card or unit product: multi-product cards) and serial (unit
+    # serials, kit Indoor / Outdoor included); see _check_manual_card_unit.
     warranty_card_id = fields.Many2one(
         'warranty.card', string='Warranty Card', compute='_compute_warranty_card_id',
         store=True, readonly=False, tracking=True,
-        domain="[('partner_id', 'child_of', commercial_partner_id), "
-               "('company_id', '=', company_id)]")
+        domain="[('state', '=', 'confirmed'), ('company_id', '=', company_id), "
+               "('partner_id', 'child_of', commercial_partner_id)]"
+               " + (['|', ('product_id', '=', product_id), "
+               "('unit_warranty_ids.product_id', '=', product_id)] if product_id else [])"
+               " + ([('unit_warranty_ids.serial_ids', 'in', [serial_id])] if serial_id else [])")
     warranty_unit_id = fields.Many2one(
         'warranty.unit', string='Unit Warranty', tracking=True,
-        domain="[('warranty_card_id', '=', warranty_card_id)] if warranty_card_id else "
-               "[('warranty_card_id.partner_id', 'child_of', commercial_partner_id), "
-               "('company_id', '=', company_id)]",
+        domain="([('warranty_card_id', '=', warranty_card_id)] if warranty_card_id else "
+               "[('warranty_card_id.state', '=', 'confirmed'), "
+               "('warranty_card_id.partner_id', 'child_of', commercial_partner_id), "
+               "('company_id', '=', company_id)])"
+               " + ([('product_id', '=', product_id)] if product_id else [])"
+               " + ([('serial_ids', 'in', [serial_id])] if serial_id else [])",
         help="Unit warranty number of the serviced unit (SRS Helpdesk Warranty Panel).")
     warranty_basis = fields.Selection(related='warranty_card_id.warranty_basis')
     current_usage = fields.Float(
@@ -170,6 +187,16 @@ class WarrantyCase(models.Model):
         string='Merged Ad-hoc Request',
         help="The case combines pending free services and an ad-hoc request.")
     merged_adhoc_description = fields.Text(string='Ad-hoc Request')
+    # Free service UI shown only when the company's Warranty Scope Mode includes free
+    # services (approved; display only, nothing stored).
+    warranty_free_services_enabled = fields.Boolean(
+        compute='_compute_warranty_free_services_enabled')
+
+    @api.depends('company_id.warranty_scope_mode')
+    def _compute_warranty_free_services_enabled(self):
+        for record in self:
+            record.warranty_free_services_enabled = \
+                record.company_id.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES
     # Approved Part 3.4 Q22: requested services / items, checked against the policy coverage.
     requested_item_ids = fields.Many2many(
         'warranty.coverage.item', 'warranty_case_coverage_item_rel', 'case_id', 'item_id',
@@ -249,6 +276,24 @@ class WarrantyCase(models.Model):
     can_reject_case = fields.Boolean(compute='_compute_can_reject_case')
 
     # Part 3.6c - chargeable conversion and partial coverage (approved Q49-Q58).
+    # Cross-card service merge (approved Option A, D4-D6): all cards of the linked services,
+    # the units to service on them and the Helpdesk manager same-site confirmation.
+    service_card_ids = fields.Many2many(
+        'warranty.card', 'warranty_case_service_card_rel', 'case_id', 'card_id',
+        string='Service Cards', compute='_compute_service_card_ids', store=True)
+    service_unit_ids = fields.Many2many(
+        'warranty.unit', 'warranty_case_service_unit_rel', 'case_id', 'unit_id',
+        string='Units to Service', copy=False, domain="[('id', 'in', service_card_unit_ids)]")
+    service_card_unit_ids = fields.Many2many('warranty.unit',
+                                             compute='_compute_service_card_ids')
+    site_confirmed_partner_ids = fields.Many2many(
+        'res.partner', 'warranty_case_site_confirmed_rel', 'case_id', 'partner_id',
+        string='Confirmed Same-Site Addresses', readonly=True, copy=False)
+    site_confirmation_reason = fields.Text(string='Same-Site Reason', readonly=True, copy=False)
+    site_confirmed_by_id = fields.Many2one('res.users', string='Same Site Confirmed By',
+                                           readonly=True, copy=False)
+    site_confirmed_date = fields.Datetime(string='Same Site Confirmed On', readonly=True,
+                                          copy=False)
     chargeable_type = fields.Selection(CHARGEABLE_TYPES, string='Chargeable Type', readonly=True,
                                        copy=False, tracking=True)
     chargeable_converted_by_id = fields.Many2one('res.users', string='Converted By',
@@ -272,6 +317,12 @@ class WarrantyCase(models.Model):
             case.priority = ticket.priority or '1'
             case.customer_complaint = html2plaintext(ticket.description or '').strip() \
                 or ticket.name
+
+    @api.depends('service_entitlement_ids.warranty_card_id')
+    def _compute_service_card_ids(self):
+        for case in self:
+            case.service_card_ids = case.service_entitlement_ids.warranty_card_id
+            case.service_card_unit_ids = case.service_card_ids.unit_warranty_ids
 
     @api.depends('service_entitlement_ids')
     def _compute_warranty_card_id(self):
@@ -302,7 +353,8 @@ class WarrantyCase(models.Model):
 
     @api.depends_context('uid')
     @api.depends('state', 'eligibility_result', 'eligibility_checked_by_id', 'create_uid',
-                 'company_id.warranty_case_approver_ids')
+                 'company_id.warranty_case_approver_ids',
+                 'company_id.warranty_case_approval_required')
     def _compute_can_approve_case(self):
         for case in self:
             case.can_approve_case = case.state == 'eligibility_checked' \
@@ -310,7 +362,8 @@ class WarrantyCase(models.Model):
 
     @api.depends_context('uid')
     @api.depends('state', 'eligibility_result', 'eligibility_checked_by_id', 'create_uid',
-                 'company_id.warranty_case_approver_ids')
+                 'company_id.warranty_case_approver_ids',
+                 'company_id.warranty_case_approval_required')
     def _compute_can_reject_case(self):
         for case in self:
             case.can_reject_case = case.state == 'eligibility_checked' \
@@ -340,8 +393,16 @@ class WarrantyCase(models.Model):
         return users - self.create_uid - self.eligibility_checked_by_id
 
     def _is_case_approver(self, user=None):
+        """Approve / Reject Case permission. Warranty Case Approval Required (company, default
+        True): the current Warranty Case Approval Users except creator / latest checker. Off
+        (approved S1 / S2): Helpdesk users and managers of the case company, creator and
+        latest checker included."""
         self.ensure_one()
-        return (user or self.env.user) in self._case_approvers()
+        user = user or self.env.user
+        if self.company_id.warranty_case_approval_required:
+            return user in self._case_approvers()
+        return user.has_group('helpdesk.group_helpdesk_user') \
+            and self.company_id in user.company_ids
 
     def _is_escalation_user(self, user=None):
         self.ensure_one()
@@ -359,6 +420,62 @@ class WarrantyCase(models.Model):
     def _onchange_warranty_unit_id(self):
         if self.warranty_unit_id:
             self.warranty_card_id = self.warranty_unit_id.warranty_card_id
+
+    def _manual_card_unit_problems(self, card, unit):
+        """Approved manual selection rules for a card / unit of this case."""
+        self.ensure_one()
+        problems = []
+        if card:
+            if card.state != 'confirmed':
+                problems.append(_("warranty card %s is not Confirmed", card.name))
+            if card.company_id != self.company_id:
+                problems.append(_("warranty card %s belongs to another company", card.name))
+            if card.partner_id.commercial_partner_id != self.commercial_partner_id:
+                problems.append(_("warranty card %s belongs to another customer", card.name))
+            if self.product_id and self.product_id not in (
+                    card.product_id | card.unit_warranty_ids.product_id):
+                problems.append(_("warranty card %(card)s does not cover product %(product)s",
+                                  card=card.name, product=self.product_id.display_name))
+            if self.serial_id and self.serial_id not in card.unit_warranty_ids.serial_ids:
+                problems.append(_("serial number %(serial)s is not on warranty card %(card)s",
+                                  serial=self.serial_id.name, card=card.name))
+        if unit:
+            if card and unit.warranty_card_id != card:
+                problems.append(_("unit %(unit)s is not a unit of warranty card %(card)s",
+                                  unit=unit.display_name, card=card.name))
+            if self.product_id and unit.product_id != self.product_id:
+                problems.append(_("unit %s is of another product", unit.display_name))
+            if self.serial_id and self.serial_id not in unit.serial_ids:
+                problems.append(_("serial number %(serial)s is not on unit %(unit)s",
+                                  serial=self.serial_id.name, unit=unit.display_name))
+        return problems
+
+    @api.constrains('warranty_card_id', 'warranty_unit_id')
+    def _check_manual_card_unit(self):
+        """Server-side validation of manual / API card and unit assignments (approved fix).
+        Not applied in superuser mode, which only server code can use: the Part 3.2 automatic
+        lookup records the found card in that mode (also Draft / Expired cards for the Q8 / Q14
+        results). A context flag would not be safe here, clients can send any context."""
+        if self.env.su:
+            return
+        for case in self:
+            unit = case.warranty_unit_id
+            problems = case._manual_card_unit_problems(
+                case.warranty_card_id or unit.warranty_card_id, unit)
+            if problems:
+                raise ValidationError(_("Invalid warranty card / unit on %(case)s: %(problems)s.",
+                                        case=case.name, problems='; '.join(problems)))
+
+    @api.onchange('product_id', 'serial_id', 'helpdesk_ticket_id')
+    def _onchange_clear_incompatible_card(self):
+        """Clear a manually selected card / unit that no longer matches."""
+        if self.warranty_unit_id and self._manual_card_unit_problems(
+                self.env['warranty.card'], self.warranty_unit_id):
+            self.warranty_unit_id = False
+        if self.warranty_card_id and self._manual_card_unit_problems(
+                self.warranty_card_id, self.env['warranty.unit']):
+            self.warranty_card_id = False
+            self.warranty_unit_id = False
 
     @api.onchange('warranty_card_id')
     def _onchange_warranty_card_id(self):
@@ -416,6 +533,7 @@ class WarrantyCase(models.Model):
                     ticket.company_id or self.env.company).next_by_code('warranty.case') or 'New'
         cases = super().create(vals_list)
         cases._sync_service_tickets()
+        cases._warranty_sync_service_units()
         return cases
 
     def write(self, vals):
@@ -423,14 +541,194 @@ class WarrantyCase(models.Model):
         if any(not key.startswith(REJECTED_WRITABLE_PREFIXES) for key in vals) \
                 and any(case.state == 'rejected' for case in self):
             raise UserError(_("A Rejected warranty case cannot be changed."))
-        if 'service_entitlement_ids' in vals and any(case.state != 'new' for case in self):
-            raise UserError(_("Linked free services can only be changed while the warranty "
-                              "case is New."))
+        if SITE_CONFIRMATION_FIELDS & set(vals) and not self.env.su:
+            raise UserError(_("The same-site confirmation is recorded with Confirm Same Site."))
+        # Approved D2: the selection changes before approval only; a checked case is reset.
+        if SELECTION_FIELDS & set(vals) \
+                and any(case.state not in SELECTION_STATES for case in self):
+            raise UserError(_("Linked free services and units to service can only be changed "
+                              "while the warranty case is New or Eligibility Checked."))
+        to_reset = self.filtered(lambda case: case.state == 'eligibility_checked') \
+            if SELECTION_FIELDS & set(vals) else self.browse()
         previous = self.service_entitlement_ids
         result = super().write(vals)
         if 'service_entitlement_ids' in vals or 'helpdesk_ticket_id' in vals:
             self._sync_service_tickets(previous - self.service_entitlement_ids)
+        if 'service_entitlement_ids' in vals:
+            self._warranty_sync_service_units()
+        to_reset._warranty_reset_eligibility(_("linked free services / units to service changed"))
         return result
+
+    def _warranty_sync_service_units(self):
+        """Units to Service (approved D4): units of the linked services' cards only; units of a
+        newly linked card are all added (single-unit card: its unit); the user may remove units
+        of multi-unit cards."""
+        for case in self:
+            cards = case.service_entitlement_ids.warranty_card_id
+            keep = case.service_unit_ids.filtered(lambda unit: unit.warranty_card_id in cards)
+            add = (cards - keep.warranty_card_id).unit_warranty_ids
+            if keep | add != case.service_unit_ids:
+                super(WarrantyCase, case).write({'service_unit_ids': [(6, 0, (keep | add).ids)]})
+
+    def _warranty_reset_eligibility(self, reason):
+        """Approved D2: back to New, approval / payment approval activities closed, check and
+        approval required again; the change is logged."""
+        for case in self:
+            steps = case._close_case_approval_activities(_("Case changed: %s", reason))
+            case._close_payment_approval_activities(_("Case changed: %s", reason))
+            super(WarrantyCase, case).write({'state': 'new', 'eligibility_result': False})
+            lines = Markup('').join(Markup('<li>%s</li>') % text for __, text in steps)
+            case._message_log(body=Markup('<p><b>%s</b></p><ul>%s</ul>') % (_(
+                "Eligibility reset by %(user)s: %(reason)s. Linked free services: %(services)s. "
+                "Check eligibility and approve again.", user=self.env.user.name, reason=reason,
+                services=', '.join(case.service_entitlement_ids.mapped('name')) or '-'), lines))
+
+    def _warranty_reference_site(self):
+        self.ensure_one()
+        # sudo: the delivery address of the warranty sale is read only.
+        return self.site_id or self.warranty_card_id.sudo().sale_order_id.partner_shipping_id
+
+    def _warranty_site_ok(self, address):
+        """Approved D6: same address record, identical normalized address of the same customer,
+        or an address confirmed for this case by a Helpdesk manager."""
+        self.ensure_one()
+        return warranty_same_site(address, self._warranty_reference_site()) \
+            or (address in self.site_confirmed_partner_ids
+                and address.commercial_partner_id == self.partner_id.commercial_partner_id)
+
+    def _warranty_service_card_problems(self, card):
+        """Per-card checks of the linked free services (approved Option A, D1, D3-D6):
+        [(result, reason)]."""
+        self.ensure_one()
+        labels = dict(card._fields['state']._description_selection(self.env))
+        if card.company_id != self.company_id \
+                or card.partner_id.commercial_partner_id != self.partner_id.commercial_partner_id:
+            return [('not_eligible', _("other customer or company"))]
+        if card.state != 'confirmed':
+            return [('manual_review' if card.state in ('draft', 'ready') else 'not_eligible',
+                     _("warranty card is %s", labels[card.state]))]
+        problems = []
+        units = self.service_unit_ids.filtered(lambda unit: unit.warranty_card_id == card)
+        if not units:
+            problems.append(('manual_review', _("select the units to service (Units to Service)")))
+        # sudo: the delivery address of the warranty sale is read only.
+        address = card.sudo().sale_order_id.partner_shipping_id
+        if not self._warranty_site_ok(address):
+            problems.append(('manual_review', _(
+                "service address %(address)s is not the case site %(site)s (a Helpdesk manager "
+                "can Confirm Same Site)", address=address.display_name or '-',
+                site=self._warranty_reference_site().display_name or '-')))
+        if card.warranty_basis == 'usage':
+            if card != self.warranty_card_id:
+                problems.append(('manual_review', _(
+                    "usage-based warranty: its usage is checked on a case of its own")))
+        else:
+            check_date = self._warranty_check_date()
+            for unit in units or card.unit_warranty_ids[:1]:
+                start = unit.start_date or card.warranty_start_date
+                end = unit.end_date or card.warranty_end_date
+                if not start or not end or not start <= check_date <= end:
+                    problems.append(('not_eligible', _(
+                        "%(unit)s: ticket date %(date)s outside the warranty period %(start)s - "
+                        "%(end)s", unit=unit.name, date=check_date, start=start or '?',
+                        end=end or '?')))
+        return problems
+
+    def _warranty_window_problems(self, services):
+        """Approved D3: the service windows of the selected services must overlap, and not end
+        before today."""
+        self.ensure_one()
+        windows = {service: service._warranty_service_window() for service in services}
+        windows = {service: window for service, window in windows.items() if window}
+        # Flexible service dates (BA-approved K2): a single service is checked too.
+        flexible = any(service._warranty_allowed_range() for service in windows)
+        if len(windows) < 2 and not (flexible and windows):
+            return []
+        earliest = max(window[0] for window in windows.values())
+        latest = min(window[1] for window in windows.values())
+        if earliest <= latest and latest >= self.company_id._warranty_today():
+            return []
+        hint = _(" A Helpdesk user can Request Late Service Exception for a service whose policy "
+                 "allows it.") if any(service.late_service_handling == 'approval'
+                                      for service in windows) else ''
+        if len(windows) == 1:
+            (service, window), = windows.items()
+            return [_("The permitted service dates of %(service)s (%(start)s - %(end)s) have "
+                      "ended.%(hint)s", service=service.name, start=window[0], end=window[1],
+                      hint=hint)]
+        return [_("The service windows do not overlap (no common feasible date): %(windows)s."
+                  "%(hint)s", windows='; '.join('%s %s - %s' % (service.name, window[0], window[1])
+                                                for service, window in windows.items()),
+                  hint=hint)]
+
+    def action_open_late_service_wizard(self):
+        """Request Late Service Exception for a linked free service (BA-approved F5)."""
+        self.ensure_one()
+        return self.env['warranty.service.date.exception.wizard']._warranty_open(
+            self.service_entitlement_ids, case=self)
+
+    def action_open_site_wizard(self):
+        self.ensure_one()
+        self._warranty_check_site_confirmation()
+        if not self._warranty_site_candidates():
+            raise UserError(_("All service addresses of %(case)s already match the case site "
+                              "%(site)s: no same-site confirmation is needed.", case=self.name,
+                              site=self._warranty_reference_site().display_name or '-'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Confirm Same Site"),
+            'res_model': 'warranty.case.site.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_case_id': self.id},
+        }
+
+    def _warranty_check_site_confirmation(self):
+        if not self.env.user.has_group('helpdesk.group_helpdesk_manager'):
+            raise AccessError(_("Only Helpdesk managers can confirm the same service site."))
+        if self.state not in SELECTION_STATES:
+            raise UserError(_("The same site is confirmed before approval (%s).", self.name))
+
+    def _warranty_site_candidates(self):
+        """Delivery addresses of the linked services' cards that are not matched yet."""
+        self.ensure_one()
+        # sudo: delivery addresses of the warranty sales are read only.
+        addresses = self.service_entitlement_ids.warranty_card_id.sudo() \
+            .sale_order_id.partner_shipping_id
+        return addresses.filtered(lambda address: not self._warranty_site_ok(address))
+
+    def _warranty_confirm_same_site(self, addresses, reason):
+        """Confirm Same Site (approved D6 rule 3): Helpdesk managers, this case only, same
+        customer and company, reason required; user / date / addresses / reason recorded."""
+        self.ensure_one()
+        self._warranty_check_site_confirmation()
+        reason = (reason or '').strip()
+        if not reason or not addresses:
+            raise UserError(_("Select the addresses and give the reason."))
+        allowed = self.service_entitlement_ids.warranty_card_id.sudo() \
+            .sale_order_id.partner_shipping_id
+        wrong = addresses.filtered(
+            lambda address: address not in allowed
+            or address.commercial_partner_id != self.partner_id.commercial_partner_id)
+        if wrong:
+            raise UserError(_("%s is not a service address of this case's free services and "
+                              "customer.", ', '.join(wrong.mapped('display_name'))))
+        reset = self.state == 'eligibility_checked'
+        # sudo: the confirmation fields are written by this checked action only.
+        self.sudo().write({
+            'site_confirmed_partner_ids': [(4, address.id) for address in addresses],
+            'site_confirmation_reason': reason,
+            'site_confirmed_by_id': self.env.uid,
+            'site_confirmed_date': fields.Datetime.now(),
+        })
+        self._message_log(body=Markup('<p><b>%s</b></p>') % _(
+            "Same service site confirmed by %(user)s for %(addresses)s (site %(site)s). Reason: "
+            "%(reason)s", user=self.env.user.name,
+            addresses=', '.join(addresses.mapped('display_name')),
+            site=self._warranty_reference_site().display_name or '-', reason=reason))
+        if reset:
+            self._warranty_reset_eligibility(_("same site confirmed"))
+        return True
 
     def _sync_service_tickets(self, removed=None):
         """Helpdesk Ticket of the linked free services (Development Mapping field): the
@@ -527,7 +825,12 @@ class WarrantyCase(models.Model):
                     "Approval no longer needed - eligibility result is no longer Eligible."))
             # Internal log note: no notification, no sender email needed.
             case._message_log(body=case._warranty_check_message(result, steps))
+            case._warranty_after_eligibility_check(result, steps)
         return True
+
+    def _warranty_after_eligibility_check(self, result, steps):
+        """Extension point after each Check Eligibility run (result, [(passed, text)])."""
+        self.ensure_one()
 
     def _warranty_run_checks(self):
         """All eligibility checks in diagram order (3.2-3.5). Returns (result, steps, payment
@@ -568,7 +871,9 @@ class WarrantyCase(models.Model):
             steps.append((False, _("No warranty card found for the customer, product and "
                                    "serial number - chargeable inspection / manual review.")))
             return 'manual_review', steps
-        self.write({'warranty_card_id': card.id, 'warranty_unit_id': unit.id})
+        # Approved: the automatic lookup records the found card in superuser mode, outside the
+        # manual selection rules (Draft / Expired cards give the Q8 / Q14 results).
+        self.sudo().write({'warranty_card_id': card.id, 'warranty_unit_id': unit.id})
         steps.append((True, _("Warranty card %(card)s found%(unit)s.", card=card.name,
                               unit=_(" (unit %s)", unit.name) if unit else '')))
 
@@ -580,6 +885,11 @@ class WarrantyCase(models.Model):
                                        self.serial_id.name)))
                 return 'manual_review', steps
             steps.append((True, _("Serial number %s matches.", self.serial_id.name)))
+        elif not self.product_id and self.service_unit_ids.filtered(
+                lambda u: u.warranty_card_id == card):
+            steps.append((True, _("Units to service on %(card)s: %(units)s.", card=card.name,
+                                  units=', '.join(self.service_unit_ids.filtered(
+                                      lambda u: u.warranty_card_id == card).mapped('name')))))
         elif any(u.product_id.tracking == 'serial' or u.serial_ids for u in units):
             steps.append((False, _("The serial number is required for this product: enter the "
                                    "Serial No. of the serviced unit and check again.")))
@@ -764,6 +1074,9 @@ class WarrantyCase(models.Model):
         (approved Q15-Q20). Returns (eligibility result or False to continue, payment values)."""
         self.ensure_one()
         card = self.warranty_card_id
+        cards = card | self.service_entitlement_ids.warranty_card_id
+        if len(cards) > 1:
+            return self._warranty_check_payment_cards(steps, cards)
         policy = card.policy_id
         if not policy.payment_check_required:
             steps.append((True, _("Payment Check Required is off: payment eligibility Not "
@@ -800,6 +1113,51 @@ class WarrantyCase(models.Model):
                                    "until the payment conditions pass - check again after "
                                    "payment.")))
             return 'pending_payment', {'payment_eligibility': 'failed', 'payment_hold': 'blocked'}
+        steps.append((False, self._request_payment_approval()))
+        return 'pending_payment', {'payment_eligibility': 'pending',
+                                   'payment_hold': 'pending_approval'}
+
+    def _warranty_check_payment_cards(self, steps, cards):
+        """Payment check of every participating card (approved Option A): each card with its
+        own policy's Payment Check Required; problems named per card; the strictest Overdue
+        Claim Handling of these policies applies; the case waiver covers the case."""
+        checked = cards.filtered(lambda card: card.policy_id.payment_check_required)
+        if not checked:
+            steps.append((True, _("Payment Check Required is off for cards %s: payment "
+                                  "eligibility Not Required.", ', '.join(cards.mapped('name')))))
+            return self._warranty_payment_continue(steps, 'not_required')
+        problems = []
+        for card in checked:
+            for problem in self._warranty_payment_problems(card):
+                text = _("%(card)s: %(problem)s", card=card.name, problem=problem)
+                if problem not in [raw for raw, __ in problems]:
+                    problems.append((problem, text))
+        if not problems:
+            steps.append((True, _("Warranty sale invoices of %s Paid or fully covered and no "
+                                  "overdue receivables: payment eligibility Passed.",
+                                  ', '.join(checked.mapped('name')))))
+            return self._warranty_payment_continue(steps, 'passed')
+        for __, text in problems:
+            steps.append((False, text))
+        if self.payment_waiver_user_id:
+            steps.append((True, _("Payment exception approved by %(user)s on %(date)s for this "
+                                  "case: payment eligibility Waived.",
+                                  user=self.payment_waiver_user_id.name,
+                                  date=self.payment_waiver_date)))
+            return self._warranty_payment_continue(steps, 'waived')
+        rank = ['warning', 'approval', 'hold', 'block']
+        handling = max((card.policy_id.overdue_claim_handling or 'warning' for card in checked),
+                       key=rank.index)
+        if handling == 'warning':
+            steps.append((False, _("Overdue Claim Handling Warning Only: warning shown, the check "
+                                   "continues.")))
+            return self._warranty_payment_continue(steps, 'failed')
+        if handling in ('hold', 'block'):
+            steps.append((False, _("Overdue Claim Handling %s: check again after payment.",
+                                   handling.capitalize())))
+            return 'pending_payment', {'payment_eligibility': 'failed',
+                                       'payment_hold': 'on_hold' if handling == 'hold'
+                                       else 'blocked'}
         steps.append((False, self._request_payment_approval()))
         return 'pending_payment', {'payment_eligibility': 'pending',
                                    'payment_hold': 'pending_approval'}
@@ -881,6 +1239,10 @@ class WarrantyCase(models.Model):
         self.ensure_one()
         policy = self.warranty_card_id.policy_id
         names = lambda items: ', '.join(items.mapped('name'))
+        conflict = self._warranty_coverage_conflicts()
+        if conflict:
+            steps.append((False, conflict))
+            return 'manual_review'
         if not policy:
             steps.append((False, _("Warranty card %s has no warranty policy: the coverage cannot "
                                    "be resolved - manual review.", self.warranty_card_id.name)))
@@ -914,6 +1276,34 @@ class WarrantyCase(models.Model):
         steps.append((True, _("All requested items are covered: %s.", names(covered))))
         return False
 
+    def _warranty_coverage_conflicts(self):
+        """Approved D8: the requested items are checked against the policy of every
+        participating card; a card without policy or an item classified differently (covered /
+        excluded / undefined) by the policies -> manual review text, else False."""
+        self.ensure_one()
+        cards = self.warranty_card_id | self.service_entitlement_ids.warranty_card_id
+        if len(cards) < 2:
+            return False
+        without = cards.filtered(lambda card: not card.policy_id)
+        if without:
+            return _("Warranty card %s has no warranty policy: the coverage cannot be resolved - "
+                     "manual review.", ', '.join(without.mapped('name')))
+        conflicts = []
+        for item in self.requested_item_ids:
+            classes = {}
+            for card in cards:
+                policy = card.policy_id
+                status = _("covered") if item in policy.covered_item_ids else _("excluded") \
+                    if item in policy.excluded_item_ids else _("undefined")
+                classes.setdefault(status, []).append(card.name)
+            if len(classes) > 1:
+                conflicts.append('%s (%s)' % (item.name, '; '.join(
+                    '%s: %s' % (status, ', '.join(names)) for status, names in classes.items())))
+        if conflicts:
+            return _("The policies of the participating cards disagree on: %s - manual review.",
+                     ' / '.join(conflicts))
+        return False
+
     def _warranty_check_free_service(self, steps):
         """Free Service Request? -> Check Available Service Entitlement (approved Q25 / Q26,
         Part 2 rule A9 as in 3.1): case type Free Service or linked free services; the linked
@@ -929,13 +1319,22 @@ class WarrantyCase(models.Model):
             steps.append((False, _("Free service request without linked free service: select the "
                                    "available free service on the case and check again.")))
             return 'manual_review'
-        other_card = services.filtered(lambda s: s.warranty_card_id != self.warranty_card_id)
-        if other_card:
-            steps.append((False, _("Free service %(services)s belongs to another warranty card "
-                                   "than %(card)s - manual review.",
-                                   services=', '.join(other_card.mapped('name')),
-                                   card=self.warranty_card_id.name)))
-            return 'manual_review'
+        # Approved Option A / D1: every participating card is checked; any failure blocks the
+        # case and is named (card, services, reason); nothing is excluded silently.
+        problems = []
+        for card in services.warranty_card_id:
+            names = ', '.join(services.filtered(lambda s: s.warranty_card_id == card)
+                              .mapped('name'))
+            for result, reason in self._warranty_service_card_problems(card):
+                problems.append((result, _("%(card)s (%(services)s): %(reason)s.",
+                                           card=card.name, services=names, reason=reason)))
+        problems += [('manual_review', text) for text in self._warranty_window_problems(services)]
+        # BA-approved F3 / K7: service sequence of the cards (card snapshot).
+        problems += [('manual_review', text) for text in services._warranty_sequence_problems()]
+        if problems:
+            steps += [(False, text) for __, text in problems]
+            return 'not_eligible' if any(result == 'not_eligible' for result, __ in problems) \
+                else 'manual_review'
         available = self.env['warranty.service.entitlement']._warranty_pending_services(
             self.partner_id, self.company_id)
         unavailable = services - available
@@ -1132,6 +1531,13 @@ class WarrantyCase(models.Model):
         / now excluded users) closed, missing ones created, valid ones kept. Returns the
         chatter steps."""
         self.ensure_one()
+        if not self.company_id.warranty_case_approval_required:
+            # Approved S3: no approval activities when approval users are not required.
+            return self._close_case_approval_activities(_(
+                "Warranty Case Approval Required is off: approval by Helpdesk users, no approval "
+                "activities.")) + [(True, _(
+                    "Warranty Case Approval Required is off: a Helpdesk user approves the case "
+                    "(no approval activities)."))]
         allowed = self._case_approvers()
         open_activities = self.case_approval_activity_ids.exists().filtered('active')
         steps = []
@@ -1179,6 +1585,22 @@ class WarrantyCase(models.Model):
         return [(True, _("Case approval activities closed (%(users)s): %(reason)s",
                          users=names, reason=feedback))]
 
+    def _check_case_approver(self, action):
+        """Server-side Approve / Reject permission (same rules, approved S5)."""
+        self.ensure_one()
+        if self.company_id.warranty_case_approval_required:
+            if self.env.user in self.create_uid | self.eligibility_checked_by_id:
+                raise AccessError(_("You cannot %(action)s warranty case %(case)s: you created it "
+                                    "or ran its latest eligibility check.", action=action,
+                                    case=self.name))
+            if not self._is_case_approver():
+                raise AccessError(_("Only the Warranty Case Approval Users of %(company)s can "
+                                    "%(action)s warranty cases.", company=self.company_id.name,
+                                    action=action))
+        elif not self._is_case_approver():
+            raise AccessError(_("Only Helpdesk users of %(company)s can %(action)s warranty "
+                                "cases.", company=self.company_id.name, action=action))
+
     def action_approve_case(self):
         """Approve Case (approved Q38-Q43): Eligibility Checked + Eligible, current Warranty
         Case Approval User, not the case creator nor the latest eligibility checker; the
@@ -1189,12 +1611,7 @@ class WarrantyCase(models.Model):
             if case.state != 'eligibility_checked' or case.eligibility_result != 'eligible':
                 raise UserError(_("Only Eligible warranty cases in Eligibility Checked status can be "
                                   "approved (%s).", case.name))
-            if self.env.user in case.create_uid | case.eligibility_checked_by_id:
-                raise AccessError(_("You cannot approve warranty case %s: you created it or ran "
-                                    "its latest eligibility check.", case.name))
-            if not case._is_case_approver():
-                raise AccessError(_("Only the Warranty Case Approval Users of %s can approve "
-                                    "warranty cases.", case.company_id.name))
+            case._check_case_approver(_("approve"))
             # sudo: the approver may lack rights on cards / services / accounting read by the
             # checks and on writing the case; the checks only read, approval requests are
             # suppressed by the revalidation context.
@@ -1249,12 +1666,7 @@ class WarrantyCase(models.Model):
                 raise UserError(_("Only warranty cases in Eligibility Checked status with result Not "
                                   "Eligible, Out of Warranty or Manual Review can be rejected (%s).",
                                   case.name))
-            if self.env.user in case.create_uid | case.eligibility_checked_by_id:
-                raise AccessError(_("You cannot reject warranty case %s: you created it or ran its "
-                                    "latest eligibility check.", case.name))
-            if not case._is_case_approver():
-                raise AccessError(_("Only the Warranty Case Approval Users of %s can reject "
-                                    "warranty cases.", case.company_id.name))
+            case._check_case_approver(_("reject"))
 
     def action_open_reject_wizard(self):
         self.ensure_one()

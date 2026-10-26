@@ -33,6 +33,42 @@ class ResConfigSettings(models.TransientModel):
     warranty_default_duration_unit = fields.Selection(
         related='company_id.default_warranty_duration_unit', string='Default Duration Unit',
         readonly=False)
+    # Read-only display of the selected Default Warranty Policy (related to the form's policy
+    # field so the values refresh when the policy changes; nothing stored or copied).
+    warranty_default_policy_basis = fields.Selection(
+        related='warranty_default_policy_id.warranty_basis', string='Warranty Basis',
+        readonly=True)
+    warranty_default_policy_duration = fields.Integer(
+        related='warranty_default_policy_id.warranty_duration', string='Warranty Duration',
+        readonly=True)
+    warranty_default_policy_duration_unit = fields.Selection(
+        related='warranty_default_policy_id.warranty_duration_unit',
+        string='Warranty Duration Unit', readonly=True)
+    warranty_default_policy_start_criterion = fields.Selection(
+        related='warranty_default_policy_id.start_date_basis', string='Start Criterion',
+        readonly=True)
+    warranty_default_policy_usage_limit = fields.Float(
+        related='warranty_default_policy_id.usage_limit', string='Usage Limit', readonly=True)
+    warranty_default_policy_usage_unit = fields.Selection(
+        related='warranty_default_policy_id.usage_unit', string='Usage Unit', readonly=True)
+    warranty_default_policy_free_service_count = fields.Integer(
+        related='warranty_default_policy_id.free_service_count', string='Free Service Count',
+        readonly=True)
+    warranty_default_policy_free_service_period = fields.Integer(
+        related='warranty_default_policy_id.free_service_period', string='Free Service Period',
+        readonly=True)
+    warranty_default_policy_free_service_period_unit = fields.Selection(
+        related='warranty_default_policy_id.free_service_period_unit',
+        string='Free Service Period Unit', readonly=True)
+    warranty_default_policy_free_service_frequency = fields.Integer(
+        related='warranty_default_policy_id.free_service_frequency',
+        string='Free Service Frequency', readonly=True)
+    warranty_default_policy_free_service_frequency_unit = fields.Selection(
+        related='warranty_default_policy_id.free_service_frequency_unit',
+        string='Free Service Frequency Unit', readonly=True)
+    warranty_default_policy_schedule_method = fields.Selection(
+        related='warranty_default_policy_id.schedule_method', string='Schedule Method',
+        readonly=True)
     warranty_default_free_service_count = fields.Integer(
         related='company_id.default_free_service_count', string='Default Free Service Count',
         readonly=False)
@@ -62,10 +98,12 @@ class ResConfigSettings(models.TransientModel):
 
     def set_values(self):
         for settings in self:
-            if settings.warranty_scope_mode and (
+            # With a Default Warranty Policy the policy provides the duration (P4), so the
+            # company default duration is only required without one.
+            if settings.warranty_scope_mode and not settings.warranty_default_policy_id and (
                     settings.warranty_default_duration <= 0
                     or not settings.warranty_default_duration_unit):
                 raise ValidationError(_(
                     "Default Warranty Duration and unit are required when a Warranty Scope Mode "
-                    "is set."))
+                    "is set and no Default Warranty Policy is selected."))
         return super().set_values()

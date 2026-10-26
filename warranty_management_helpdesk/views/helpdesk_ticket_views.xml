@@ -35,8 +35,10 @@
                             <field name="warranty_unit_id"/>
                         </group>
                     </group>
-                    <separator string="Pending Services"/>
-                    <field name="warranty_pending_service_ids" readonly="1">
+                    <field name="warranty_free_services_enabled" invisible="1"/>
+                    <separator string="Pending Services" invisible="not warranty_free_services_enabled"/>
+                    <field name="warranty_pending_service_ids" readonly="1"
+                           invisible="not warranty_free_services_enabled">
                         <list create="0" delete="0">
                             <field name="name"/>
                             <field name="warranty_card_id"/>

@@ -11,6 +11,8 @@
                         <field name="entitlement_id"/>
                         <field name="due_date"/>
                         <field name="grace_period_end_date" invisible="not grace_period_end_date"/>
+                        <field name="earliest_service_date" invisible="not earliest_service_date"/>
+                        <field name="latest_service_date" invisible="not latest_service_date"/>
                         <field name="current_scheduled_date" invisible="mode != 'reschedule'"/>
                     </group>
                     <group>

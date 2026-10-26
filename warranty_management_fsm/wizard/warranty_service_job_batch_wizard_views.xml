@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_service_job_batch_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.job.batch.wizard.form</field>
+        <field name="model">warranty.service.job.batch.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Complete Selected Jobs">
+                <field name="state" invisible="1"/>
+                <div class="alert alert-info" role="alert" invisible="state != 'preview'">
+                    Check: <field name="ready_count" class="oe_inline"/> Ready,
+                    <field name="not_ready_count" class="oe_inline"/> Not Ready. Only Ready jobs
+                    are completed (checked again just before); Not Ready jobs are not changed.
+                </div>
+                <div class="alert alert-success" role="alert" invisible="state != 'done'">
+                    Result: <field name="completed_count" class="oe_inline"/> Completed,
+                    <field name="skipped_count" class="oe_inline"/> Skipped.
+                </div>
+                <field name="line_ids">
+                    <list>
+                        <field name="job_id"/>
+                        <field name="result" widget="badge"
+                               decoration-success="result in ('ready', 'completed')"
+                               decoration-danger="result in ('not_ready', 'skipped')"/>
+                        <field name="reasons"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_complete" type="object" string="Complete Ready Jobs"
+                            class="btn-primary" invisible="state != 'preview' or not ready_count"/>
+                    <button name="action_check" type="object" string="Check Again"
+                            invisible="state != 'preview'"/>
+                    <button special="cancel" string="Close"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

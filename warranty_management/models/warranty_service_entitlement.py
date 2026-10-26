@@ -75,6 +75,11 @@ class WarrantyServiceEntitlement(models.Model):
     grace_period_end_date = fields.Date(
         string='Grace Period End Date', compute='_compute_monitoring_dates', store=True,
         readonly=True)
+    # Flexible service dates (display only; the rules use _warranty_allowed_range()).
+    earliest_service_date = fields.Date(string='Earliest Service Date',
+                                        compute='_compute_permitted_service_dates')
+    latest_service_date = fields.Date(string='Latest Service Date',
+                                      compute='_compute_permitted_service_dates')
     alert_date = fields.Date(
         string='Alert Date', compute='_compute_monitoring_dates', store=True, readonly=True)
     expiry_reminder_date = fields.Date(
@@ -276,6 +281,66 @@ class WarrantyServiceEntitlement(models.Model):
         self.ensure_one()
         return self.merge_status in ('selected', 'merged')
 
+    # ------------------------------------------------------------------ flexible service dates
+    def _compute_permitted_service_dates(self):
+        for entitlement in self:
+            window = entitlement._warranty_allowed_range()
+            entitlement.earliest_service_date = window[0] if window else False
+            entitlement.latest_service_date = window[1] if window else False
+
+    def _warranty_approved_service_date(self):
+        """Latest date approved by a Late Service Exception (warranty_management_helpdesk);
+        False without one."""
+        self.ensure_one()
+        return False
+
+    def _warranty_expiry_limit(self):
+        """Last acceptable service date (approved F8 / K3): the Grace Period End Date, or the
+        later date of an approved Late Service Exception."""
+        self.ensure_one()
+        dates = [date for date in (self.grace_period_end_date,
+                                   self._warranty_approved_service_date()) if date]
+        return max(dates) if dates else False
+
+    def _warranty_allowed_range(self):
+        """Permitted service dates of a card with flexible service dates (BA-approved F2 / F4 /
+        F6): (earliest, latest). Earliest: Alert Date (due date - Service Due Alert Days), due
+        date - Early Service Days, or the warranty start (Any Date); never before the warranty
+        start. Latest: due date + Grace Period Days, or a later approved Late Service Exception
+        date (at most the warranty end date, checked at approval). None for cards with the
+        standard date rules (no Early Service Rule snapshot) or without due date."""
+        self.ensure_one()
+        card = self.warranty_card_id
+        if not card.early_service_rule or not self.due_date:
+            return None
+        due = self.due_date
+        if card.early_service_rule == 'alert':
+            earliest = due - timedelta(days=max(card.service_due_alert_days, 0))
+        elif card.early_service_rule == 'days':
+            earliest = due - timedelta(days=max(card.early_service_days, 0))
+        else:
+            earliest = card.warranty_start_date or due
+        if card.warranty_start_date:
+            earliest = max(earliest, card.warranty_start_date)
+        latest = due + timedelta(days=max(card.grace_period_days, 0))
+        approved = self._warranty_approved_service_date()
+        if approved and approved > latest:
+            latest = approved
+        return earliest, latest
+
+    def _warranty_late_service_hint(self, date, window):
+        """Text added to a refused late date when the card allows Late Service Exceptions."""
+        self.ensure_one()
+        if date > window[1] and self.warranty_card_id.late_service_handling == 'approval':
+            return _(" A Helpdesk user can Request Late Service Exception; a Helpdesk manager "
+                     "approves it.")
+        return ''
+
+    def _warranty_after_expiry(self):
+        """Hook after the Part 2 expiry (pending Late Service Exception requests are closed by
+        warranty_management_helpdesk)."""
+        return True
+
     def _get_due_status(self, today):
         self.ensure_one()
         if not self._is_monitored() or self.state not in OPEN_STATES:
@@ -400,13 +465,15 @@ class WarrantyServiceEntitlement(models.Model):
                     and today <= entitlement.scheduled_date:
                 continue
             card = entitlement.warranty_card_id
-            if today > entitlement.grace_period_end_date and card.auto_expire_services \
+            # Approved F8: an approved Late Service Exception keeps the service until its date.
+            if today > entitlement._warranty_expiry_limit() and card.auto_expire_services \
                     and not card.carry_forward_allowed:
                 to_expire |= entitlement
             elif entitlement.state != 'missed':
                 to_miss |= entitlement
         to_miss.write({'state': 'missed'})
         to_expire.write({'state': 'expired'})
+        to_expire._warranty_after_expiry()
         to_expire._close_system_activities()
         to_expire._send_service_expired_emails(today)
 
@@ -505,8 +572,8 @@ class WarrantyServiceEntitlement(models.Model):
         if self.warranty_card_id.state != 'confirmed':
             raise UserError(_("Free service %s can only be scheduled on a confirmed warranty "
                               "card.", self.name))
-        if self.state == 'missed' and (
-                not self.grace_period_end_date or today > self.grace_period_end_date):
+        limit = self._warranty_expiry_limit()
+        if self.state == 'missed' and (not limit or today > limit):
             raise UserError(_("Missed free service %s can only be scheduled within its grace "
                               "period.", self.name))
         if self.state not in SCHEDULABLE_STATES + SCHEDULED_STATES:
@@ -525,7 +592,16 @@ class WarrantyServiceEntitlement(models.Model):
         mode = self._get_schedule_mode(today)
         if scheduled_date < today:
             raise UserError(_("The scheduled service date cannot be in the past."))
-        if self.grace_period_end_date and scheduled_date > self.grace_period_end_date:
+        window = self._warranty_allowed_range()
+        if window:
+            # BA-approved K2: the permitted service dates of the card's policy snapshot.
+            if not window[0] <= scheduled_date <= window[1]:
+                raise UserError(_(
+                    "The scheduled service date of %(service)s must be within its permitted "
+                    "service dates %(start)s - %(end)s.%(hint)s", service=self.name,
+                    start=window[0], end=window[1],
+                    hint=self._warranty_late_service_hint(scheduled_date, window)))
+        elif self.grace_period_end_date and scheduled_date > self.grace_period_end_date:
             raise UserError(_(
                 "The scheduled service date cannot be after the Grace Period End Date "
                 "(%(date)s) of %(service)s.",

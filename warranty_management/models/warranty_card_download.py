@@ -237,6 +237,7 @@ class WarrantyCardDownloadTicket(models.Model):
         ticket.used = True
         if request:
             request.write({'state': 'used', 'download_log_id': log.id})
+        card._log_pdf_download(log)
         return attachment
 
     @api.autovacuum
