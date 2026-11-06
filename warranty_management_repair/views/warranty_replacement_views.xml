@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_replacement_view_list" model="ir.ui.view">
+        <field name="name">warranty.replacement.list</field>
+        <field name="model">warranty.replacement</field>
+        <field name="arch" type="xml">
+            <list string="Replacements" decoration-muted="state == 'rejected'">
+                <field name="name"/>
+                <field name="warranty_case_id"/>
+                <field name="warranty_card_id"/>
+                <field name="warranty_unit_id"/>
+                <field name="replacement_type"/>
+                <field name="old_serial_id"/>
+                <field name="new_serial_id"/>
+                <field name="date_policy" optional="show"/>
+                <field name="delivery_date" optional="show"/>
+                <field name="updated_card_generated" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="replacement_cost" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge" decoration-info="state == 'submitted'"
+                       decoration-warning="state == 'approved'"
+                       decoration-success="state == 'done'"
+                       decoration-danger="state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_replacement_view_search" model="ir.ui.view">
+        <field name="name">warranty.replacement.search</field>
+        <field name="model">warranty.replacement</field>
+        <field name="arch" type="xml">
+            <search string="Replacements">
+                <field name="name"/>
+                <field name="old_serial_id"/>
+                <field name="new_serial_id"/>
+                <field name="warranty_case_id"/>
+                <field name="warranty_card_id"/>
+                <filter name="open" string="Open"
+                        domain="[('state', 'in', ('draft', 'submitted', 'approved'))]"/>
+                <filter name="to_approve" string="Waiting Approval"
+                        domain="[('state', '=', 'submitted')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="Approval Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_type" string="Replacement Type" context="{'group_by': 'replacement_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="warranty_replacement_view_form" model="ir.ui.view">
+        <field name="name">warranty.replacement.form</field>
+        <field name="model">warranty.replacement</field>
+        <field name="arch" type="xml">
+            <form string="Replacement">
+                <header>
+                    <button name="action_warranty_replacement_submit" type="object" string="Submit"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_warranty_replacement_approve" type="object" string="Approve"
+                            class="btn-primary" invisible="not can_approve"/>
+                    <button name="action_warranty_replacement_reject" type="object" string="Reject"
+                            invisible="not can_reject"/>
+                    <button name="action_warranty_replacement_change_serial" type="object"
+                            string="Change New Serial"
+                            invisible="state != 'approved' or not can_reject or approval_missing
+                                       or replacement_type == 'component'"/>
+                    <button name="action_warranty_replacement_create_transfers" type="object"
+                            string="Create Missing Transfers" groups="stock.group_stock_user"
+                            invisible="not transfers_missing"/>
+                    <button name="action_warranty_replacement_create_material_request" type="object"
+                            string="Create Material Request"
+                            invisible="replacement_type != 'component' or state != 'approved'"/>
+                    <button name="action_warranty_replacement_complete_component" type="object"
+                            string="Complete Replacement" class="btn-primary"
+                            invisible="replacement_type != 'component' or state != 'approved'"/>
+                    <button name="action_warranty_replacement_create_vendor_claim" type="object"
+                            string="Create Vendor Claim"
+                            groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                            invisible="replacement_type != 'vendor' or state != 'done'"/>
+                    <button name="action_warranty_replacement_generate_card" type="object"
+                            string="Generate Updated Card"
+                            invisible="state != 'done' or updated_card_generated"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,submitted,approved,done"/>
+                </header>
+                <div class="alert alert-warning mb-0" role="alert" invisible="not approval_missing">
+                    This request reached Approved under the earlier version, without the Manager / GM
+                    approval that is now mandatory. Its transfers cannot be validated. A Manager / GM
+                    approver can reject it, then create a new request.
+                </div>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_return_picking" type="object"
+                                class="oe_stat_button" icon="fa-truck fa-flip-horizontal"
+                                groups="stock.group_stock_user" invisible="not return_picking_id"
+                                string="Return Picking"/>
+                        <button name="action_view_delivery_picking" type="object"
+                                class="oe_stat_button" icon="fa-truck"
+                                groups="stock.group_stock_user" invisible="not delivery_picking_id"
+                                string="Replacement Delivery"/>
+                        <button name="action_view_vendor_claims" type="object"
+                                class="oe_stat_button" icon="fa-file-text-o"
+                                invisible="not vendor_claim_count">
+                            <field name="vendor_claim_count" widget="statinfo" string="Vendor Claims"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <field name="available_lot_ids" invisible="1"/>
+                    <field name="can_approve" invisible="1"/>
+                    <field name="can_reject" invisible="1"/>
+                    <field name="approval_missing" invisible="1"/>
+                    <field name="transfers_missing" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <group>
+                        <group string="Warranty">
+                            <field name="warranty_case_id" options="{'no_create': True}"
+                                   readonly="state != 'draft'"/>
+                            <field name="partner_id"/>
+                            <field name="warranty_card_id"/>
+                            <field name="warranty_unit_id"/>
+                            <field name="product_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="case_eligibility_result"
+                                   invisible="replacement_type != 'goodwill'"/>
+                            <field name="case_eligibility_reason"
+                                   invisible="replacement_type != 'goodwill'"/>
+                        </group>
+                        <group string="Replacement">
+                            <field name="replacement_type" readonly="state != 'draft'"/>
+                            <field name="old_serial_id" invisible="replacement_type == 'component'"/>
+                            <field name="new_serial_id" options="{'no_create': True}"
+                                   readonly="state != 'draft'"
+                                   invisible="replacement_type == 'component'"/>
+                            <field name="unaffected_serial_id"
+                                   invisible="replacement_type not in ('indoor', 'outdoor')"/>
+                            <field name="reason" force_save="1"
+                                   readonly="state != 'draft' or replacement_type == 'goodwill'"/>
+                            <field name="reason_note" readonly="state != 'draft'"
+                                   required="replacement_type == 'goodwill'"/>
+                        </group>
+                    </group>
+                    <group string="Components" invisible="replacement_type != 'component'">
+                        <field name="component_line_ids" nolabel="1" colspan="2"
+                               context="{'default_replacement_id': id}">
+                            <list editable="bottom">
+                                <field name="product_id" options="{'no_create': True}"
+                                       readonly="parent.state != 'draft'"/>
+                                <field name="qty" readonly="parent.state != 'draft'"/>
+                                <field name="old_lot_id" options="{'no_create': True}"
+                                       readonly="parent.state != 'draft'"/>
+                                <field name="old_part_details" readonly="parent.state != 'draft'"/>
+                                <field name="return_required" readonly="parent.state != 'draft'"/>
+                                <field name="no_return_reason" readonly="parent.state != 'draft'"
+                                       required="not return_required"/>
+                                <field name="return_picking_id"/>
+                                <field name="mrf_line_id" options="{'no_create': True}"
+                                       readonly="parent.state != 'approved'"
+                                       domain="[('requisition_id.warranty_case_id', '=', parent.warranty_case_id), ('product_id', '=', product_id)]"/>
+                                <field name="used_qty"/>
+                                <field name="new_lot_ids" widget="many2many_tags"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group>
+                        <group string="Warranty Date Policy" invisible="replacement_type == 'component'">
+                            <field name="date_policy" force_save="1"
+                                   readonly="state != 'draft' or replacement_type == 'goodwill'"/>
+                            <label for="extension_value" invisible="date_policy != 'fixed_extension'"/>
+                            <div class="o_row" invisible="date_policy != 'fixed_extension'">
+                                <field name="extension_value" class="oe_inline" readonly="state != 'draft'"/>
+                                <field name="extension_unit" class="oe_inline" readonly="state != 'draft'"/>
+                            </div>
+                            <field name="extension_base"
+                                   invisible="date_policy != 'fixed_extension' or state == 'draft'"/>
+                            <field name="manual_end_date" invisible="date_policy != 'manual'"
+                                   readonly="not can_approve or gm_approved_by_id or finance_approved_by_id"/>
+                            <field name="manual_date_reason" invisible="date_policy != 'manual'"
+                                   readonly="not can_approve or gm_approved_by_id or finance_approved_by_id"/>
+                            <field name="remaining_days" invisible="date_policy != 'remaining_period' or state != 'done'"/>
+                        </group>
+                        <group string="Return and Delivery">
+                            <field name="return_location_id" options="{'no_create': True}"
+                                   readonly="state != 'draft'"/>
+                            <field name="return_required" invisible="state == 'draft'"/>
+                            <field name="return_picking_id" invisible="not return_picking_id"/>
+                            <field name="return_reused" invisible="not return_reused"/>
+                            <field name="delivery_picking_id" invisible="not delivery_picking_id"/>
+                            <field name="delivery_date" invisible="not delivery_date"/>
+                        </group>
+                    </group>
+                    <group invisible="state == 'draft'">
+                        <group string="Approval">
+                            <field name="requested_by_id"/>
+                            <field name="requested_date"/>
+                            <field name="gm_approved_by_id" invisible="not gm_approved_by_id"/>
+                            <field name="gm_approved_date" invisible="not gm_approved_by_id"/>
+                            <field name="finance_required"
+                                   invisible="replacement_type in ('indoor', 'outdoor')"/>
+                            <field name="finance_approved_by_id" invisible="not finance_approved_by_id"/>
+                            <field name="finance_approved_date" invisible="not finance_approved_by_id"/>
+                            <field name="rejection_reason"
+                                   invisible="not can_reject and not rejected_by_id"
+                                   readonly="not can_reject"/>
+                            <field name="rejected_by_id" invisible="not rejected_by_id"/>
+                            <field name="rejected_date" invisible="not rejected_by_id"/>
+                        </group>
+                        <group string="Recovery"
+                               invisible="state != 'approved' or not can_reject or replacement_type == 'component'">
+                            <field name="recovery_new_serial_id" options="{'no_create': True}"/>
+                            <field name="recovery_reason"/>
+                        </group>
+                        <group string="History" invisible="state != 'done'">
+                            <field name="old_start_date"/>
+                            <field name="old_end_date"/>
+                            <field name="new_start_date"/>
+                            <field name="new_end_date"/>
+                            <field name="updated_card_generated"/>
+                            <field name="replacement_cost"/>
+                            <field name="replacement_cost_verified"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_warranty_replacement" model="ir.actions.act_window">
+        <field name="name">Replacements</field>
+        <field name="res_model">warranty.replacement</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_open': 1}</field>
+    </record>
+
+    <menuitem id="menu_warranty_replacement" name="Replacements"
+              action="action_warranty_replacement"
+              parent="warranty_management_repair.menu_warranty_repairs_root" sequence="20"
+              groups="helpdesk.group_helpdesk_user,stock.group_stock_user,account.group_account_invoice"/>
+
+    <record id="warranty_vendor_claim_view_form_replacement" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.form.replacement</field>
+        <field name="model">warranty.vendor.claim</field>
+        <field name="inherit_id" ref="warranty_management_mrf.warranty_vendor_claim_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='line_ids']/list/field[@name='mrf_line_id']" position="attributes">
+                <attribute name="readonly">id or replacement_id</attribute>
+                <attribute name="required">not replacement_id</attribute>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='requisition_id']" position="before">
+                <field name="replacement_id" optional="show" readonly="id or mrf_line_id"
+                       required="not mrf_line_id"
+                       domain="[('warranty_case_id', '=', parent.case_id), ('replacement_type', '=', 'vendor'), ('state', '=', 'done')]"
+                       options="{'no_create': True, 'no_create_edit': True}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_policy_view_form_replacement" model="ir.ui.view">
+        <field name="name">warranty.policy.form.replacement</field>
+        <field name="model">warranty.policy</field>
+        <field name="inherit_id" ref="warranty_management.warranty_policy_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='replacement_date_policy']" position="after">
+                <field name="replacement_extension_value"
+                       invisible="replacement_date_policy != 'fixed_extension'"/>
+                <field name="replacement_extension_unit"
+                       invisible="replacement_date_policy != 'fixed_extension'"/>
+                <field name="replacement_return_required"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_card_view_form_replacement" model="ir.ui.view">
+        <field name="name">warranty.card.form.replacement</field>
+        <field name="model">warranty.card</field>
+        <field name="inherit_id" ref="warranty_management.warranty_card_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='other_information']" position="before">
+                <page string="Replacements" name="warranty_replacements"
+                      invisible="not warranty_replacement_ids">
+                    <field name="warranty_replacement_ids" readonly="1">
+                        <list create="false" edit="false" delete="false">
+                            <field name="name"/>
+                            <field name="warranty_unit_id"/>
+                            <field name="replacement_type"/>
+                            <field name="old_serial_id"/>
+                            <field name="new_serial_id"/>
+                            <field name="delivery_date"/>
+                            <field name="old_end_date"/>
+                            <field name="new_end_date"/>
+                            <field name="state" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_unit_view_form_replacement" model="ir.ui.view">
+        <field name="name">warranty.unit.form.replacement</field>
+        <field name="model">warranty.unit</field>
+        <field name="inherit_id" ref="warranty_management_mrp.warranty_unit_view_form_kit_serials"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='indoor_serial_id']" position="after">
+                <field name="indoor_start_date" invisible="not indoor_start_date"/>
+                <field name="indoor_end_date" invisible="not indoor_end_date"/>
+            </xpath>
+            <xpath expr="//field[@name='outdoor_serial_id']" position="after">
+                <field name="outdoor_start_date" invisible="not outdoor_start_date"/>
+                <field name="outdoor_end_date" invisible="not outdoor_end_date"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_card_view_form_unit_serial_dates" model="ir.ui.view">
+        <field name="name">warranty.card.form.unit.serial.dates</field>
+        <field name="model">warranty.card</field>
+        <field name="inherit_id" ref="warranty_management_mrp.warranty_card_view_form_kit_serials"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='unit_warranty_ids']/list/field[@name='kit_serials_corrected']" position="before">
+                <field name="indoor_end_date" readonly="1" optional="hide"/>
+                <field name="outdoor_end_date" readonly="1" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

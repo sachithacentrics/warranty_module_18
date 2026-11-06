@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_contract_view_list" model="ir.ui.view">
+        <field name="name">amc.contract.list</field>
+        <field name="model">amc.contract</field>
+        <field name="arch" type="xml">
+            <list string="AMC Contracts">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="site_id" optional="show"/>
+                <field name="plan_id"/>
+                <field name="price" sum="Total"/>
+                <field name="currency_id" optional="show"/>
+                <field name="start_date" optional="show"/>
+                <field name="end_date" optional="show"/>
+                <field name="state" widget="badge" decoration-success="state == 'active'"
+                       decoration-info="state in ('quotation', 'awaiting_payment')"
+                       decoration-muted="state == 'cancelled'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="amc_contract_view_form" model="ir.ui.view">
+        <field name="name">amc.contract.form</field>
+        <field name="model">amc.contract</field>
+        <field name="arch" type="xml">
+            <form string="AMC Contract">
+                <header>
+                    <button name="action_compute_price" type="object" string="Calculate Price"
+                            class="btn-primary" invisible="state != 'draft' or price_state != 'none'"
+                            groups="amc_management.group_amc_coordinator"/>
+                    <button name="action_compute_price" type="object" string="Recalculate Price"
+                            invisible="state != 'draft' or price_state == 'none'"
+                            groups="amc_management.group_amc_coordinator"/>
+                    <button name="action_create_quotation" type="object" string="Create Quotation"
+                            class="btn-primary" invisible="state != 'draft' or price_state == 'none'"
+                            groups="amc_management.group_amc_coordinator"/>
+                    <button name="action_open_override" type="object" string="Request Override"
+                            invisible="state != 'draft'" groups="amc_management.group_amc_coordinator"/>
+                    <button name="action_reissue_quotation" type="object" string="Reissue Quotation"
+                            invisible="state != 'quotation'" groups="amc_management.group_amc_coordinator"
+                            confirm="The open quotation is cancelled and the price calculated again for today. Continue?"/>
+                    <button name="action_cancel_contract" type="object" string="Cancel Contract"
+                            invisible="state not in ('draft', 'quotation', 'awaiting_payment')"
+                            groups="amc_management.group_amc_manager"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,quotation,awaiting_payment,active"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_quotations" type="object" class="oe_stat_button"
+                                icon="fa-pencil-square-o" invisible="not sale_order_count">
+                            <field name="sale_order_count" widget="statinfo" string="Quotations"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="state != 'draft'"
+                                   options="{'no_create': True}"/>
+                            <field name="commercial_partner_id" invisible="1"/>
+                            <field name="site_id" readonly="state != 'draft'"
+                                   options="{'no_create': True}"/>
+                            <field name="plan_id" readonly="state != 'draft'"
+                                   options="{'no_create': True}"/>
+                            <field name="billing_plan_id"/>
+                            <field name="opportunity_id" invisible="not opportunity_id"/>
+                        </group>
+                        <group>
+                            <field name="pricelist_id"/>
+                            <field name="pricelist_overridden" invisible="not pricelist_overridden"/>
+                            <field name="currency_id"/>
+                            <field name="start_date" readonly="state != 'draft'"/>
+                            <field name="end_date"/>
+                            <field name="activation_trigger" invisible="not activation_trigger"/>
+                            <field name="activation_date" invisible="not activation_date"/>
+                            <field name="user_id"/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert" invisible="not entitlement_summary">
+                        <field name="entitlement_summary" nolabel="1"/>
+                    </div>
+                    <notebook>
+                        <page string="Covered Equipment" name="equipment">
+                            <field name="line_ids" readonly="state != 'draft'">
+                                <list editable="bottom">
+                                    <field name="product_id" options="{'no_create': True}"/>
+                                    <field name="serial_id" options="{'no_create': True}"/>
+                                    <field name="quantity"/>
+                                    <field name="site_id" options="{'no_create': True}"/>
+                                    <field name="original_value"/>
+                                    <field name="original_currency_id" options="{'no_create': True}"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="equipment_value"/>
+                                    <field name="value_rate" optional="hide"/>
+                                    <field name="value_date" optional="hide"/>
+                                    <field name="coverage_start_date" optional="show"/>
+                                    <field name="coverage_end_date" optional="show"/>
+                                </list>
+                            </field>
+                            <group class="oe_subtotal_footer">
+                                <field name="equipment_quantity"/>
+                            </group>
+                        </page>
+                        <page string="Pricing" name="pricing">
+                            <group>
+                                <group>
+                                    <field name="price_state"/>
+                                    <field name="pricing_date"/>
+                                    <field name="formula_id"/>
+                                    <field name="formula_version"/>
+                                    <field name="formula_method"/>
+                                    <field name="price_approved_date"/>
+                                </group>
+                                <group>
+                                    <field name="formula_currency_id"/>
+                                    <field name="formula_amount"/>
+                                    <field name="exchange_rate"/>
+                                    <field name="conversion_date"/>
+                                    <field name="calculated_price"/>
+                                    <field name="override_price" invisible="price_state != 'overridden'"/>
+                                    <field name="price" class="fw-bold"/>
+                                    <field name="company_currency_id" invisible="1"/>
+                                    <field name="price_company_currency"/>
+                                </group>
+                            </group>
+                            <field name="price_breakdown" nolabel="1"/>
+                        </page>
+                        <page string="Overrides" name="overrides" invisible="not override_ids">
+                            <field name="override_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="override_type"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="original_price"/>
+                                    <field name="requested_price"/>
+                                    <field name="requested_pricelist_id"/>
+                                    <field name="requested_by_id"/>
+                                    <field name="decided_by_id"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notes" name="notes">
+                            <field name="note"/>
+                            <group invisible="not cancel_reason">
+                                <field name="cancel_reason"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="amc_contract_view_search" model="ir.ui.view">
+        <field name="name">amc.contract.search</field>
+        <field name="model">amc.contract</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="plan_id"/>
+                <field name="line_ids" string="Equipment / Serial"
+                       filter_domain="['|', ('line_ids.product_id', 'ilike', self), ('line_ids.serial_id', 'ilike', self)]"/>
+                <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_quotation" string="Quotation / Awaiting Payment"
+                        domain="[('state', 'in', ('quotation', 'awaiting_payment'))]"/>
+                <filter name="filter_active" string="Active" domain="[('state', '=', 'active')]"/>
+                <group>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_currency" string="Currency" context="{'group_by': 'currency_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_amc_contract" model="ir.actions.act_window">
+        <field name="name">AMC Contracts</field>
+        <field name="res_model">amc.contract</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create an AMC contract</p>
+            <p>Customer, AMC plan and covered equipment; calculate the price and create the quotation.</p>
+        </field>
+    </record>
+
+    <!-- Override request (opened from the contract) and its decision. -->
+    <record id="amc_price_override_view_form" model="ir.ui.view">
+        <field name="name">amc.price.override.form</field>
+        <field name="model">amc.price.override</field>
+        <field name="arch" type="xml">
+            <form string="Override Request">
+                <header>
+                    <field name="can_decide" invisible="1"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="not can_decide or not id"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="not can_decide or not id"/>
+                    <button name="action_cancel" type="object" string="Cancel Request"
+                            invisible="state != 'requested' or not id"/>
+                    <field name="state" widget="statusbar" statusbar_visible="requested,approved"
+                           invisible="not id"/>
+                </header>
+                <sheet>
+                    <div class="oe_title" invisible="not id"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="contract_id" readonly="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="override_type" readonly="id"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="original_price" invisible="override_type != 'price' or not id"/>
+                            <field name="requested_price" invisible="override_type != 'price'" readonly="id"/>
+                            <field name="original_pricelist_id" invisible="override_type != 'pricelist' or not id"/>
+                            <field name="requested_pricelist_id" invisible="override_type != 'pricelist'"
+                                   readonly="id" options="{'no_create': True}"/>
+                        </group>
+                        <group invisible="not id">
+                            <field name="requested_by_id"/>
+                            <field name="requested_on"/>
+                            <field name="decided_by_id" invisible="not decided_by_id"/>
+                            <field name="decided_on" invisible="not decided_on"/>
+                            <field name="decision_note" invisible="not decision_note"/>
+                        </group>
+                    </group>
+                    <field name="reason" placeholder="Why is this override needed?" readonly="id"/>
+                </sheet>
+                <chatter invisible="not id"/>
+            </form>
+        </field>
+    </record>
+
+    <record id="amc_price_override_view_list" model="ir.ui.view">
+        <field name="name">amc.price.override.list</field>
+        <field name="model">amc.price.override</field>
+        <field name="arch" type="xml">
+            <list string="Override Requests" create="0">
+                <field name="name"/>
+                <field name="contract_id"/>
+                <field name="override_type"/>
+                <field name="requested_by_id"/>
+                <field name="decided_by_id"/>
+                <field name="state" widget="badge" decoration-warning="state == 'requested'"
+                       decoration-success="state == 'approved'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_amc_price_override" model="ir.actions.act_window">
+        <field name="name">Override Requests</field>
+        <field name="res_model">amc.price.override</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'create': False}</field>
+    </record>
+
+    <record id="amc_price_override_reject_wizard_view_form" model="ir.ui.view">
+        <field name="name">amc.price.override.reject.wizard.form</field>
+        <field name="model">amc.price.override.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject Override">
+                <group>
+                    <field name="override_id"/>
+                    <field name="note"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Reject" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="amc_contract_cancel_wizard_view_form" model="ir.ui.view">
+        <field name="name">amc.contract.cancel.wizard.form</field>
+        <field name="model">amc.contract.cancel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cancel AMC Contract">
+                <group>
+                    <field name="contract_id"/>
+                    <field name="reason"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Cancel Contract" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

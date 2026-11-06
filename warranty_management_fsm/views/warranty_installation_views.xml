@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Warranty Start Date Automation – Installation basis (D4 / D5 / Q8). -->
+    <record id="product_template_form_warranty_installation" model="ir.ui.view">
+        <field name="name">product.template.form.warranty.installation</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="sale_project.product_template_form_view_invoice_policy_inherit_sale_project"/>
+        <field name="arch" type="xml">
+            <field name="project_id" position="after">
+                <field name="warranty_installation_service"
+                       invisible="type != 'service' or service_tracking != 'task_global_project'"/>
+                <field name="warranty_installation_product_ids" widget="many2many_tags"
+                       invisible="not warranty_installation_service"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="project_task_form_warranty_installation" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.installation</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Warranty Installation" name="warranty_installation"
+                      invisible="warranty_task_purpose != 'installation'">
+                    <group>
+                        <group>
+                            <field name="warranty_task_purpose"/>
+                            <field name="warranty_installation_done_at"/>
+                        </group>
+                        <group>
+                            <field name="warranty_installation_card_ids" widget="many2many_tags"
+                                   readonly="state in ('1_done', '1_canceled')"
+                                   domain="[('start_criterion', '=', 'installation'), ('state', 'in', ('draft', 'pending_installation', 'ready'))]"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_card_form_installation" model="ir.ui.view">
+        <field name="name">warranty.card.form.installation</field>
+        <field name="model">warranty.card</field>
+        <field name="inherit_id" ref="warranty_management.warranty_card_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_create_installation_task" type="object"
+                        string="Create Installation Task"
+                        groups="industry_fsm.group_fsm_user"
+                        invisible="start_criterion != 'installation' or state not in ('draft', 'pending_installation', 'ready')"/>
+            </xpath>
+            <div name="button_box" position="inside">
+                <button name="action_view_installation_tasks" type="object"
+                        class="oe_stat_button" icon="fa-wrench"
+                        invisible="installation_task_count == 0">
+                    <field name="installation_task_count" widget="statinfo" string="Installation"/>
+                </button>
+            </div>
+            <field name="source_invoice_id" position="after">
+                <field name="source_task_id" invisible="not source_task_id"/>
+                <field name="installation_task_ids" widget="many2many_tags"
+                       invisible="start_criterion != 'installation'"/>
+            </field>
+        </field>
+    </record>
+</odoo>

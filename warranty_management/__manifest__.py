@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management',
-    'version': '18.0.1.0.3',
+    'version': '18.0.1.2.3',
     'category': 'Sales/After-Sales',
     'summary': 'Configurable warranty engine: policies, product/pricelist rules, '
                'draft warranty cards and unit warranty numbers',
@@ -15,6 +15,9 @@ Warranty Management - Part 1 (Configuration + Warranty Card Creation)
   confirmed Sales Order (Card Grouping Mode selected by the user)
 * Delivery / serial allocation on delivery validation
 * Warranty confirmation (start criterion, dates, activation, soft-copy card)
+* Warranty Start Date Automation: actual delivery validation / invoice posting / installation
+  completion (Warranty Timezone), expected dates, source references, protected dates,
+  authorized exceptions and corrections with Warranty Date History
 
 ==================================================================================
 * Free Services Included / Auto-create Services checks on warranty confirmation
@@ -38,6 +41,7 @@ Warranty Management - Part 1 (Configuration + Warranty Card Creation)
         'data/mail_template_data.xml',
         'data/ir_cron_data.xml',
         'report/warranty_card_report.xml',
+        'views/warranty_card_action_views.xml',
         'views/warranty_card_views.xml',
         'views/warranty_unit_views.xml',
         'views/warranty_policy_views.xml',
@@ -48,9 +52,11 @@ Warranty Management - Part 1 (Configuration + Warranty Card Creation)
         'views/res_config_settings_views.xml',
         'views/sale_order_views.xml',
         'views/warranty_service_entitlement_views.xml',
+        'views/account_move_views.xml',
         'wizard/warranty_due_date_wizard_views.xml',
         'wizard/warranty_grouping_wizard_views.xml',
         'wizard/warranty_schedule_wizard_views.xml',
+        'wizard/warranty_card_date_wizard_views.xml',
         'views/warranty_card_download_views.xml',
         'views/warranty_menus.xml',
         'data/warranty_policy_migration_data.xml',

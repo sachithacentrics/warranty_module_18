@@ -5,6 +5,16 @@
         <field name="model">warranty.card</field>
         <field name="inherit_id" ref="warranty_management.warranty_card_view_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//field[@name='indoor_serial_id']" position="attributes">
+                <attribute name="invisible">not warranty_show_indoor_serial or (not indoor_serial_id and state not in ('draft', 'pending_installation', 'ready'))</attribute>
+            </xpath>
+            <xpath expr="//field[@name='outdoor_serial_id']" position="attributes">
+                <attribute name="invisible">not warranty_show_outdoor_serial or (not outdoor_serial_id and state not in ('draft', 'pending_installation', 'ready'))</attribute>
+            </xpath>
+            <xpath expr="//field[@name='outdoor_serial_id']" position="after">
+                <field name="warranty_show_indoor_serial" invisible="1"/>
+                <field name="warranty_show_outdoor_serial" invisible="1"/>
+            </xpath>
             <xpath expr="//field[@name='unit_warranty_ids']" position="attributes">
                 <attribute name="readonly">state not in ('draft', 'ready')</attribute>
             </xpath>
@@ -16,9 +26,16 @@
             <xpath expr="//field[@name='unit_warranty_ids']/list/field[@name='serial_ids']" position="after">
                 <field name="allowed_indoor_serial_ids" column_invisible="1"/>
                 <field name="allowed_outdoor_serial_ids" column_invisible="1"/>
-                <field name="indoor_serial_id" options="{'no_create': True}" optional="show"/>
-                <field name="outdoor_serial_id" options="{'no_create': True}" optional="show"/>
-                <field name="kit_serials_corrected" optional="hide"/>
+                <field name="warranty_show_indoor_serial" column_invisible="1"/>
+                <field name="warranty_show_outdoor_serial" column_invisible="1"/>
+                <field name="indoor_serial_id" options="{'no_create': True}" optional="show"
+                       column_invisible="not parent.warranty_show_indoor_serial"
+                       invisible="not warranty_show_indoor_serial"/>
+                <field name="outdoor_serial_id" options="{'no_create': True}" optional="show"
+                       column_invisible="not parent.warranty_show_outdoor_serial"
+                       invisible="not warranty_show_outdoor_serial"/>
+                <field name="kit_serials_corrected" optional="hide"
+                       column_invisible="not parent.warranty_show_indoor_serial and not parent.warranty_show_outdoor_serial"/>
             </xpath>
         </field>
     </record>

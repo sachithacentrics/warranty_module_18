@@ -1,7 +1,10 @@
 from markupsafe import Markup
 
 from odoo import _, api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
+
+from odoo.addons.warranty_management_helpdesk.models.warranty_service_entitlement import (
+    INACTIVE_CASE_STATES)
 
 from .warranty_service_job import CLOSED_JOB_STATES, _COMPLETION_MARKER
 
@@ -25,6 +28,126 @@ class WarrantyCase(models.Model):
         ('service_completed', 'Chargeable Service Completed'),
     ], string='Chargeable Outcome', readonly=True, copy=False, tracking=True)
 
+    # Optional Case Type (approved G2): the inspection job of an undetermined case.
+    inspection_job_id = fields.Many2one('warranty.service.job', string='Inspection Job',
+                                        readonly=True, copy=False)
+    # Approved G5: complaint case reported from a free-service visit (duplicate prevention).
+    # SRS Figure 4 / 10.4: when the job of an inspection quotation may be created; set from the
+    # Helpdesk team Job Trigger when the case is created (empty on older cases: team value).
+    warranty_inspection_trigger = fields.Selection([
+        ('sale_confirmation', 'On Sales Order Confirmation'),
+        ('payment', 'On Payment'),
+    ], string='Inspection Trigger', copy=False, tracking=True,
+        help="On Sales Order Confirmation: the inspection / chargeable quotation is confirmed. "
+             "On Payment: that order is fully invoiced and fully paid.")
+    source_service_job_id = fields.Many2one('warranty.service.job', string='Reported From Job',
+                                            readonly=True, copy=False, index='btree_not_null')
+
+    @api.constrains('service_entitlement_ids', 'helpdesk_ticket_id')
+    def _check_services_open_job(self):
+        """Duplicate prevention (SRS service-origin route): a free service of an open service
+        job belongs to that job's case only; a case without job may take them only when it is
+        created manually for that job (_warranty_waiting_job)."""
+        for case in self:
+            waiting = case._warranty_waiting_job()
+            for service in case.service_entitlement_ids:
+                jobs = service.service_job_ids.filtered(
+                    lambda job: job.state not in CLOSED_JOB_STATES
+                    and job.warranty_case_id != case and job not in waiting)
+                if jobs:
+                    raise ValidationError(_(
+                        "Free service %(service)s is on the open service job %(job)s and cannot "
+                        "be linked to warranty case %(case)s.", service=service.name,
+                        job=jobs[0].name, case=case.name))
+
+    def _compute_pending_service_ids(self):
+        """Pending Services selection (SRS Figure 4) without services of another open job."""
+        super()._compute_pending_service_ids()
+        for case in self:
+            case.pending_service_ids = case.pending_service_ids._warranty_selectable_services(
+                case.helpdesk_ticket_id, case)
+
+    def _warranty_waiting_job(self):
+        """Manual case creation (customer requirement 2026-10-29): the service-origin job
+        without case, Draft / Planned, whose ticket (Create or Link Helpdesk Ticket) is the
+        case's ticket and whose free services are all linked to the case."""
+        self.ensure_one()
+        if self.state not in ('new', 'eligibility_checked') or not self.helpdesk_ticket_id:
+            return self.env['warranty.service.job']
+        # sudo: the jobs of the case's free services are read for the link only.
+        return self.sudo().service_entitlement_ids.service_job_ids.filtered(
+            lambda job: job.job_origin == 'service' and not job.warranty_case_id
+            and job.state in ('draft', 'planned')
+            and job.origin_ticket_id == self.helpdesk_ticket_id
+            and job.entitlement_ids <= self.service_entitlement_ids).with_env(self.env)
+
+    def _warranty_link_waiting_job(self):
+        """Link the manually created case to its waiting service-origin job (one job per
+        case); the job's Confirm keeps its checks (same services, ticket open, Eligible)."""
+        for case in self:
+            job = case._warranty_waiting_job()
+            if not job:
+                continue
+            if len(job) > 1:
+                raise ValidationError(_(
+                    "Warranty case %(case)s holds the free services of several service jobs "
+                    "(%(jobs)s): one warranty case per service job.", case=case.name,
+                    jobs=', '.join(job.mapped('name'))))
+            # sudo + marker: system link of the job to its case (approved security a).
+            job.sudo()._warranty_service_marker().write({'warranty_case_id': case.id})
+            body = Markup('<p><b>%s</b></p>') % _(
+                "Warranty case %(case)s (Helpdesk ticket %(ticket)s) linked to service job "
+                "%(job)s by %(user)s: run Check Eligibility, then Confirm Service Job.",
+                case=case.name, ticket=case.helpdesk_ticket_id.display_name, job=job.name,
+                user=self.env.user.name)
+            job.sudo()._message_log(body=body)
+            case.sudo()._message_log(body=body)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if 'warranty_inspection_trigger' not in vals:
+                vals['warranty_inspection_trigger'] = self.env['helpdesk.ticket'].browse(
+                    vals.get('helpdesk_ticket_id')).team_id.warranty_job_trigger or False
+        cases = super().create(vals_list)
+        cases._warranty_link_waiting_job()
+        return cases
+
+    @api.onchange('helpdesk_ticket_id')
+    def _onchange_warranty_inspection_trigger(self):
+        self.warranty_inspection_trigger = self.helpdesk_ticket_id.team_id.warranty_job_trigger
+
+    def action_prepare_inspection_job(self):
+        """Prepare Inspection Job (approved G1 / G4): an undetermined case whose preliminary
+        check passed gets a Warranty Inspection job (no free services, no parts, nothing
+        consumed); a Helpdesk team that requires an inspection uses the chargeable inspection
+        (Convert to Chargeable) instead."""
+        self.ensure_one()
+        if not self.env.user.has_group('helpdesk.group_helpdesk_user'):
+            raise AccessError(_("Only Helpdesk users can prepare service jobs."))
+        if self.case_type:
+            raise UserError(_("The Case Type of %s is known: use Prepare Service Job.", self.name))
+        if self.state != 'eligibility_checked' or self.eligibility_result != 'preliminary_passed':
+            raise UserError(_("Run the preliminary check (Check Eligibility) of %s first: the "
+                              "inspection needs the result Preliminary Passed.", self.name))
+        if self.warranty_inspection_required:
+            raise UserError(_("%s requires an inspection quotation: use Convert to Chargeable "
+                              "(Inspection).", self.name))
+        if self.open_service_job_id:
+            raise UserError(_("%(case)s already has the open service job %(job)s.",
+                              case=self.name, job=self.open_service_job_id.name))
+        job = self.env['warranty.service.job']._warranty_service_marker().create({
+            'warranty_case_id': self.id,
+            'job_type': 'warranty_inspection',
+        }).with_env(self.env)
+        body = Markup('<p><b>%s</b></p>') % _(
+            "Inspection job %(job)s prepared (Draft) for %(case)s: Case Type to be determined on "
+            "site; no free service, part or charge before the decision.", job=job.name,
+            case=self.name)
+        job._message_log(body=body)
+        self._message_log(body=body)
+        return self._warranty_open_service_job(job)
+
     @api.depends('service_job_ids.state')
     def _compute_service_job_count(self):
         for case in self:
@@ -40,13 +163,17 @@ class WarrantyCase(models.Model):
                 and self.env.context.get('warranty_completion_marker') is not _COMPLETION_MARKER:
             raise UserError(_("Warranty cases are completed with Complete Visit on their service "
                               "job's Field Service visit."))
-        return super().write(vals)
+        result = super().write(vals)
+        if {'service_entitlement_ids', 'helpdesk_ticket_id'} & set(vals):
+            self._warranty_link_waiting_job()
+        return result
 
     def _warranty_job_merge_problems(self, services):
         """Check Service Merge Compatibility (Part 4 diagram; G4 A as revised by the approved
         cross-card service merge, Option A / D3 / D6): same customer and company, same site,
         no conflicting status (3.1 availability rule), not on another open job or active case,
-        each card checked, overlapping service windows."""
+        each card checked, permitted service dates not ended (D3 revised: due dates need not
+        overlap), service sequence."""
         self.ensure_one()
         available = self.env['warranty.service.entitlement']._warranty_pending_services(
             self.partner_id, self.company_id)
@@ -72,7 +199,7 @@ class WarrantyCase(models.Model):
                                  ', '.join(other_cases.mapped('name'))))
             if reasons:
                 problems.append('%s (%s): %s' % (service.name, card.name, '; '.join(reasons)))
-        # Approved D3: the service windows must overlap; BA-approved F3 / K7: service sequence.
+        # D3 revised: dates not ended (no overlap needed); BA-approved F3 / K7: sequence.
         return problems + self._warranty_window_problems(services) + (
             services._warranty_sequence_problems())
 
@@ -87,6 +214,39 @@ class WarrantyCase(models.Model):
         if self.state != 'approved' or self.eligibility_result != 'eligible':
             raise UserError(_("Service jobs are prepared from Approved, Eligible warranty cases "
                               "(%s).", self.name))
+        if self.open_service_job_id:
+            raise UserError(_("%(case)s already has the open service job %(job)s.",
+                              case=self.name, job=self.open_service_job_id.name))
+        if self.warranty_inspection_required:
+            # SRS Figure 4 "Yes": inspection quotation first; the job follows the trigger.
+            orders = self._warranty_inspection_orders()
+            if not orders:
+                return self._warranty_create_inspection_quotation()
+            if not orders.filtered(self._warranty_trigger_met):
+                # Trigger pending: status message (no error) and the existing quotation; no
+                # second quotation, no job.
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'type': 'info',
+                        'title': _("Waiting for the Inspection Trigger"),
+                        'message': _(
+                            "Inspection quotation %(orders)s of %(case)s: the service job is "
+                            "created automatically on %(trigger)s.", case=self.name,
+                            orders=', '.join(orders.mapped('name')),
+                            trigger=dict(self._fields['warranty_inspection_trigger']
+                                         ._description_selection(self.env)).get(
+                                self._warranty_job_trigger())),
+                        'next': self._warranty_open_quotation(orders[-1]),
+                    },
+                }
+        return self._warranty_open_service_job(self._warranty_create_case_job())
+
+    def _warranty_create_case_job(self):
+        """Draft service job of an Approved, Eligible case with its free services (merge
+        checks; one open job per case)."""
+        self.ensure_one()
         if self.open_service_job_id:
             raise UserError(_("%(case)s already has the open service job %(job)s.",
                               case=self.name, job=self.open_service_job_id.name))
@@ -118,7 +278,7 @@ class WarrantyCase(models.Model):
                 "Linked to service job %(job)s (%(status)s).", job=job.name,
                 status=dict(service._fields['merge_status']._description_selection(
                     self.env))[service.merge_status]))
-        return self._warranty_open_service_job(job)
+        return job
 
     def _warranty_open_service_job(self, job):
         return {
@@ -148,8 +308,7 @@ class WarrantyCase(models.Model):
         if order.state != 'sale' or not order.order_line.filtered(
                 lambda line: not line.display_type and line.product_id):
             return False
-        trigger = self.helpdesk_ticket_id.team_id.warranty_job_trigger or 'sale_confirmation'
-        if trigger == 'sale_confirmation':
+        if self._warranty_job_trigger() == 'sale_confirmation':
             return True
         if order.invoice_status != 'invoiced':
             return False
@@ -159,6 +318,12 @@ class WarrantyCase(models.Model):
             return False
         uncovered = self.env['warranty.case']._warranty_uncovered_amounts(invoices)
         return all(invoice.currency_id.is_zero(uncovered[invoice.id]) for invoice in invoices)
+
+    def _warranty_job_trigger(self):
+        """SRS 10.4: the case Inspection Trigger; older cases without it: the team's."""
+        self.ensure_one()
+        return self.warranty_inspection_trigger \
+            or self.helpdesk_ticket_id.team_id.warranty_job_trigger or 'sale_confirmation'
 
     def _warranty_trigger_orders(self):
         """Confirmed chargeable orders of the case's current chargeable step that meet the
@@ -197,9 +362,8 @@ class WarrantyCase(models.Model):
             "Draft service job %(job)s (%(type)s) created on %(origin)s of %(order)s (Job "
             "Trigger: %(trigger)s); no free service is used.", job=job.name,
             type=labels[job.job_type], origin=origin, order=order.name,
-            trigger=dict(self.helpdesk_ticket_id.team_id._fields['warranty_job_trigger']
-                         ._description_selection(self.env)).get(
-                self.helpdesk_ticket_id.team_id.warranty_job_trigger or 'sale_confirmation'))
+            trigger=dict(self._fields['warranty_inspection_trigger']._description_selection(
+                self.env)).get(self._warranty_job_trigger()))
         job._message_log(body=body)
         self.sudo()._message_log(body=body)
         return job
@@ -209,6 +373,61 @@ class WarrantyCase(models.Model):
             for order in case._warranty_trigger_orders():
                 if case._warranty_create_chargeable_job(order, origin):
                     break
+        # SRS Figure 4 "Yes": an Approved, Eligible case with Inspection Required gets its
+        # service job when its inspection quotation meets the Inspection Trigger.
+        for case in self.filtered(lambda case: case._warranty_inspection_gate()
+                                  and not case.open_service_job_id):
+            if case._warranty_inspection_orders().filtered(case._warranty_trigger_met):
+                case._warranty_trigger_case_job(origin)
+
+    def _warranty_inspection_gate(self):
+        """Approved, Eligible case whose service job waits for the inspection quotation."""
+        self.ensure_one()
+        return self.warranty_inspection_required and self.state == 'approved' \
+            and self.eligibility_result == 'eligible'
+
+    def _warranty_inspection_orders(self):
+        """Inspection quotations of the case (not cancelled). sudo: read for the check."""
+        self.ensure_one()
+        return self.env['sale.order'].sudo().search([
+            ('warranty_case_id', '=', self.id), ('warranty_chargeable_purpose', '=', 'inspection'),
+            ('state', '!=', 'cancel')], order='id')
+
+    def _warranty_create_inspection_quotation(self):
+        """SRS Figure 4 "Yes" / 2.11: draft inspection quotation of the case (team Inspection
+        Product / Amount), linked to the case and its ticket; the customer is notified with the
+        quotation's Send button (C10 To-Do). The case stays Approved / Eligible."""
+        self.ensure_one()
+        order = self._warranty_create_quotation(self._warranty_inspection_line_vals())
+        # sudo: the purpose is a system value (sale.order write guard).
+        order.sudo().warranty_chargeable_purpose = 'inspection'
+        self._warranty_send_todo(order)
+        self._message_log(body=Markup('<p><b>%s</b></p>') % _(
+            "Inspection quotation %(order)s created (Inspection Required) by %(user)s: the "
+            "service job is created on %(trigger)s.", order=order.name, user=self.env.user.name,
+            trigger=dict(self._fields['warranty_inspection_trigger']._description_selection(
+                self.env)).get(self._warranty_job_trigger())))
+        return self._warranty_open_quotation(order)
+
+    def _warranty_trigger_case_job(self, origin):
+        """Service job of an inspection case created by the trigger (sales order confirmation /
+        payment) with all Prepare Service Job checks, in a savepoint: a failure keeps the order
+        / payment and is logged on the case (Prepare Service Job then).
+        sudo: the salesperson / accountant may have no Helpdesk rights."""
+        self.ensure_one()
+        case = self.sudo()
+        try:
+            with self.env.cr.savepoint():
+                job = case._warranty_create_case_job()
+        except (UserError, ValidationError, AccessError) as error:
+            case._message_log(body=Markup('<p><b>%s</b></p><p>%s</p>') % (
+                _("Inspection Trigger met (%s): the service job could not be created", origin),
+                error.args[0] if error.args else str(error)))
+            return False
+        case._message_log(body=Markup('<p>%s</p>') % _(
+            "Inspection Trigger met on %(origin)s: service job %(job)s prepared.",
+            origin=origin, job=job.name))
+        return job
 
     def _warranty_prepare_chargeable_job(self):
         """Prepare Service Job on a Chargeable case (approved C3 fallback): only when the Job

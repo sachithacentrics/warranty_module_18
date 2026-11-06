@@ -13,7 +13,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import html2plaintext
 
 from odoo.addons.warranty_management.models.res_company import (
-    FREE_SERVICE_SCOPE_MODES, get_valid_service_alert_users)
+    get_valid_service_alert_users)
 from odoo.addons.warranty_management_helpdesk.models.warranty_case import SELECTION_STATES
 from odoo.addons.warranty_management_helpdesk.models.warranty_service_entitlement import (
     warranty_same_site)
@@ -143,9 +143,9 @@ class WarrantyServiceEntitlement(models.Model):
             ('state', 'in', AUTO_JOB_SERVICE_STATES),
             ('warranty_auto_job_state', 'in', (False, 'blocked')),
         ], order='due_date, id')
+        # BA decision 2026-10-28: the company Warranty Scope Mode no longer limits this step.
         for company, services in candidates.grouped('company_id').items():
-            if company.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES:
-                services._warranty_draft_jobs_for_company(company)
+            services._warranty_draft_jobs_for_company(company)
 
     def _warranty_draft_jobs_for_company(self, company):
         """Approved E1: processed from the start of the D3 window (Alert Date, else Due Date);
@@ -196,7 +196,9 @@ class WarrantyServiceEntitlement(models.Model):
                 "The free service is no longer available (status, grace period or Free Services "
                 "Balance)."))
             for address, group in (customer_services & available)._warranty_auto_groups():
-                group._warranty_auto_case(address)
+                # Approved D-B: a Draft service-origin job first (SRS 9.4 step 5); the ticket
+                # and the case follow with Create or Link Helpdesk Ticket.
+                group._warranty_auto_service_job(address)
 
     def _warranty_auto_lock(self):
         """Requirement 1 / A5: row locks against concurrent runs and simultaneous case creation
@@ -214,8 +216,7 @@ class WarrantyServiceEntitlement(models.Model):
         started services all contain today, so they overlap (D3). Returns [(address, services)]."""
         groups = []
         for service in self:
-            # sudo: the delivery address of the warranty sale is read only.
-            address = service.warranty_card_id.sudo().sale_order_id.partner_shipping_id
+            address = service._warranty_service_site()
             for index, (site, services) in enumerate(groups):
                 if warranty_same_site(address, site):
                     groups[index] = (site, services | service)
@@ -224,6 +225,67 @@ class WarrantyServiceEntitlement(models.Model):
                 groups.append((address, service))
         return [(self.env['res.partner'].browse(address.ids), services)
                 for address, services in groups]
+
+    def _warranty_auto_service_job(self, address):
+        """One Draft service-origin job per group (approved D-B / E5 / A6): a later service
+        joins an open automatic Draft job of the same customer, company and site whose service
+        windows overlap; in a savepoint: a failure is rolled back, the services are Blocked
+        with the reason and the other groups continue."""
+        self.env.cr.precommit.run()
+        try:
+            with self.env.cr.savepoint():
+                job = self._warranty_auto_join_job(address)
+                job = self._warranty_create_service_job(job=job or None)
+                if not job.warranty_auto_service_job:
+                    job._warranty_service_marker().with_context(
+                        warranty_auto_job_marker=_AUTO_JOB_MARKER).write(
+                        {'warranty_auto_service_job': True})
+        except (UserError, ValidationError, AccessError) as error:
+            reason = _("The automatic draft service job could not be created: %s",
+                       warranty_auto_error(error))
+            _logger.warning("Draft Job from Service: %s (%s)", reason, ', '.join(self.mapped('name')))
+            self._warranty_auto_block(reason)
+            return self.env['warranty.service.job']
+        self._warranty_auto_job_linked(job)
+        return job
+
+    def _warranty_auto_join_job(self, address):
+        Job = self.env['warranty.service.job']
+        partner = self.warranty_card_id.partner_id.commercial_partner_id
+        jobs = Job.search([
+            ('job_origin', '=', 'service'), ('warranty_auto_service_job', '=', True),
+            ('state', '=', 'draft'), ('warranty_case_id', '=', False),
+            ('origin_ticket_id', '=', False), ('company_id', '=', self.company_id.id),
+            ('commercial_partner_id', '=', partner.id)], order='id')
+        for job in jobs:
+            services = job.entitlement_ids | self
+            # Same rules as the manual merge: validity of the dates and service sequence.
+            if warranty_same_site(address, job.site_id) and not (
+                    services._warranty_window_conflicts(self.company_id)
+                    or services._warranty_sequence_problems()):
+                return job
+        return Job
+
+    def _warranty_auto_job_linked(self, job):
+        """Approved E7 / E8: services Draft Job Created; their due alerts and automation To-Dos
+        are replaced by one To-Do to plan the draft job (ticket, technicians, Confirm)."""
+        text = _("Draft service job %s created: link the Helpdesk ticket, plan and confirm it "
+                 "from the job.", job.name)
+        self._warranty_auto_write({'warranty_auto_job_state': 'job_created',
+                                   'warranty_auto_job_note': False, 'warranty_auto_case_id': False})
+        alerts = self.due_alert_activity_ids.filtered('active')
+        if alerts:
+            alerts.action_feedback(feedback=text)
+        for service in self:
+            warranty_auto_close_todos(service, text)
+        warranty_auto_todo(job, warranty_auto_planners(self.company_id, job.entitlement_ids
+                                                       .warranty_card_id),
+                           _("Plan draft service job %s", job.name),
+                           Markup('<p>%s</p>') % _(
+                               "Created by Draft Job from Service for %s: Create or Link Helpdesk "
+                               "Ticket, create its warranty case (Check Eligibility), enter the "
+                               "Planned Date and the technicians, then Plan Job and Confirm.",
+                               ', '.join(job.entitlement_ids.mapped('name'))))
 
     def _warranty_auto_case(self, address):
         """One ticket and case per group (approved E3 / E5 / A3 / A6), then Check Eligibility,
@@ -519,17 +581,26 @@ class WarrantyCase(models.Model):
 class WarrantyServiceJob(models.Model):
     _inherit = 'warranty.service.job'
 
-    warranty_auto_created = fields.Boolean(related='warranty_case_id.warranty_auto_created',
+    warranty_auto_created = fields.Boolean(compute='_compute_warranty_auto_created',
                                            string='Created by Draft Job from Service')
+    # Approved D-B: Draft service-origin job created by Draft Job from Service.
+    warranty_auto_service_job = fields.Boolean(string='Automatic Service Job', readonly=True,
+                                               copy=False, index=True)
+
+    @api.depends('warranty_case_id.warranty_auto_created', 'warranty_auto_service_job')
+    def _compute_warranty_auto_created(self):
+        for job in self:
+            job.warranty_auto_created = job.warranty_auto_service_job \
+                or job.warranty_case_id.warranty_auto_created
     warranty_auto_todo_ids = fields.Many2many(
         'mail.activity', 'warranty_service_job_auto_todo_rel', 'job_id', 'activity_id',
         string='Automatic Draft Job To-Dos', readonly=True, copy=False,
         context={'active_test': False})
 
     def write(self, vals):
-        if 'warranty_auto_todo_ids' in vals \
+        if {'warranty_auto_todo_ids', 'warranty_auto_service_job'} & set(vals) \
                 and self.env.context.get('warranty_auto_job_marker') is not _AUTO_JOB_MARKER:
-            raise UserError(_("The automatic Draft Job To-Dos are set by Draft Job from Service."))
+            raise UserError(_("The automatic Draft Job fields are set by Draft Job from Service."))
         result = super().write(vals)
         # The planning To-Do is done once the job leaves Draft (planned or cancelled).
         if vals.get('state') and vals['state'] != 'draft':

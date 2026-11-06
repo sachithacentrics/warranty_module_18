@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_backup_unit_view_list" model="ir.ui.view">
+        <field name="name">warranty.backup.unit.list</field>
+        <field name="model">warranty.backup.unit</field>
+        <field name="arch" type="xml">
+            <list string="Backup Units" decoration-danger="state == 'overdue'"
+                  decoration-muted="state == 'closed'">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="ticket_id" optional="show"/>
+                <field name="warranty_case_id" optional="show"/>
+                <field name="repair_id" optional="show" groups="stock.group_stock_user"/>
+                <field name="product_id"/>
+                <field name="lot_id"/>
+                <field name="issue_date" optional="show"/>
+                <field name="expected_return_date"/>
+                <field name="actual_return_date" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge" decoration-info="state == 'issued'"
+                       decoration-danger="state in ('overdue', 'damaged', 'lost')"
+                       decoration-success="state == 'returned'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_backup_unit_view_search" model="ir.ui.view">
+        <field name="name">warranty.backup.unit.search</field>
+        <field name="model">warranty.backup.unit</field>
+        <field name="arch" type="xml">
+            <search string="Backup Units">
+                <field name="name"/>
+                <field name="lot_id"/>
+                <field name="product_id"/>
+                <field name="partner_id"/>
+                <field name="ticket_id"/>
+                <field name="warranty_case_id"/>
+                <field name="repair_id" groups="stock.group_stock_user"/>
+                <filter name="open" string="Open" domain="[('state', '!=', 'closed')]"/>
+                <filter name="with_customer" string="With Customer"
+                        domain="[('state', 'in', ('issued', 'overdue'))]"/>
+                <filter name="overdue" string="Overdue" domain="[('state', '=', 'overdue')]"/>
+                <filter name="assessment_to_approve" string="Assessment Waiting Approval"
+                        domain="[('assessment_state', '=', 'to_approve')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_partner" string="Customer" context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="warranty_backup_unit_view_form" model="ir.ui.view">
+        <field name="name">warranty.backup.unit.form</field>
+        <field name="model">warranty.backup.unit</field>
+        <field name="arch" type="xml">
+            <form string="Backup Unit">
+                <header>
+                    <button name="action_warranty_backup_issue" type="object"
+                            string="Create Issue Transfer" class="btn-primary"
+                            groups="stock.group_stock_user" invisible="state != 'draft'"/>
+                    <button name="action_warranty_backup_return" type="object"
+                            string="Create Return Transfer" class="btn-primary"
+                            groups="stock.group_stock_user"
+                            invisible="state not in ('issued', 'overdue') or assessment_state != 'none'"/>
+                    <button name="action_warranty_backup_close" type="object" string="Close"
+                            invisible="state != 'returned'"/>
+                    <button name="action_warranty_backup_report_lost" type="object"
+                            string="Report Lost"
+                            invisible="state not in ('issued', 'overdue') or assessment_state != 'none'"/>
+                    <button name="action_warranty_backup_submit_assessment" type="object"
+                            string="Submit Assessment"
+                            invisible="state not in ('returned', 'damaged') or assessment_state != 'none'"/>
+                    <button name="action_warranty_backup_approve_assessment" type="object"
+                            string="Approve Assessment" class="btn-primary"
+                            invisible="not can_approve_assessment"/>
+                    <button name="action_warranty_backup_send_back" type="object"
+                            string="Send Back" invisible="not can_approve_assessment"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,issued,returned,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <field name="available_product_ids" invisible="1"/>
+                    <field name="available_lot_ids" invisible="1"/>
+                    <field name="can_approve_assessment" invisible="1"/>
+                    <field name="commercial_partner_id" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <group>
+                        <group string="Source">
+                            <field name="ticket_id" options="{'no_create': True}"
+                                   readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="warranty_case_id" options="{'no_create': True}"
+                                   readonly="state != 'draft' or issue_picking_id"/>
+                            <!-- Standard Repairs: Inventory users only. -->
+                            <field name="repair_id" options="{'no_create': True}"
+                                   groups="stock.group_stock_user"
+                                   readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="warranty_service_job_id" invisible="not warranty_service_job_id"/>
+                            <field name="warranty_card_id" invisible="not warranty_card_id"/>
+                            <field name="partner_id" readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="site_id" readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Backup Machine">
+                            <field name="product_id" options="{'no_create': True}"
+                                   readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="lot_id" options="{'no_create': True}"
+                                   readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="issue_reason" readonly="state != 'draft' or issue_picking_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Issue">
+                            <field name="issue_date"/>
+                            <field name="expected_return_date"
+                                   readonly="state not in ('draft', 'issued', 'overdue')"/>
+                            <field name="issue_condition" readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="issue_notes" readonly="state != 'draft' or issue_picking_id"/>
+                            <field name="issue_picking_id" invisible="not issue_picking_id"/>
+                        </group>
+                        <group string="Return" invisible="state == 'draft'">
+                            <field name="actual_return_date"/>
+                            <field name="return_condition"
+                                   readonly="state not in ('issued', 'overdue')"/>
+                            <field name="return_notes"
+                                   readonly="state not in ('issued', 'overdue')"/>
+                            <field name="return_picking_id" invisible="not return_picking_id"/>
+                        </group>
+                    </group>
+                    <group invisible="state == 'draft'">
+                        <group string="Damage / Loss Assessment">
+                            <field name="assessment_state"/>
+                            <field name="assessment_type" invisible="not assessment_type"/>
+                            <field name="assessment_notes"
+                                   readonly="assessment_state != 'none' or state in ('closed', 'lost')"/>
+                            <field name="repair_scrap_cost"
+                                   readonly="assessment_state != 'none' or state in ('closed', 'lost')"/>
+                            <field name="charge_amount"
+                                   readonly="assessment_state != 'none' or state in ('closed', 'lost')"/>
+                            <field name="assessment_decision_note"
+                                   readonly="not can_approve_assessment"/>
+                            <field name="assessment_submitted_by_id"
+                                   invisible="not assessment_submitted_by_id"/>
+                            <field name="assessment_submitted_date"
+                                   invisible="not assessment_submitted_date"/>
+                            <field name="assessment_approved_by_id"
+                                   invisible="not assessment_approved_by_id"/>
+                            <field name="assessment_approved_date"
+                                   invisible="not assessment_approved_date"/>
+                        </group>
+                        <group>
+                            <group string="Physical Asset" colspan="2">
+                                <field name="asset_status"/>
+                                <field name="serial_location_id" groups="stock.group_stock_user"/>
+                            </group>
+                            <group string="Financial Recovery" colspan="2">
+                                <field name="charge_status"/>
+                                <field name="charge_order_id" invisible="not charge_order_id"
+                                       groups="sales_team.group_sale_salesman"/>
+                                <field name="charge_invoice_ids" widget="many2many_tags"
+                                       invisible="not charge_invoice_ids"
+                                       groups="account.group_account_invoice"/>
+                            </group>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Deposit">
+                            <field name="deposit_amount"/>
+                            <field name="deposit_invoice_id" options="{'no_create': True}"
+                                   groups="account.group_account_invoice"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_warranty_backup_unit" model="ir.actions.act_window">
+        <field name="name">Backup Units</field>
+        <field name="res_model">warranty.backup.unit</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_open': 1}</field>
+    </record>
+
+    <menuitem id="menu_warranty_repairs_root" name="Repairs"
+              parent="warranty_management.menu_warranty_root" sequence="60"/>
+    <menuitem id="menu_warranty_repair_order" name="Repair Orders"
+              action="repair.action_repair_order_tree"
+              parent="menu_warranty_repairs_root" sequence="10"/>
+    <menuitem id="menu_warranty_backup_unit" name="Backup Units"
+              action="action_warranty_backup_unit"
+              parent="warranty_management_repair.menu_warranty_repairs_root" sequence="30"
+              groups="helpdesk.group_helpdesk_user,stock.group_stock_user"/>
+</odoo>

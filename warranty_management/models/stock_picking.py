@@ -1,4 +1,4 @@
-from odoo import models
+from odoo import _, models
 from odoo.fields import Command
 from odoo.tools import float_round
 
@@ -8,10 +8,30 @@ class StockPicking(models.Model):
 
     def _action_done(self):
         res = super()._action_done()
-        self.filtered(
-            lambda picking: picking.picking_type_code == 'outgoing' and picking.state == 'done'
-        )._warranty_allocate_delivery()
+        done = self.filtered(lambda picking: picking.state == 'done')
+        done.filtered(
+            lambda picking: picking.picking_type_code == 'outgoing')._warranty_allocate_delivery()
+        done.filtered(
+            lambda picking: picking.picking_type_code == 'incoming')._warranty_log_returns()
         return res
+
+    def _warranty_log_returns(self):
+        """Q13: a validated return of delivered warranty units is logged on their cards; the
+        allocation and the warranty dates are not changed automatically."""
+        for picking in self:
+            returned = picking.move_ids.filtered(
+                lambda move: move.state == 'done').origin_returned_move_id
+            if not returned:
+                continue
+            units = self.env['warranty.unit'].search(
+                [('stock_move_line_id', 'in', returned.move_line_ids.ids)])
+            for card, card_units in units.grouped('warranty_card_id').items():
+                card._warranty_log_date_event('delivery_return', _(
+                    "Return %(picking)s validated for unit(s) %(units)s (delivered with "
+                    "%(delivery)s): warranty dates unchanged.", picking=picking.name,
+                    units=', '.join(card_units.mapped('name')),
+                    delivery=', '.join(card_units.delivery_picking_id.mapped('name'))),
+                    picking_id=picking.id)
 
     def _warranty_allocate_delivery(self):
         """On delivery validation: update the delivery on the warranty cards and allocate
@@ -31,6 +51,8 @@ class StockPicking(models.Model):
                     lambda unit: unit.state == 'draft' and not unit.stock_move_line_id)
                 if waiting:
                     card._split_units_to_new_card(waiting, picking.backorder_ids)
+            # D6: Installation cards completed by their tasks may now be Ready.
+            cards._warranty_auto_confirm()
 
     def _warranty_allocate_sale_line(self, sale_line, moves):
         """Allocate the done `moves` of one Sales Order line to its Draft unit warranty

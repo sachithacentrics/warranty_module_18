@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <xpath expr="(//field[@name='partner_id'])[1]" position="after">
                 <field name="warranty_service_job_id" invisible="not warranty_service_job_id"/>
+                <field name="warranty_is_visit" invisible="1"/>
                 <field name="warranty_case_id" invisible="not warranty_service_job_id"/>
                 <field name="warranty_visit_no" invisible="not warranty_service_job_id"/>
                 <field name="warranty_visit_outcome" invisible="not warranty_visit_outcome"/>
@@ -27,10 +28,10 @@
         <field name="inherit_id" ref="industry_fsm.view_task_form2_inherit"/>
         <field name="arch" type="xml">
             <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-primary')]" position="attributes">
-                <attribute name="invisible" add="warranty_service_job_id" separator=" or "/>
+                <attribute name="invisible" add="warranty_is_visit" separator=" or "/>
             </xpath>
             <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-secondary')]" position="attributes">
-                <attribute name="invisible" add="warranty_service_job_id" separator=" or "/>
+                <attribute name="invisible" add="warranty_is_visit" separator=" or "/>
             </xpath>
             <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-primary')]" position="after">
                 <button name="action_warranty_complete_visit" type="object" string="Complete Visit"

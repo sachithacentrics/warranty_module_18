@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_card_date_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.card.date.wizard.form</field>
+        <field name="model">warranty.card.date.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Dates">
+                <div class="alert alert-info" role="alert" invisible="mode != 'exception'">
+                    Use an exception only when the delivery, invoice posting or installation
+                    task cannot establish the start date. Every other confirmation requirement
+                    still applies and the card is confirmed manually afterwards.
+                </div>
+                <div class="alert alert-warning" role="alert" invisible="mode != 'correction'">
+                    The warranty card, its unit warranty numbers and the eligible free services
+                    get the new dates. The change, the previous values and the reason are kept
+                    in the Warranty Date History.
+                </div>
+                <group>
+                    <group>
+                        <field name="card_id"/>
+                        <field name="mode"/>
+                        <field name="start_criterion"/>
+                        <field name="current_start_date" invisible="mode != 'correction'"/>
+                        <field name="current_end_date" invisible="mode != 'correction'"/>
+                    </group>
+                    <group>
+                        <field name="new_start_date"/>
+                        <field name="new_end_date"
+                               invisible="mode != 'correction' or start_criterion != 'custom'"/>
+                        <field name="expected_end_date"/>
+                    </group>
+                </group>
+                <group>
+                    <field name="missing_requirements" invisible="mode != 'exception' or not missing_requirements"/>
+                    <field name="entitlement_note" invisible="not entitlement_note"/>
+                    <field name="reason" placeholder="Why the date cannot come from the source event / why it is corrected"/>
+                    <field name="attachment_ids" widget="many2many_binary"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Apply" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

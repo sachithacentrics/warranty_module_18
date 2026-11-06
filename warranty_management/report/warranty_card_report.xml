@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- One A4 landscape sheet, folded in two, printed on both sides. -->
+    <record id="paperformat_warranty_card" model="report.paperformat">
+        <field name="name">Warranty Card (A4 folded)</field>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">5</field>
+        <field name="margin_bottom">5</field>
+        <field name="margin_left">5</field>
+        <field name="margin_right">5</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="disable_shrinking" eval="True"/>
+        <field name="dpi">96</field>
+    </record>
+
     <!-- Soft-copy warranty card generated on warranty confirmation (no Print menu binding) -->
     <record id="action_report_warranty_card" model="ir.actions.report">
         <field name="name">Warranty Card</field>
@@ -8,54 +23,210 @@
         <field name="report_name">warranty_management.report_warranty_card</field>
         <field name="report_file">warranty_management.report_warranty_card</field>
         <field name="print_report_name">'Warranty Card - %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_warranty_card"/>
     </record>
 
+    <template id="report_warranty_card_line">
+        <tr t-if="value or always">
+            <td class="wc-label"><t t-out="label"/></td>
+            <td class="wc-sep">:-</td>
+            <td class="wc-value"><t t-out="value"/></td>
+        </tr>
+    </template>
+
+    <template id="report_warranty_card_date">
+        <tr>
+            <td class="wc-label"><t t-out="label"/></td>
+            <td class="wc-sep"/>
+            <td>
+                <table class="wc-date"><tr>
+                    <td class="wc-date-label">D</td><td class="wc-date-box"><t t-out="date and date.strftime('%d')"/></td>
+                    <td class="wc-date-label">M</td><td class="wc-date-box"><t t-out="date and date.strftime('%m')"/></td>
+                    <td class="wc-date-label">Y</td><td class="wc-date-box wc-date-year"><t t-out="date and date.strftime('%Y')"/></td>
+                </tr></table>
+            </td>
+        </tr>
+    </template>
+
+    <template id="report_warranty_card_logo">
+        <img t-if="company.logo" t-att-src="image_data_uri(company.logo)" class="wc-logo" alt="Logo"/>
+    </template>
+
     <template id="report_warranty_card_document">
-        <t t-call="web.external_layout">
-            <t t-set="card" t-value="card.with_context(lang=card.partner_id.lang)"/>
-            <div class="page">
-                <h2>Warranty Card <span t-field="card.name"/></h2>
-                <div class="row mt-4">
-                    <div class="col-6">
-                        <strong>Customer:</strong>
-                        <div t-field="card.partner_id"
-                             t-options="{'widget': 'contact', 'fields': ['address', 'name', 'phone'], 'no_marker': True}"/>
-                    </div>
-                    <div class="col-6">
-                        <div><strong>Sale Order: </strong><span t-field="card.sale_order_id"/></div>
-                        <div t-if="card.product_id"><strong>Product: </strong><span t-field="card.product_id"/></div>
-                        <div t-if="card.indoor_serial_id"><strong>Indoor Serial No.: </strong><span t-field="card.indoor_serial_id"/></div>
-                        <div t-if="card.outdoor_serial_id"><strong>Outdoor Serial No.: </strong><span t-field="card.outdoor_serial_id"/></div>
-                        <div><strong>Warranty Start Date: </strong><span t-field="card.warranty_start_date"/></div>
-                        <div t-if="card.warranty_end_date"><strong>Warranty End Date: </strong><span t-field="card.warranty_end_date"/></div>
-                        <div t-if="card.warranty_basis == 'usage'">
-                            <strong>Usage Limit: </strong><span t-field="card.usage_limit"/> <span t-field="card.usage_unit"/>
-                        </div>
-                        <div><strong>Free Services Allowed: </strong><span t-field="card.free_services_allowed"/></div>
-                    </div>
+        <t t-set="card" t-value="card.with_context(lang=card.partner_id.lang)"/>
+        <t t-set="company" t-value="card.company_id"/>
+        <div class="article" t-att-data-oe-model="card._name" t-att-data-oe-id="card.id">
+            <style>
+                .wc-sheet { width: 287mm; height: 197mm; overflow: hidden; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #222; position: relative; }
+                .wc-break { page-break-after: always; }
+                .wc-sheet table { border-collapse: collapse; }
+                .wc-panels { width: 287mm; height: 197mm; table-layout: fixed; }
+                .wc-panel { width: 143.5mm; height: 187mm; vertical-align: top; padding: 5mm 7mm; }
+                .wc-fold { border-right: 1px dashed #777; }
+                .wc-head { width: 100%; margin-bottom: 5mm; }
+                .wc-logo-cell { width: 42mm; height: 19mm; border: 1px solid #b5342c; border-radius: 3mm; text-align: center; vertical-align: middle; }
+                .wc-logo { max-width: 38mm; max-height: 16mm; }
+                .wc-title { background-color: #3f3d96; color: #fff; font-size: 15pt; font-weight: bold; text-align: center; letter-spacing: 1px; vertical-align: middle; }
+                .wc-gap { width: 3mm; }
+                .wc-rows { width: 100%; }
+                .wc-rows td { padding: 2.1mm 0; vertical-align: top; }
+                .wc-label { width: 35mm; }
+                .wc-sep { width: 6mm; }
+                .wc-value { border-bottom: 1px dotted #555; font-weight: bold; }
+                .wc-date { margin: 0; }
+                .wc-date td { padding: 0 !important; vertical-align: middle; }
+                .wc-date-label { width: 6mm; text-align: center; }
+                .wc-date-box { width: 11mm; height: 6mm; border: 1px solid #333; text-align: center; font-weight: bold; }
+                .wc-date-year { width: 16mm; }
+                .wc-section { border-top: 2px solid #3f3d96; border-bottom: 2px solid #3f3d96; color: #3f3d96; font-weight: bold; padding: 1.2mm 2mm; margin: 4mm 0; }
+                .wc-box { border: 1px solid #555; border-radius: 4mm; padding: 2mm 4mm; margin-bottom: 3mm; }
+                .wc-hotline { background-color: #3f3d96; color: #fff; font-size: 13pt; font-weight: bold; padding: 2mm 4mm; margin-top: 6mm; width: 80mm; }
+                .wc-number { margin-top: 4mm; font-size: 9.5pt; }
+                .wc-number strong { font-size: 14pt; font-family: "Courier New", Courier, monospace; }
+                .wc-note { font-size: 9pt; text-align: center; margin-top: 3mm; }
+                .wc-note-valid { color: #c0241c; font-weight: bold; }
+                .wc-updated { color: #c0241c; font-weight: bold; font-size: 9pt; margin-bottom: 2mm; }
+                .wc-mail { position: absolute; left: 25mm; top: 12mm; width: 100mm; height: 90mm; }
+                .wc-mail-text { -webkit-transform: rotate(90deg); -webkit-transform-origin: left top; position: absolute; left: 62mm; top: 0; width: 170mm; font-size: 10pt; line-height: 1.5; }
+                .wc-mail-company { color: #3f3d96; font-weight: bold; font-size: 11pt; }
+                .wc-stamp { position: absolute; left: 16mm; bottom: 12mm; width: 34mm; height: 34mm; border: 1.5px dashed #555; text-align: center; color: #555; font-size: 9pt; letter-spacing: 2px; }
+                .wc-stamp div { padding-top: 13mm; }
+                .wc-signature { position: absolute; left: 60mm; bottom: 12mm; width: 65mm; font-size: 9pt; text-align: center; }
+                .wc-signature div { border-top: 1px dotted #333; padding-top: 1mm; margin-top: 18mm; }
+                .wc-back-number { position: absolute; left: 12mm; bottom: 3mm; font-size: 9pt; }
+                .wc-rows-small { width: 100%; font-size: 8.5pt; margin-top: 3mm; }
+                .wc-rows-small td, .wc-rows-small th { border: 1px solid #999; padding: 0.8mm 1.5mm; text-align: left; }
+                .wc-period { width: 66%; vertical-align: top; font-size: 9.5pt; }
+                .wc-terms-title { font-weight: bold; margin-top: 3mm; }
+                .wc-terms { font-size: 8pt; line-height: 1.25; text-align: justify; }
+                .wc-terms ol { padding-left: 5mm; margin: 1mm 0; }
+                .wc-terms li { margin-bottom: 0.8mm; }
+                .wc-terms p { margin: 0 0 1.5mm 0; }
+                .wc-company { text-align: center; font-size: 9pt; margin-top: 2mm; }
+                .wc-company strong { color: #3f3d96; font-size: 11pt; }
+            </style>
+            <t t-set="units" t-value="card._warranty_card_print_units()"/>
+            <t t-foreach="units or [card.env['warranty.unit']]" t-as="unit">
+                <t t-set="doc_values" t-value="card._warranty_card_print_values(unit)"/>
+                <!-- Front: Warranty Certificate and Registration Copy -->
+                <div class="wc-sheet wc-break">
+                    <table class="wc-panels"><tr>
+                        <td class="wc-panel wc-fold">
+                            <table class="wc-head"><tr>
+                                <td class="wc-logo-cell"><t t-call="warranty_management.report_warranty_card_logo"/></td>
+                                <td class="wc-gap"/>
+                                <td class="wc-title">WARRANTY CERTIFICATE</td>
+                            </tr></table>
+                            <div name="warranty_card_notice"/>
+                            <table class="wc-rows">
+                                <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Dealer Name</t><t t-set="value" t-value="doc_values['dealer']"/><t t-set="always" t-value="True"/></t>
+                                <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Model No</t><t t-set="value" t-value="doc_values['model']"/><t t-set="always" t-value="True"/></t>
+                                <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Item</t><t t-set="value" t-value="doc_values['item']"/><t t-set="always" t-value="True"/></t>
+                                <t t-if="doc_values['indoor'] or doc_values['outdoor']">
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Serial No ID</t><t t-set="value" t-value="doc_values['indoor']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Serial No OD</t><t t-set="value" t-value="doc_values['outdoor']"/><t t-set="always" t-value="True"/></t>
+                                </t>
+                                <t t-else="">
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Serial No</t><t t-set="value" t-value="doc_values['serial']"/><t t-set="always" t-value="True"/></t>
+                                </t>
+                                <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Invoice No</t><t t-set="value" t-value="doc_values['invoice']"/><t t-set="always" t-value="True"/></t>
+                                <t t-call="warranty_management.report_warranty_card_date"><t t-set="label">Date of Purchase</t><t t-set="date" t-value="doc_values['purchase_date']"/></t>
+                            </table>
+                            <div class="wc-section">CUSTOMER INFORMATION</div>
+                            <table class="wc-rows">
+                                <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Name</t><t t-set="value" t-value="doc_values['customer']"/><t t-set="always" t-value="True"/></t>
+                                <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Address</t><t t-set="value" t-value="doc_values['address']"/><t t-set="always" t-value="True"/></t>
+                                <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Tel. No</t><t t-set="value" t-value="doc_values['phone']"/><t t-set="always" t-value="True"/></t>
+                                <t t-call="warranty_management.report_warranty_card_date"><t t-set="label">Date of Sale / Installation</t><t t-set="date" t-value="doc_values['sale_date']"/></t>
+                            </table>
+                            <div t-if="doc_values['hotline']" class="wc-hotline">HOT LINE : <t t-out="doc_values['hotline']"/></div>
+                            <div class="wc-number">Warranty Card Number : <strong t-out="doc_values['number']"/>
+                                <t t-if="doc_values['unit_number']"> &#160; Unit : <span t-out="doc_values['unit_number']"/></t>
+                            </div>
+                        </td>
+                        <td class="wc-panel">
+                            <table class="wc-head"><tr>
+                                <td class="wc-logo-cell"><t t-call="warranty_management.report_warranty_card_logo"/></td>
+                                <td class="wc-gap"/>
+                                <td class="wc-title">REGISTRATION COPY</td>
+                            </tr></table>
+                            <div class="wc-box">
+                                <table class="wc-rows">
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Model No</t><t t-set="value" t-value="doc_values['model']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Item</t><t t-set="value" t-value="doc_values['item']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-if="doc_values['indoor'] or doc_values['outdoor']">
+                                        <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Serial No ID</t><t t-set="value" t-value="doc_values['indoor']"/><t t-set="always" t-value="True"/></t>
+                                        <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Serial No OD</t><t t-set="value" t-value="doc_values['outdoor']"/><t t-set="always" t-value="True"/></t>
+                                    </t>
+                                    <t t-else="">
+                                        <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Serial No</t><t t-set="value" t-value="doc_values['serial']"/><t t-set="always" t-value="True"/></t>
+                                    </t>
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Invoice No</t><t t-set="value" t-value="doc_values['invoice']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-call="warranty_management.report_warranty_card_date"><t t-set="label">Date of Purchase</t><t t-set="date" t-value="doc_values['purchase_date']"/></t>
+                                </table>
+                            </div>
+                            <div class="wc-box">
+                                <table class="wc-rows">
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Dealer Name</t><t t-set="value" t-value="doc_values['dealer']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Customer Name</t><t t-set="value" t-value="doc_values['customer']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Address</t><t t-set="value" t-value="doc_values['address']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Tel. No</t><t t-set="value" t-value="doc_values['phone']"/><t t-set="always" t-value="True"/></t>
+                                    <t t-call="warranty_management.report_warranty_card_date"><t t-set="label">Date of Sale</t><t t-set="date" t-value="doc_values['sale_date']"/></t>
+                                </table>
+                            </div>
+                            <div class="wc-number">Warranty Card Number : <strong t-out="doc_values['number']"/></div>
+                            <div t-if="company.warranty_card_return_note" class="wc-note" t-field="company.warranty_card_return_note"/>
+                            <div t-if="company.warranty_card_valid_note" class="wc-note wc-note-valid" t-field="company.warranty_card_valid_note"/>
+                        </td>
+                    </tr></table>
                 </div>
-                <table class="table table-sm mt-4">
-                    <thead>
-                        <tr>
-                            <th>Warranty Number</th>
-                            <th>Product</th>
-                            <th>Serial(s)</th>
-                            <th>Start Date</th>
-                            <th>End Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr t-foreach="card.unit_warranty_ids" t-as="unit">
-                            <td><span t-field="unit.name"/></td>
-                            <td><span t-field="unit.product_id"/></td>
-                            <td><span t-esc="', '.join(unit.serial_ids.mapped('name'))"/></td>
-                            <td><span t-field="unit.start_date"/></td>
-                            <td><span t-field="unit.end_date"/></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </t>
+                <!-- Back: mailing and stamp panel, then Terms and Conditions -->
+                <div t-attf-class="wc-sheet {{ '' if unit_last else 'wc-break' }}">
+                    <table class="wc-panels"><tr>
+                        <td class="wc-panel wc-fold" name="warranty_card_back_left">
+                            <div class="wc-mail">
+                                <div class="wc-mail-text">
+                                    <div>The Manager</div>
+                                    <div class="wc-mail-company" t-out="doc_values['company_name']"/>
+                                    <div t-out="doc_values['company_address']"/>
+                                    <div t-if="doc_values['company_phone']">TEL : <t t-out="doc_values['company_phone']"/></div>
+                                </div>
+                            </div>
+                            <div class="wc-stamp"><div>PLACE<br/>STAMP HERE</div></div>
+                            <div class="wc-signature"><div>Authorized Signature</div></div>
+                            <div class="wc-back-number">
+                                <t t-out="doc_values['number']"/>
+                                <t t-if="doc_values['sale_order']"> | <t t-out="doc_values['sale_order']"/></t>
+                            </div>
+                            <div name="warranty_card_internal" style="position: absolute; left: 12mm; top: 120mm; width: 118mm;"/>
+                        </td>
+                        <td class="wc-panel">
+                            <table class="wc-head"><tr>
+                                <td class="wc-period">
+                                    <div><strong>WARRANTY PERIOD</strong></div>
+                                    <div t-if="doc_values['duration']" t-out="doc_values['duration']"/>
+                                    <div t-if="doc_values['usage']"><t t-out="doc_values['usage']"/></div>
+                                    <div name="warranty_card_start"><span name="warranty_card_start_label">Start Date :</span> <strong t-out="doc_values['start_text']"/></div>
+                                    <div t-if="doc_values['end_text']" name="warranty_card_end"><span name="warranty_card_end_label">End Date :</span> <strong t-out="doc_values['end_text']"/></div>
+                                    <div t-if="doc_values['free_services']">Free Services : <strong t-out="doc_values['free_services']"/></div>
+                                </td>
+                                <td class="wc-logo-cell"><t t-call="warranty_management.report_warranty_card_logo"/></td>
+                            </tr></table>
+                            <t t-if="company.warranty_card_terms">
+                                <div class="wc-terms-title">WARRANTY TERMS &amp; CONDITIONS:</div>
+                                <div class="wc-terms" t-field="company.warranty_card_terms"/>
+                            </t>
+                            <div class="wc-company">
+                                <strong t-out="doc_values['company_name']"/>
+                                <div t-out="doc_values['company_address']"/>
+                                <div t-if="doc_values['company_phone']">Tel : <t t-out="doc_values['company_phone']"/></div>
+                                <div t-if="doc_values['company_email']">E-mail : <t t-out="doc_values['company_email']"/></div>
+                            </div>
+                        </td>
+                    </tr></table>
+                </div>
+            </t>
+        </div>
     </template>
 
     <template id="report_warranty_card">

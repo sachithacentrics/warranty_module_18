@@ -10,5 +10,14 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <record id="ir_cron_warranty_expire" model="ir.cron">
+            <field name="name">Warranty: Expire Ended Warranties</field>
+            <field name="model_id" ref="model_warranty_card"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_expire_warranties()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

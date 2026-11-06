@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_pricing_preview_view_form" model="ir.ui.view">
+        <field name="name">amc.pricing.preview.form</field>
+        <field name="model">amc.pricing.preview</field>
+        <field name="arch" type="xml">
+            <form string="Price Preview">
+                <group>
+                    <group string="Inputs">
+                        <field name="plan_id" options="{'no_create': True}"/>
+                        <field name="company_id" invisible="1"/>
+                        <field name="pricing_date"/>
+                        <field name="formula_id" options="{'no_create': True}"/>
+                        <field name="partner_id" options="{'no_create': True}"/>
+                        <field name="pricelist_id" options="{'no_create': True}"/>
+                        <field name="target_currency_id" options="{'no_create': True}"/>
+                        <field name="contract_months"/>
+                        <field name="expected_usage"/>
+                    </group>
+                    <group string="Result" invisible="not breakdown">
+                        <field name="method"/>
+                        <field name="formula_currency_id"/>
+                        <field name="formula_amount"/>
+                        <field name="exchange_rate"/>
+                        <field name="conversion_date"/>
+                        <field name="converted_amount"/>
+                        <field name="price" class="fw-bold"/>
+                        <field name="entitlement_info"/>
+                    </group>
+                </group>
+                <field name="line_ids">
+                    <list editable="bottom">
+                        <field name="product_id"/>
+                        <field name="quantity"/>
+                        <field name="equipment_value"/>
+                        <field name="site_id"/>
+                    </list>
+                </field>
+                <field name="breakdown" invisible="not breakdown" nolabel="1"/>
+                <footer>
+                    <button name="action_calculate" type="object" string="Calculate" class="btn-primary"/>
+                    <button special="cancel" string="Close"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

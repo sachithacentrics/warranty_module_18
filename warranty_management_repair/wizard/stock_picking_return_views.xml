@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- One checkbox on the standard return (ticket Return button). -->
+    <record id="view_stock_return_picking_form_warranty_repair" model="ir.ui.view">
+        <field name="name">stock.return.picking.form.warranty.repair</field>
+        <field name="model">stock.return.picking</field>
+        <field name="inherit_id" ref="helpdesk_stock.view_stock_return_picking_form_inherit_helpdesk_stock"/>
+        <field name="arch" type="xml">
+            <!-- sale_order_id sits in the helpdesk group shown only for a ticket. -->
+            <xpath expr="//field[@name='sale_order_id']" position="before">
+                <field name="warranty_repair_intake"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

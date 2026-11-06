@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.7 (H-10, H-11): read-only material cost on requests, service jobs and warranty
+         cases, and the Warranty Material Cost report. Cost fields carry field-level groups
+         (coordinators, requisition / store users, accountants), so other users never receive
+         them, whatever view or call they use. -->
+    <record id="material_purchase_requisition_view_form_cost" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.cost</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='requisition_line_ids']/list/field[@name='reconcile_state']" position="after">
+                <field name="cost_bucket" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="approved_cost" optional="show" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="approved_cost_state" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="cancelled_cost" optional="hide" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="approved_net_cost" optional="hide" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="actual_cost" optional="show" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="actual_unverified_cost" optional="hide" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="reversed_cost" optional="hide" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="returned_cost" optional="hide" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="cost_variance" optional="hide" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="billed_amount" optional="hide" sum="Total" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="cost_status" widget="badge" optional="show" column_invisible="not parent.is_warranty_mrf"
+                       decoration-success="cost_status == 'verified'"
+                       decoration-warning="cost_status == 'unverified'"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Material Cost" name="warranty_material_cost" invisible="not is_warranty_mrf"
+                      groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="warranty_cost_summary" readonly="1" nolabel="1"/>
+                    <p class="text-muted">
+                        Actual cost is read from validated stock valuation layers (consumption net of
+                        reversals, customer deliveries net of customer returns). Unused returns and
+                        issued but unreconciled parts are not cost. No journal entries are posted.
+                    </p>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form_cost" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.cost</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook[@name='notebook']" position="inside">
+                <page string="Material Cost" name="warranty_material_cost" invisible="not material_request_count"
+                      groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <group>
+                        <group>
+                            <field name="cost_currency_id" invisible="1"/>
+                            <field name="warranty_estimated_cost"/>
+                            <field name="warranty_approved_cost"/>
+                            <field name="warranty_material_cost"/>
+                            <field name="warranty_material_cost_unverified"
+                                   invisible="not warranty_material_cost_unverified"/>
+                        </group>
+                        <group>
+                            <field name="customer_paid_cost"/>
+                            <field name="customer_billed_amount"/>
+                        </group>
+                    </group>
+                    <field name="warranty_cost_summary" readonly="1" nolabel="1"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_form_cost" model="ir.ui.view">
+        <field name="name">warranty.case.form.cost</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Material Cost" name="warranty_material_cost" invisible="not material_request_count"
+                      groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <group>
+                        <group>
+                            <field name="cost_currency_id" invisible="1"/>
+                            <field name="warranty_estimated_cost"/>
+                            <field name="warranty_approved_cost"/>
+                            <field name="warranty_material_cost"/>
+                            <field name="warranty_material_cost_unverified"
+                                   invisible="not warranty_material_cost_unverified"/>
+                        </group>
+                        <group>
+                            <field name="customer_paid_cost"/>
+                            <field name="customer_billed_amount"/>
+                        </group>
+                    </group>
+                    <field name="warranty_cost_summary" readonly="1" nolabel="1"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Report -->
+    <record id="warranty_mrf_cost_report_view_list" model="ir.ui.view">
+        <field name="name">warranty.mrf.cost.report.list</field>
+        <field name="model">warranty.mrf.cost.report</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="date" optional="show"/>
+                <field name="requisition_id"/>
+                <field name="case_id"/>
+                <field name="job_id" optional="show"/>
+                <field name="partner_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="cost_bucket"/>
+                <field name="warranty_mrf_status" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="qty" optional="hide"/>
+                <field name="cancelled_qty" optional="hide"/>
+                <field name="estimated_cost" sum="Total"/>
+                <field name="approved_cost" sum="Total"/>
+                <field name="approved_cost_state" optional="hide"/>
+                <field name="cancelled_cost" sum="Total" optional="show"/>
+                <field name="approved_net_cost" sum="Total"/>
+                <field name="actual_cost" sum="Total"/>
+                <field name="actual_unverified_cost" sum="Total" optional="show"/>
+                <field name="reversed_cost" sum="Total" optional="show"/>
+                <field name="returned_cost" sum="Total" optional="hide"/>
+                <field name="cost_variance" sum="Total" optional="show"/>
+                <field name="warranty_cost" sum="Total"/>
+                <field name="billed_amount" sum="Total" optional="show"/>
+                <field name="cost_status" widget="badge"
+                       decoration-success="cost_status == 'verified'"
+                       decoration-warning="cost_status == 'unverified'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_cost_report_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.mrf.cost.report.pivot</field>
+        <field name="model">warranty.mrf.cost.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Warranty Material Cost" sample="1">
+                <field name="case_id" type="row"/>
+                <field name="cost_bucket" type="col"/>
+                <field name="estimated_cost" type="measure"/>
+                <field name="approved_net_cost" type="measure"/>
+                <field name="actual_cost" type="measure"/>
+                <field name="actual_unverified_cost" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_cost_report_view_graph" model="ir.ui.view">
+        <field name="name">warranty.mrf.cost.report.graph</field>
+        <field name="model">warranty.mrf.cost.report</field>
+        <field name="arch" type="xml">
+            <graph string="Warranty Material Cost" type="bar" sample="1">
+                <field name="cost_bucket"/>
+                <field name="actual_cost" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_cost_report_view_search" model="ir.ui.view">
+        <field name="name">warranty.mrf.cost.report.search</field>
+        <field name="model">warranty.mrf.cost.report</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="requisition_id"/>
+                <field name="case_id"/>
+                <field name="job_id"/>
+                <field name="product_id"/>
+                <field name="partner_id"/>
+                <filter name="warranty_buckets" string="Warranty Cost (Covered + Goodwill)"
+                        domain="[('cost_bucket', 'in', ('covered', 'goodwill'))]"/>
+                <filter name="customer_paid" string="Customer Paid" domain="[('cost_bucket', '=', 'customer')]"/>
+                <separator/>
+                <filter name="unverified" string="Unverified Cost" domain="[('cost_status', '=', 'unverified')]"/>
+                <filter name="not_recorded" string="Approved Cost Not Recorded"
+                        domain="[('approved_cost_state', 'in', ('pre_cost', 'legacy'))]"/>
+                <filter name="reversed" string="With Reversals" domain="[('reversed_cost', '!=', 0)]"/>
+                <filter name="cancelled" string="With Cancellations" domain="[('cancelled_qty', '!=', 0)]"/>
+                <separator/>
+                <filter name="date" string="Request Date" date="date"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_case" string="Warranty Case" context="{'group_by': 'case_id'}"/>
+                    <filter name="group_job" string="Service Job" context="{'group_by': 'job_id'}"/>
+                    <filter name="group_request" string="Material Request" context="{'group_by': 'requisition_id'}"/>
+                    <filter name="group_bucket" string="Cost Bucket" context="{'group_by': 'cost_bucket'}"/>
+                    <filter name="group_product" string="Product" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_company" string="Company" context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_mrf_cost_report" model="ir.actions.act_window">
+        <field name="name">Warranty Material Cost</field>
+        <field name="res_model">warranty.mrf.cost.report</field>
+        <field name="view_mode">pivot,list,graph</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No warranty material cost yet</p>
+            <p>Estimated, approved and actual material cost of warranty Material Requests.</p>
+        </field>
+    </record>
+
+    <!-- SRS section 6 (Module Planning): Warranty Management -> Reports. A parent without
+         groups or action: shown only to users who can see one of its reports (5.9 adds more). -->
+    <menuitem id="menu_warranty_reports" name="Reports"
+              parent="warranty_management.menu_warranty_root" sequence="90"/>
+    <menuitem id="menu_warranty_mrf_cost_report" name="Warranty Material Cost"
+              parent="menu_warranty_reports" action="action_warranty_mrf_cost_report"
+              sequence="10"
+              groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_warranty_mrf_cost_report_accounting" name="Warranty Material Cost"
+              parent="account.menu_finance_reports" action="action_warranty_mrf_cost_report"
+              sequence="90"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+</odoo>

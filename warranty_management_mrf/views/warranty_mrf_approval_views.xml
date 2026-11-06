@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.3: material approval matrix (design rev. 2). Buttons are cosmetic; every
+         transition is enforced on the server. -->
+    <record id="material_purchase_requisition_view_form_approval" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.warranty.approval</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='manager_approve']" position="attributes">
+                <attribute name="invisible">state != 'dept_confirm' or (is_warranty_mrf and not can_warranty_vendor_manager_approve)</attribute>
+            </xpath>
+            <xpath expr="//button[@name='user_approve']" position="attributes">
+                <attribute name="invisible">state != 'ir_approve' or (is_warranty_mrf and not can_warranty_vendor_user_approve)</attribute>
+            </xpath>
+            <xpath expr="//button[@name='requisition_reject']" position="attributes">
+                <attribute name="invisible">state not in ('dept_confirm', 'approve', 'ir_approve') or (is_warranty_mrf and not can_warranty_vendor_reject)</attribute>
+            </xpath>
+            <xpath expr="//button[@name='reset_draft']" position="attributes">
+                <attribute name="invisible">state not in ('cancel', 'reject', 'receive') or (is_warranty_mrf and state == 'receive')</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_cancel']" position="attributes">
+                <attribute name="invisible">state != 'draft' and not (is_warranty_mrf and state == 'reject')</attribute>
+            </xpath>
+            <xpath expr="//button[@name='requisition_confirm']" position="attributes">
+                <attribute name="string">Confirm / Submit</attribute>
+            </xpath>
+            <xpath expr="//button[@name='requisition_confirm']" position="after">
+                <button name="action_warranty_approve" type="object" string="Approve" class="btn-primary"
+                        invisible="not can_warranty_approve"/>
+                <button name="action_warranty_reject" type="object" string="Reject"
+                        invisible="not can_warranty_approve"/>
+                <button name="action_warranty_check_route" type="object" string="Check Approval Route"
+                        invisible="not is_warranty_mrf or state != 'draft'"/>
+                <button name="action_warranty_withdraw" type="object" string="Withdraw"
+                        invisible="not can_warranty_withdraw"
+                        confirm="Withdraw this Material Request? It becomes New again and needs a new approval round."/>
+            </xpath>
+            <xpath expr="//sheet/*[1]" position="before">
+                <field name="warranty_approval_legacy" invisible="1"/>
+                <field name="can_warranty_vendor_manager_approve" invisible="1"/>
+                <field name="can_warranty_vendor_user_approve" invisible="1"/>
+                <field name="can_warranty_vendor_reject" invisible="1"/>
+                <div class="alert alert-danger" role="alert" invisible="not warranty_approval_legacy">
+                    This warranty Material Request was submitted before the approval workflow and has
+                    no valid approval round: it cannot be approved or released. Withdraw it and submit it again.
+                </div>
+            </xpath>
+            <xpath expr="//group[@name='warranty_links']" position="after">
+                <group string="Approval" name="warranty_approval" invisible="not is_warranty_mrf">
+                    <group>
+                        <field name="warranty_mrf_status" widget="badge"
+                               decoration-info="warranty_mrf_status in ('manager', 'finance_gm')"
+                               decoration-success="warranty_mrf_status in ('approved', 'released', 'received')"
+                               decoration-danger="warranty_mrf_status == 'rejected'"/>
+                        <field name="approval_status"/>
+                        <field name="warranty_approval_mode" invisible="not warranty_approval_mode"/>
+                        <field name="approval_round" invisible="not approval_round"/>
+                        <field name="can_warranty_approve" invisible="1"/>
+                        <field name="can_warranty_withdraw" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="routing_amount" invisible="state != 'draft'"/>
+                        <field name="approval_routing_amount" invisible="state == 'draft' and not approval_round"/>
+                        <field name="submitted_by_id" invisible="not submitted_by_id"/>
+                        <field name="submitted_date" invisible="not submitted_date"/>
+                        <field name="warranty_manager_user_id" invisible="not warranty_manager_user_id"/>
+                        <field name="approved_by_id" invisible="not approved_by_id"/>
+                        <field name="approved_date" invisible="not approved_date"/>
+                        <field name="approved_amount" invisible="not approved_date"/>
+                    </group>
+                </group>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Approvals" name="warranty_approvals" invisible="not is_warranty_mrf">
+                    <field name="warranty_approval_ids" readonly="1">
+                        <list create="0" delete="0" decoration-muted="state in ('skipped', 'superseded', 'withdrawn')"
+                              decoration-success="state == 'approved'" decoration-danger="state == 'rejected'">
+                            <field name="round"/>
+                            <field name="level"/>
+                            <field name="state" widget="badge"/>
+                            <field name="allowed_user_ids" widget="many2many_tags"/>
+                            <field name="user_id"/>
+                            <field name="decision_date"/>
+                            <field name="reason"/>
+                            <field name="rule_ids" widget="many2many_tags" optional="show"/>
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="routing_amount" optional="show"/>
+                            <field name="covered_amount" optional="hide"/>
+                            <field name="not_covered_amount" optional="hide"/>
+                            <field name="goodwill_amount" optional="hide"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+            <xpath expr="//field[@name='requisition_line_ids']/list/field[@name='estimated_cost']" position="after">
+                <field name="routing_cost" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="material_purchase_requisition_view_list_approval" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.list.warranty.approval</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="before">
+                <field name="warranty_mrf_status" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="material_purchase_requisition_view_search_approval" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.search.warranty.approval</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <filter string="Waiting for My Approval" name="waiting_my_approval"
+                        domain="[('state', 'in', ('dept_confirm', 'ir_approve')),
+                                 ('warranty_approval_ids.state', '=', 'pending'),
+                                 ('warranty_approval_ids.allowed_user_ids', 'in', uid)]"/>
+                <filter string="Waiting for Approval" name="waiting_approval"
+                        domain="[('is_warranty_mrf', '=', True), ('state', 'in', ('dept_confirm', 'ir_approve'))]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Reject (reason required). -->
+    <record id="warranty_mrf_reject_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.reject.wizard.form</field>
+        <field name="model">warranty.mrf.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject Material Request">
+                <group>
+                    <field name="requisition_id"/>
+                    <field name="reason" placeholder="Why is the request rejected?"/>
+                </group>
+                <p class="text-muted">The requester and the submitter are notified. The request can be
+                    reset to New, changed and submitted again (new approval round).</p>
+                <footer>
+                    <button name="action_reject" type="object" string="Reject" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Check Approval Route: read-only preview of the route Submit would save. -->
+    <record id="warranty_mrf_route_preview_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.route.preview.wizard.form</field>
+        <field name="model">warranty.mrf.route.preview.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Check Approval Route">
+                <group>
+                    <field name="requisition_id"/>
+                </group>
+                <field name="preview_html" nolabel="1"/>
+                <footer>
+                    <button string="Close" special="cancel" class="btn-primary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Warranty / Configuration / Material Approval Rules. -->
+    <record id="warranty_mrf_approval_rule_view_list" model="ir.ui.view">
+        <field name="name">warranty.mrf.approval.rule.list</field>
+        <field name="model">warranty.mrf.approval.rule</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="min_amount"/>
+                <field name="max_amount"/>
+                <field name="coverage_condition"/>
+                <field name="goodwill_condition"/>
+                <field name="no_approval"/>
+                <field name="manager_required"/>
+                <field name="finance_required"/>
+                <field name="gm_required"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_approval_rule_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.approval.rule.form</field>
+        <field name="model">warranty.mrf.approval.rule</field>
+        <field name="arch" type="xml">
+            <form string="Material Approval Rule">
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="e.g. Covered parts - Level 1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Conditions">
+                            <field name="company_id"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="min_amount"/>
+                            <field name="max_amount"/>
+                            <field name="coverage_condition"/>
+                            <field name="goodwill_condition"/>
+                            <field name="categ_ids" widget="many2many_tags"/>
+                            <field name="product_ids" widget="many2many_tags"/>
+                            <field name="sequence"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group string="Approval">
+                            <field name="no_approval"/>
+                            <field name="manager_required" invisible="no_approval"/>
+                            <field name="manager_user_ids" widget="many2many_tags"
+                                   invisible="no_approval or not manager_required" required="manager_required"/>
+                            <field name="finance_required" invisible="no_approval"/>
+                            <field name="finance_user_ids" widget="many2many_tags"
+                                   invisible="no_approval or not finance_required" required="finance_required"/>
+                            <field name="gm_required" invisible="no_approval"/>
+                            <field name="gm_user_ids" widget="many2many_tags"
+                                   invisible="no_approval or not gm_required" required="gm_required"/>
+                        </group>
+                    </group>
+                    <p class="text-muted">Routing amount = all request lines, each at the higher of its
+                        estimated cost and its product cost. All matching rules of the company and its
+                        parent companies are combined (strictest). Goodwill always needs Finance and GM.
+                        No matching rule: the request cannot be submitted.</p>
+                    <field name="note" placeholder="Notes"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_approval_rule_view_search" model="ir.ui.view">
+        <field name="name">warranty.mrf.approval.rule.search</field>
+        <field name="model">warranty.mrf.approval.rule</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="company_id"/>
+                <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_mrf_approval_rule" model="ir.actions.act_window">
+        <field name="name">Material Approval Rules</field>
+        <field name="res_model">warranty.mrf.approval.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Define the material approval matrix</p>
+            <p>Warranty Material Requests can only be submitted when at least one rule matches.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_warranty_mrf_approval_rule" name="Material Approval Rules"
+              parent="warranty_management.menu_warranty_configuration"
+              action="action_warranty_mrf_approval_rule" sequence="60" groups="base.group_system"/>
+
+    <record id="res_config_settings_view_form_warranty_mrf_approval" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.mrf.approval</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="res_config_settings_view_form_warranty_mrf"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_mrf_settings']" position="inside">
+                <setting id="warranty_mrf_approval_matrix" string="Material Approval Matrix"
+                         help="If enabled, warranty material requests are approved by the approvers named in the Material Approval Rules. If disabled, the standard material requisition approval is used.">
+                    <field name="warranty_mrf_approval_matrix"/>
+                    <div class="mt8" invisible="not warranty_mrf_approval_matrix">
+                        <button name="%(action_warranty_mrf_approval_rule)d" type="action"
+                                string="Material Approval Rules" class="btn-link" icon="oi-arrow-right"/>
+                    </div>
+                </setting>
+                <setting id="warranty_mrf_approval_deadline" string="Approval To-Do Deadline"
+                         help="The number of days approvers have to complete their material approval task.">
+                    <field name="warranty_mrf_approval_deadline_days"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

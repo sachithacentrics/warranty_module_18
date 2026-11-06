@@ -8,7 +8,14 @@
                 <group>
                     <field name="task_id"/>
                     <field name="diagnosis" placeholder="What did you find?"/>
-                    <field name="repair_required" widget="radio"/>
+                    <field name="job_type" invisible="1"/>
+                    <field name="case_type_required" invisible="1"/>
+                    <field name="repair_required" widget="radio"
+                           invisible="job_type != 'chargeable_inspection'"
+                           required="job_type == 'chargeable_inspection'"/>
+                    <field name="case_type" invisible="not case_type_required"
+                           required="case_type_required"/>
+                    <field name="failure_category" invisible="not case_type_required"/>
                     <field name="repair_details" required="repair_required == 'yes'"
                            invisible="repair_required != 'yes'"
                            placeholder="Work and parts needed (used for the draft repair quotation)"/>

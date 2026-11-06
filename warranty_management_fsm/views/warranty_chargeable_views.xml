@@ -46,6 +46,12 @@
                 <field name="warranty_chargeable_outcome" invisible="not warranty_chargeable_outcome"
                        readonly="1"/>
             </xpath>
+            <!-- SRS Figure 4 / 10.4: Inspection Trigger beside Inspection Required. -->
+            <field name="warranty_inspection_required" position="after">
+                <field name="warranty_inspection_trigger" invisible="not warranty_inspection_required"
+                       required="warranty_inspection_required"
+                       readonly="state not in ('new', 'eligibility_checked')"/>
+            </field>
         </field>
     </record>
 

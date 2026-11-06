@@ -94,7 +94,7 @@
 
     <!-- Parent of the Late Service Exception menus (requests and their per-service history). -->
     <menuitem id="menu_warranty_service_date_exception_root" name="Service Date Exceptions"
-              parent="warranty_management.menu_warranty_root" sequence="30"/>
+              parent="warranty_management.menu_warranty_free_services_root" sequence="30"/>
 
     <menuitem id="menu_warranty_service_date_exception" name="Exception History"
               action="action_warranty_service_date_exception"

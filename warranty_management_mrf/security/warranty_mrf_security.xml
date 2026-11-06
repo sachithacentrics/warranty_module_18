@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.1 (role mapping R1). The vendor rules stay: internal users work on their own
+         requisitions; Requisition / Purchase users and Department Managers see all. Added:
+         Service Coordinators (Helpdesk users) work on all warranty requisitions; technicians
+         (Field Service users) read the warranty requisitions of their service jobs. -->
+    <record id="rule_warranty_mrf_helpdesk" model="ir.rule">
+        <field name="name">Warranty Material Requests: Helpdesk users</field>
+        <field name="model_id" ref="material_purchase_requisitions.model_material_purchase_requisition"/>
+        <field name="domain_force">[('warranty_case_id', '!=', False)]</field>
+        <field name="groups" eval="[(4, ref('helpdesk.group_helpdesk_user'))]"/>
+    </record>
+    <record id="rule_warranty_mrf_line_helpdesk" model="ir.rule">
+        <field name="name">Warranty Material Request Lines: Helpdesk users</field>
+        <field name="model_id" ref="material_purchase_requisitions.model_material_purchase_requisition_line"/>
+        <field name="domain_force">[('requisition_id.warranty_case_id', '!=', False)]</field>
+        <field name="groups" eval="[(4, ref('helpdesk.group_helpdesk_user'))]"/>
+    </record>
+    <record id="rule_warranty_mrf_technician" model="ir.rule">
+        <field name="name">Warranty Material Requests: technicians of the job (read)</field>
+        <field name="model_id" ref="material_purchase_requisitions.model_material_purchase_requisition"/>
+        <field name="domain_force">['|', ('warranty_service_job_id.main_technician_id', '=', user.id),
+                                    ('warranty_service_job_id.support_technician_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('industry_fsm.group_fsm_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_warranty_mrf_line_technician" model="ir.rule">
+        <field name="name">Warranty Material Request Lines: technicians of the job (read)</field>
+        <field name="model_id" ref="material_purchase_requisitions.model_material_purchase_requisition_line"/>
+        <field name="domain_force">['|', ('requisition_id.warranty_service_job_id.main_technician_id', '=', user.id),
+                                    ('requisition_id.warranty_service_job_id.support_technician_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('industry_fsm.group_fsm_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Phase 5.3 (additional requirement 10): named approvers read the requests routed to them
+         (read only; decisions run through the workflow checks). -->
+    <record id="rule_warranty_mrf_approver_read" model="ir.rule">
+        <field name="name">Warranty Material Requests: named approvers (read)</field>
+        <field name="model_id" ref="material_purchase_requisitions.model_material_purchase_requisition"/>
+        <field name="domain_force">[('warranty_approver_user_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_warranty_mrf_line_approver_read" model="ir.rule">
+        <field name="name">Warranty Material Request Lines: named approvers (read)</field>
+        <field name="model_id" ref="material_purchase_requisitions.model_material_purchase_requisition_line"/>
+        <field name="domain_force">[('requisition_id.warranty_approver_user_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Approval history: read only (no write / create / unlink rights in the ACL). -->
+    <record id="rule_warranty_mrf_approval_company" model="ir.rule">
+        <field name="name">Warranty Material Request Approvals: multi-company</field>
+        <field name="model_id" ref="model_warranty_mrf_approval"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_warranty_mrf_approval_own" model="ir.rule">
+        <field name="name">Warranty Material Request Approvals: requester, creator, approvers, technicians</field>
+        <field name="model_id" ref="model_warranty_mrf_approval"/>
+        <field name="domain_force">['|', '|', '|', '|',
+                                    ('requisition_id.employee_id.user_id', '=', user.id),
+                                    ('requisition_id.create_uid', '=', user.id),
+                                    ('requisition_id.warranty_approver_user_ids', 'in', user.id),
+                                    ('requisition_id.warranty_service_job_id.main_technician_id', '=', user.id),
+                                    ('requisition_id.warranty_service_job_id.support_technician_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+    <record id="rule_warranty_mrf_approval_all" model="ir.rule">
+        <field name="name">Warranty Material Request Approvals: Helpdesk, Requisition, Purchase users</field>
+        <field name="model_id" ref="model_warranty_mrf_approval"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('helpdesk.group_helpdesk_user')),
+                                    (4, ref('material_purchase_requisitions.group_purchase_requisition_user')),
+                                    (4, ref('material_purchase_requisitions.group_purchase_requisition_department')),
+                                    (4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+    <record id="rule_warranty_mrf_approval_rule_company" model="ir.rule">
+        <field name="name">Warranty Material Approval Rules: multi-company</field>
+        <field name="model_id" ref="model_warranty_mrf_approval_rule"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- Phase 5.6: material usage records of the user's companies (read-only for users; written
+         by the workflow after its checks). -->
+    <record id="rule_warranty_mrf_consumption_company" model="ir.rule">
+        <field name="name">Warranty material usage: multi-company</field>
+        <field name="model_id" ref="model_warranty_mrf_consumption"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- Phase 5.7: material cost report rows of the user's companies only. -->
+    <record id="rule_warranty_mrf_cost_report_company" model="ir.rule">
+        <field name="name">Warranty material cost report: multi-company</field>
+        <field name="model_id" ref="model_warranty_mrf_cost_report"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- Phase 5.8: vendor claims - company rule; coordinators, requisition and accounting
+         users see the company's claims; other internal users (named approvers who are not
+         coordinators) only read the claims routed to them; technicians nothing else. -->
+    <record id="rule_warranty_vendor_claim_company" model="ir.rule">
+        <field name="name">warranty_vendor_claim: multi-company</field>
+        <field name="model_id" ref="model_warranty_vendor_claim"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_warranty_vendor_claim_staff" model="ir.rule">
+        <field name="name">warranty_vendor_claim: coordinators, requisition and accounting users</field>
+        <field name="model_id" ref="model_warranty_vendor_claim"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('helpdesk.group_helpdesk_user')), (4, ref('material_purchase_requisitions.group_purchase_requisition_user')), (4, ref('account.group_account_readonly')), (4, ref('account.group_account_invoice'))]"/>
+    </record>
+    <record id="rule_warranty_vendor_claim_approver" model="ir.rule">
+        <field name="name">warranty_vendor_claim: named approvers (read)</field>
+        <field name="model_id" ref="model_warranty_vendor_claim"/>
+        <field name="domain_force">[('approver_user_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_warranty_vendor_claim_line_company" model="ir.rule">
+        <field name="name">warranty_vendor_claim_line: multi-company</field>
+        <field name="model_id" ref="model_warranty_vendor_claim_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_warranty_vendor_claim_line_staff" model="ir.rule">
+        <field name="name">warranty_vendor_claim_line: coordinators, requisition and accounting users</field>
+        <field name="model_id" ref="model_warranty_vendor_claim_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('helpdesk.group_helpdesk_user')), (4, ref('material_purchase_requisitions.group_purchase_requisition_user')), (4, ref('account.group_account_readonly')), (4, ref('account.group_account_invoice'))]"/>
+    </record>
+    <record id="rule_warranty_vendor_claim_line_approver" model="ir.rule">
+        <field name="name">warranty_vendor_claim_line: named approvers (read)</field>
+        <field name="model_id" ref="model_warranty_vendor_claim_line"/>
+        <field name="domain_force">[('claim_id.approver_user_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_warranty_vendor_claim_recovery_company" model="ir.rule">
+        <field name="name">warranty_vendor_claim_recovery: multi-company</field>
+        <field name="model_id" ref="model_warranty_vendor_claim_recovery"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_warranty_vendor_claim_recovery_staff" model="ir.rule">
+        <field name="name">warranty_vendor_claim_recovery: coordinators, requisition and accounting users</field>
+        <field name="model_id" ref="model_warranty_vendor_claim_recovery"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('helpdesk.group_helpdesk_user')), (4, ref('material_purchase_requisitions.group_purchase_requisition_user')), (4, ref('account.group_account_readonly')), (4, ref('account.group_account_invoice'))]"/>
+    </record>
+    <record id="rule_warranty_vendor_claim_recovery_approver" model="ir.rule">
+        <field name="name">warranty_vendor_claim_recovery: named approvers (read)</field>
+        <field name="model_id" ref="model_warranty_vendor_claim_recovery"/>
+        <field name="domain_force">[('claim_id.approver_user_ids', 'in', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <!-- Phase 5.9 reports: rows of the user's companies only. -->
+    <record id="rule_warranty_mrf_approval_cost_report_company" model="ir.rule">
+        <field name="name">warranty_mrf_approval_cost_report: multi-company</field>
+        <field name="model_id" ref="model_warranty_mrf_approval_cost_report"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_warranty_vendor_claim_recovery_report_company" model="ir.rule">
+        <field name="name">warranty_vendor_claim_recovery_report: multi-company</field>
+        <field name="model_id" ref="model_warranty_vendor_claim_recovery_report"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_warranty_mrf_audit_event_company" model="ir.rule">
+        <field name="name">warranty_mrf_audit_event: multi-company</field>
+        <field name="model_id" ref="model_warranty_mrf_audit_event"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

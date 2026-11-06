@@ -1,9 +1,8 @@
 from markupsafe import Markup
 
 from odoo import _, api, fields, models
+from odoo.tools import format_datetime
 from odoo.exceptions import AccessError, UserError, ValidationError
-
-from odoo.addons.warranty_management.models.res_company import FREE_SERVICE_SCOPE_MODES
 
 # SRS 9.13 Service Job: Draft -> Planned -> Confirmed -> In Progress ->
 # Incomplete/Rescheduled/Awaiting Parts/Workshop -> Completed/Cancelled (visit level
@@ -82,7 +81,21 @@ JOB_TYPES = [
     ('chargeable_inspection', 'Chargeable Inspection'),
     ('chargeable_repair', 'Chargeable Repair'),
     ('chargeable_excluded', 'Chargeable Excluded Items'),
+    ('warranty_inspection', 'Warranty Inspection'),
 ]
+# SRS service flow alignment (doc/srs_service_flow_alignment_design.md): a job comes from a
+# warranty case (Helpdesk-first route) or from free services (SRS 9.4 route: job before ticket).
+JOB_ORIGINS = [
+    ('case', 'Warranty Case'),
+    ('service', 'Service Entitlements'),
+]
+# Service-origin jobs, inspection jobs and the late case link are created / written by system
+# code only. Python object: no client (UI, import, JSON-RPC) can put it in a context.
+_SERVICE_JOB_MARKER = object()
+ORIGIN_FIELDS = {'job_origin', 'origin_company_id', 'origin_partner_id', 'origin_site_id',
+                 'origin_ticket_id', 'warranty_case_id'}
+# Service-origin jobs without warranty case: only these states (ticket / case before Confirm).
+CASELESS_JOB_STATES = ('draft', 'planned', 'cancelled')
 CHARGEABLE_JOB_FIELDS = ('job_type', 'chargeable_order_id', 'inspection_diagnosis',
                          'inspection_repair_required', 'inspection_repair_details',
                          'repair_quotation_id')
@@ -108,19 +121,39 @@ class WarrantyServiceJob(models.Model):
 
     name = fields.Char(string='Job No.', required=True, readonly=True, copy=False,
                        default='New')
-    warranty_case_id = fields.Many2one('warranty.case', string='Warranty Case', required=True,
-                                       readonly=True, ondelete='restrict', index=True)
-    company_id = fields.Many2one(related='warranty_case_id.company_id', store=True, index=True)
-    helpdesk_ticket_id = fields.Many2one(related='warranty_case_id.helpdesk_ticket_id',
-                                         store=True, string='Helpdesk Ticket')
-    partner_id = fields.Many2one(related='warranty_case_id.partner_id', store=True,
-                                 string='Customer')
-    commercial_partner_id = fields.Many2one(related='warranty_case_id.commercial_partner_id',
+    job_origin = fields.Selection(JOB_ORIGINS, string='Origin', required=True, default='case',
+                                  readonly=True, copy=False, tracking=True)
+    # Required for case-origin jobs; service-origin jobs get it when their warranty case is
+    # created manually on their ticket (warranty.case._warranty_link_waiting_job) before
+    # confirmation (_check_origin_case).
+    warranty_case_id = fields.Many2one('warranty.case', string='Warranty Case', readonly=True,
+                                       ondelete='restrict', index=True, tracking=True)
+    # Service-origin jobs before their case: customer, company and site of the services.
+    origin_company_id = fields.Many2one('res.company', string='Origin Company', readonly=True,
+                                        copy=False)
+    origin_partner_id = fields.Many2one('res.partner', string='Origin Customer', readonly=True,
+                                        copy=False)
+    origin_site_id = fields.Many2one('res.partner', string='Origin Site', readonly=True,
+                                     copy=False)
+    # Create or Link Helpdesk Ticket: the ticket before the manually created warranty case.
+    origin_ticket_id = fields.Many2one('helpdesk.ticket', string='Origin Ticket', readonly=True,
+                                       copy=False)
+    company_id = fields.Many2one('res.company', string='Company',
+                                 compute='_compute_origin_values', store=True, index=True)
+    helpdesk_ticket_id = fields.Many2one('helpdesk.ticket', string='Helpdesk Ticket',
+                                         compute='_compute_origin_values', store=True)
+    partner_id = fields.Many2one('res.partner', string='Customer',
+                                 compute='_compute_origin_values', store=True)
+    commercial_partner_id = fields.Many2one('res.partner', compute='_compute_origin_values',
                                             store=True)
-    site_id = fields.Many2one(related='warranty_case_id.site_id', store=True, string='Site')
+    site_id = fields.Many2one('res.partner', string='Site', compute='_compute_origin_values',
+                              store=True)
     product_id = fields.Many2one(related='warranty_case_id.product_id', store=True)
     serial_id = fields.Many2one(related='warranty_case_id.serial_id', store=True)
-    warranty_card_id = fields.Many2one(related='warranty_case_id.warranty_card_id', store=True)
+    warranty_site_address = fields.Char(related='warranty_case_id.warranty_site_address',
+                                        string='Site Address')
+    warranty_card_id = fields.Many2one('warranty.card', string='Warranty Card',
+                                       compute='_compute_origin_values', store=True)
     warranty_unit_id = fields.Many2one(related='warranty_case_id.warranty_unit_id', store=True)
     entitlement_ids = fields.Many2many(
         'warranty.service.entitlement', 'warranty_service_job_entitlement_rel', 'job_id',
@@ -130,16 +163,57 @@ class WarrantyServiceJob(models.Model):
         'warranty.card', 'warranty_service_job_card_rel', 'job_id', 'card_id',
         string='Warranty Cards', compute='_compute_warranty_card_ids', store=True)
 
+    @api.depends('warranty_case_id.company_id', 'warranty_case_id.helpdesk_ticket_id',
+                 'warranty_case_id.partner_id', 'warranty_case_id.commercial_partner_id',
+                 'warranty_case_id.site_id', 'warranty_case_id.warranty_card_id',
+                 'origin_company_id', 'origin_partner_id', 'origin_site_id', 'origin_ticket_id',
+                 'entitlement_ids.warranty_card_id')
+    def _compute_origin_values(self):
+        """From the warranty case (same values as the former related fields); service-origin
+        jobs before their case: the customer, company and site of their free services."""
+        for job in self:
+            case = job.warranty_case_id
+            if case:
+                job.company_id = case.company_id
+                job.helpdesk_ticket_id = case.helpdesk_ticket_id
+                job.partner_id = case.partner_id
+                job.commercial_partner_id = case.commercial_partner_id
+                job.site_id = case.site_id
+                job.warranty_card_id = case.warranty_card_id
+                continue
+            cards = job.entitlement_ids.warranty_card_id
+            job.company_id = job.origin_company_id
+            job.helpdesk_ticket_id = job.origin_ticket_id
+            job.partner_id = job.origin_partner_id
+            job.commercial_partner_id = job.origin_partner_id.commercial_partner_id
+            job.site_id = job.origin_site_id
+            job.warranty_card_id = cards if len(cards) == 1 else False
+
+    @api.constrains('job_origin', 'warranty_case_id', 'state')
+    def _check_origin_case(self):
+        for job in self:
+            if job.warranty_case_id:
+                continue
+            if job.job_origin != 'service':
+                raise ValidationError(_("Service job %s needs its warranty case.", job.name))
+            if job.state not in CASELESS_JOB_STATES:
+                raise ValidationError(_(
+                    "Service job %s needs its Helpdesk ticket and warranty case before it is "
+                    "confirmed: use Create or Link Helpdesk Ticket, then create its warranty case.",
+                    job.name))
+
+    def _warranty_service_marker(self):
+        return self.with_context(warranty_service_job_marker=_SERVICE_JOB_MARKER)
+
+    def _warranty_service_marker_set(self):
+        return self.env.context.get('warranty_service_job_marker') is _SERVICE_JOB_MARKER
+
     @api.depends('warranty_card_id', 'entitlement_ids.warranty_card_id')
     def _compute_warranty_card_ids(self):
         for job in self:
             job.warranty_card_ids = job.warranty_card_id | job.entitlement_ids.warranty_card_id
     merge_type = fields.Selection(MERGE_TYPES, string='Free Services Type',
                                   compute='_compute_merge_type', store=True)
-    # Free Services tab shown only when the job company's Scope Mode includes free services
-    # (approved; display only, nothing stored).
-    warranty_free_services_enabled = fields.Boolean(
-        compute='_compute_warranty_free_services_enabled')
     state = fields.Selection(JOB_STATES, string='Status', default='draft', required=True,
                              readonly=True, copy=False, tracking=True, index=True)
     # Phase 4.2 - planning (SRS 2.5 / 10.5; approved D1-D4): one main responsible technician
@@ -202,16 +276,12 @@ class WarrantyServiceJob(models.Model):
                                                item.product_id.display_name or '-',
                                                item.confirmed_qty) for item in items) or False
 
-    @api.depends('company_id.warranty_scope_mode')
-    def _compute_warranty_free_services_enabled(self):
-        for job in self:
-            job.warranty_free_services_enabled =                 job.company_id.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES
-
-    @api.depends('visit_ids')
+    @api.depends('visit_ids', 'shared_visit_ids')
     def _compute_visit_count(self):
         for job in self:
-            # sudo: the visit count of the job (Helpdesk users may not read tasks).
-            job.visit_count = len(job.sudo().visit_ids)
+            # sudo: the visit count of the job (Helpdesk users may not read tasks); shared
+            # Field Service visits count for every job on them.
+            job.visit_count = len(job.sudo()._warranty_all_visits())
             job.reschedule_count = max(job.visit_count - 1, 0)
 
     @api.depends('entitlement_ids')
@@ -254,15 +324,6 @@ class WarrantyServiceJob(models.Model):
                     "%(user)s is the Main Technician of %(job)s and cannot also be a Support "
                     "Technician.", user=job.main_technician_id.name, job=job.name))
 
-    @api.constrains('planned_date')
-    def _check_planned_date(self):
-        """Approved D4: no past date for new planning (checked when the date is set)."""
-        now = fields.Datetime.now()
-        for job in self:
-            if job.planned_date and job.planned_date < now:
-                raise ValidationError(_("The Planned Date of %s cannot be in the past.",
-                                        job.name))
-
     def write(self, vals):
         context = self.env.context
         hold_marker = context.get('warranty_hold_marker') is _HOLD_MARKER
@@ -287,6 +348,10 @@ class WarrantyServiceJob(models.Model):
                 and context.get('warranty_completion_marker') is not _COMPLETION_MARKER:
             raise UserError(_("The job type, chargeable order and inspection result are set by "
                               "the chargeable workflow."))
+        if ORIGIN_FIELDS & set(vals) and not self._warranty_service_marker_set():
+            raise UserError(_("The origin and the warranty case of a service job are set by the "
+                              "system (Prepare Service Job / Create or Link Helpdesk Ticket / warranty "
+                              "case of the ticket)."))
         if 'completion_mode' in vals and any(job.state in CLOSED_JOB_STATES for job in self):
             raise UserError(_("The completion mode of a completed or cancelled service job cannot "
                               "be changed."))
@@ -313,14 +378,10 @@ class WarrantyServiceJob(models.Model):
             if missing:
                 raise UserError(_("Job confirmation blocked for %(job)s: %(fields)s required.",
                                   job=job.name, fields=', '.join(missing)))
-            job._check_planned_date()
-            window_problems = job._warranty_planned_date_problems()
-            if window_problems:
-                raise UserError(_("Job planning blocked for %(job)s: %(problems)s",
-                                  job=job.name, problems='; '.join(window_problems)))
             job.state = 'planned'
             job._warranty_log_date_notes(job._warranty_service_day(job.planned_date),
-                                         job.entitlement_ids)
+                                         job.entitlement_ids,
+                                         job._warranty_planned_date_problems())
             job._message_log(body=Markup('<p>%s</p>') % _(
                 "Service job planned for %(date)s - Main Technician %(main)s%(support)s; ready "
                 "for confirmation.", date=fields.Datetime.to_string(job.planned_date),
@@ -331,16 +392,23 @@ class WarrantyServiceJob(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        marked = self._warranty_service_marker_set()
         for vals in vals_list:
-            if not self.env.su and (vals.get('chargeable_order_id') or vals.get(
+            if not marked and (vals.get('job_origin', 'case') != 'case'
+                               or vals.get('job_type') == 'warranty_inspection'
+                               or (ORIGIN_FIELDS - {'warranty_case_id', 'job_origin'}) & set(vals)):
+                raise UserError(_("Service-origin and inspection jobs are created with Create "
+                                  "Service Job / Prepare Inspection Job."))
+            if not self.env.su and not marked and (vals.get('chargeable_order_id') or vals.get(
                     'job_type', 'warranty') != 'warranty'):
                 raise UserError(_("Chargeable jobs are created by the Job Trigger of their "
                                   "warranty case."))
             vals.setdefault('completion_mode', 'batch')
             if vals.get('name', 'New') == 'New':
                 case = self.env['warranty.case'].browse(vals.get('warranty_case_id'))
-                vals['name'] = self.env['ir.sequence'].with_company(
-                    case.company_id or self.env.company).next_by_code(
+                company = case.company_id or self.env['res.company'].browse(
+                    vals.get('origin_company_id')) or self.env.company
+                vals['name'] = self.env['ir.sequence'].with_company(company).next_by_code(
                     'warranty.service.job') or 'New'
         return super().create(vals_list)
 
@@ -359,15 +427,25 @@ class WarrantyServiceJob(models.Model):
             services = job.entitlement_ids
             job.state = 'cancelled'
             services.write({'merge_status': 'not_merged'})
-            text = _("Service job %s cancelled before confirmation: the warranty case stays "
-                     "Approved, the free services are not consumed.", job.name)
+            if not job.warranty_case_id:
+                text = _("Service job %s cancelled before confirmation (no ticket / case yet): "
+                         "the free services are released, not consumed.", job.name)
+            else:
+                text = _("Service job %s cancelled before confirmation: the warranty case stays "
+                         "unchanged, the free services are not consumed.", job.name)
             if services:
                 text += ' ' + _("Merge Status reset to Not Merged: %s.",
                                 ', '.join(services.mapped('name')))
             body = Markup('<p>%s</p>') % text
             job._message_log(body=body)
-            job.warranty_case_id._message_log(body=body)
+            if job.warranty_case_id:
+                job.warranty_case_id._message_log(body=body)
         return True
+
+    def action_view_warranty_history(self):
+        self.ensure_one()
+        return self.env['warranty.history']._warranty_open(
+            [('card_id', 'in', self.warranty_card_ids.ids)])
 
     # ------------------------------------------------------------------ Phase 4.3
     def _warranty_confirm_problems(self):
@@ -380,14 +458,20 @@ class WarrantyServiceJob(models.Model):
         if not self.planned_date or not self.main_technician_id:
             problems.append(_("Planned Date and Main Technician are required"))
         problems += self._warranty_worksheet_template_problems()
-        problems += self._warranty_planned_date_problems()
         ticket = self.helpdesk_ticket_id
         case = self.warranty_case_id
-        if not ticket:
+        if not case and ticket:
+            problems.append(_("no warranty case yet: create the Free Service warranty case on "
+                              "ticket %s with the job's free services (Warranty Cases > New)",
+                              ticket.display_name))
+        elif not case:
+            problems.append(_("no Helpdesk ticket and warranty case yet: use Create or Link "
+                              "Helpdesk Ticket, then create its warranty case"))
+        elif not ticket:
             problems.append(_("no Helpdesk ticket"))
         elif ticket.fold:
             problems.append(_("Helpdesk ticket %s is closed: reopen it first", ticket.display_name))
-        elif self.job_type != 'warranty':
+        elif self.job_type not in ('warranty', 'warranty_inspection'):
             # Approved C4: no warranty eligibility; the commercial trigger is revalidated.
             if ticket != case.helpdesk_ticket_id or ticket.company_id != self.company_id \
                     or case.state != 'chargeable':
@@ -397,11 +481,43 @@ class WarrantyServiceJob(models.Model):
                 problems.append(_("the Job Trigger of order %s is no longer met (cancelled, "
                                   "not confirmed or not fully paid)",
                                   self.chargeable_order_id.sudo().name))
+        elif self.job_origin == 'service' \
+                and case.service_entitlement_ids != self.entitlement_ids:
+            problems.append(_("the free services of the job and of warranty case %s differ: "
+                              "cancel the job (or reject the case) and create it again with the "
+                              "eligible services", case.name))
         elif ticket != case.helpdesk_ticket_id or ticket.company_id != self.company_id \
-                or case.state != 'approved':
+                or not self._warranty_case_ready():
             problems.append(_("the Helpdesk ticket -> warranty case -> service job chain is not "
-                              "valid (case %s must be Approved)", case.name))
+                              "valid (case %(case)s must be %(state)s)", case=case.name,
+                              state=self._warranty_case_ready_label()))
         return problems
+
+    def _warranty_case_ready(self):
+        """Case status required to confirm the job: Approved (Helpdesk-first route);
+        Eligible without general approval (service-origin route, approved D-A); preliminary
+        check passed and Case Type still to be determined (warranty inspection)."""
+        self.ensure_one()
+        case = self.warranty_case_id
+        if self.job_type == 'warranty_inspection':
+            return case.state == 'eligibility_checked' and not case.case_type \
+                and case.eligibility_result == 'preliminary_passed'
+        if self.job_origin == 'service':
+            return case.state in ('eligibility_checked', 'approved') \
+                and case.eligibility_result == 'eligible'
+        return case.state == 'approved'
+
+    def _warranty_case_ready_label(self):
+        if self.job_type == 'warranty_inspection':
+            return _("Eligibility Checked with result Preliminary Passed")
+        if self.job_origin == 'service':
+            return _("Eligible")
+        return _("Approved")
+
+    def _warranty_expected_revalidation(self):
+        """Expected result of the Q41 revalidation at confirmation."""
+        self.ensure_one()
+        return 'preliminary_passed' if self.job_type == 'warranty_inspection' else 'eligible'
 
     def action_confirm_job(self):
         """Confirm Service Job (Part 4 diagram; approved Q41, G1, G5, D5, D7, D9, D13):
@@ -418,14 +534,11 @@ class WarrantyServiceJob(models.Model):
                 raise UserError(_("%(job)s cannot be confirmed: %(problems)s.", job=job.name,
                                   problems='; '.join(problems)))
             case = job.warranty_case_id
-            if job.job_type != 'warranty':
+            if job.job_type not in ('warranty', 'warranty_inspection'):
                 job._warranty_create_visit()
                 continue
-            # Q41 revalidation, same checks as Check Eligibility; sudo + revalidation context:
-            # read-only checks, no new approval requests; the case is not modified (D7).
-            result, steps, __, __ = case.sudo().with_context(
-                warranty_revalidation=True)._warranty_run_checks()
-            if result != 'eligible':
+            ok, result, steps = job._warranty_revalidate()
+            if not ok:
                 labels = dict(case._fields['eligibility_result']._description_selection(self.env))
                 lines = Markup('').join(Markup('<li>%s %s</li>') % ('✔' if ok else '✘', text)
                                         for ok, text in steps)
@@ -451,6 +564,15 @@ class WarrantyServiceJob(models.Model):
                 },
             }
         return True
+
+    def _warranty_revalidate(self):
+        """Q41 revalidation, same checks as Check Eligibility; sudo + revalidation context:
+        read-only checks, no new approval requests; the case is not modified (D7). Returns
+        (ok, result, steps)."""
+        self.ensure_one()
+        result, steps, __, __ = self.warranty_case_id.sudo().with_context(
+            warranty_revalidation=True)._warranty_run_checks()
+        return result == self._warranty_expected_revalidation(), result, steps
 
     def _warranty_create_visit_task(self, visit_no):
         """Field Service visit of the job with its planned date and technicians (4.3; next
@@ -481,23 +603,34 @@ class WarrantyServiceJob(models.Model):
         # acting user stays the creator (create_uid).
         return self.env['project.task'].sudo().create(vals)
 
-    def _warranty_create_visit(self):
+    def _warranty_create_visit(self, task=None):
+        """Confirmation output: the job's own visit 1, or its part of a shared Field Service
+        visit (`task`)."""
         self.ensure_one()
         case = self.warranty_case_id
         services = self.entitlement_ids
-        task = self._warranty_create_visit_task(1)
+        shared = bool(task)
+        task = task or self._warranty_create_visit_task(1)
         sheets = self._warranty_create_worksheets(task)
         for service in services:
             service.write({'job_previous_state': service.state, 'state': 'job_created'})
         self.state = 'confirmed'
         # sudo: the case status is set by the confirmation (Approved -> Job Created).
         case.sudo().state = 'job_created'
-        body = Markup('<p><b>%s</b></p>') % _(
+        body = Markup('<p><b>%s</b></p>') % (_(
+            "Service job %(job)s confirmed: shared Field Service visit %(task)s with %(jobs)s "
+            "(planned %(date)s, Main Technician %(main)s)%(services)s.", job=self.name,
+            task=task.name, jobs=', '.join((task.warranty_shared_job_ids - self).mapped('name')),
+            date=format_datetime(self.env, self.planned_date, dt_format='short'),
+            main=self.main_technician_id.name,
+            services=(_("; free services Job Created: %s", ', '.join(services.mapped('name')))
+                      if services else '')) if shared else _(
             "Service job %(job)s confirmed: Field Service task %(task)s created (visit 1, planned "
             "%(date)s, Main Technician %(main)s)%(services)s.", job=self.name, task=task.name,
-            date=fields.Datetime.to_string(self.planned_date), main=self.main_technician_id.name,
+            date=format_datetime(self.env, self.planned_date, dt_format='short'),
+            main=self.main_technician_id.name,
             services=(_("; free services Job Created: %s", ', '.join(services.mapped('name')))
-                      if services else '')) + Markup('<p>%s</p>') % _(
+                      if services else ''))) + Markup('<p>%s</p>') % _(
             "Worksheet instances: %s.", ', '.join(sheets.mapped('name')))
         self._message_log(body=body)
         case.sudo()._message_log(body=body)
@@ -514,9 +647,49 @@ class WarrantyServiceJob(models.Model):
             'name': _("Visits"),
             'res_model': 'project.task',
             'view_mode': 'list,form',
-            'domain': [('warranty_service_job_id', '=', self.id)],
+            'domain': [('id', 'in', self.sudo()._warranty_all_visits().ids)],
             'context': {'create': False},
         }
+
+    # ------------------------------------------------------------------ shared visit (v1)
+    def _warranty_all_visits(self):
+        """Own visits and shared Field Service visits of the job."""
+        self.ensure_one()
+        return self.visit_ids | self.shared_visit_ids
+
+    def _warranty_is_visit_of(self, task):
+        return task.warranty_service_job_id == self or self in task.warranty_shared_job_ids
+
+    def _warranty_shared_line(self, task):
+        """The job's line on a shared visit (empty for its own visits)."""
+        return task.warranty_shared_line_ids.filtered(lambda line: line.job_id == self)
+
+    def _warranty_visit_services(self, task):
+        """The free services of the visit that belong to this job."""
+        if task.warranty_shared_job_ids:
+            return task.warranty_entitlement_ids & self.entitlement_ids
+        return task.warranty_entitlement_ids
+
+    def _warranty_visit_sheets(self, task):
+        return task.warranty_worksheet_ids.filtered(lambda sheet: sheet.job_id == self)
+
+    def _warranty_visit_closed(self, task):
+        """Closed for this job: the visit is closed, or the job's outcome on a shared visit is
+        recorded (approved Q5 / Q7)."""
+        line = self._warranty_shared_line(task)
+        return bool(line.outcome) or task.fsm_done or task.state in ('1_done', '1_canceled')
+
+    def _warranty_open_shared_visits(self):
+        """Shared visits on which the job has no outcome yet."""
+        self.ensure_one()
+        return self.sudo().shared_visit_ids.filtered(
+            lambda task: not self._warranty_visit_closed(task))
+
+    def _warranty_record_shared_outcome(self, task, vals):
+        """Record the job's outcome on a shared visit; the visit closes when every job on it
+        has its outcome (approved Q7)."""
+        self._warranty_shared_line(task)._warranty_record(vals)
+        task._warranty_close_shared_visit()
 
     # ------------------------------------------------------------------ Phase 4.4
     def _warranty_create_worksheets(self, task):
@@ -542,7 +715,8 @@ class WarrantyServiceJob(models.Model):
             })
         # sudo: created by the checked confirmation (as the task, approved security a).
         sheets = Sheet.sudo().create(vals_list)
-        if len(sheets) == 1 and sheets.template_id.sudo().res_model == 'project.task':
+        if len(sheets) == 1 and sheets.template_id.sudo().res_model == 'project.task' \
+                and not task.warranty_shared_job_ids:
             # Approved W4: one instance -> the standard task Worksheet button uses its template.
             task.sudo().worksheet_template_id = sheets.template_id
         return sheets.with_env(self.env)
@@ -571,14 +745,31 @@ class WarrantyServiceJob(models.Model):
         if not lines:
             lines.append((self.env['warranty.service.entitlement'], Unit,
                           case.product_id or self.warranty_card_id.product_id))
+        if self.job_type == 'warranty_inspection' and self.company_id.warranty_inspection_template_id:
+            # Inspection of an undetermined case (approved G2): the company inspection template.
+            template = self.company_id.warranty_inspection_template_id
+            return [(service, unit, product, template) for service, unit, product in lines]
         # Template: the free service's (single-product card) unless its unit has another
         # product, else the product's Worksheet Template, else the project default.
-        return [(service, unit, product,
-                 (service.worksheet_template_id if not unit or not service.warranty_card_id
-                  .product_id or unit.product_id == service.warranty_card_id.product_id
-                  else self.env['worksheet.template'])
-                 or product.product_tmpl_id.warranty_worksheet_template_id or default_template)
-                for service, unit, product in lines]
+        lines = [(service, unit, product,
+                  (service.worksheet_template_id if not unit or not service.warranty_card_id
+                   .product_id or unit.product_id == service.warranty_card_id.product_id
+                   else self.env['worksheet.template'])
+                  or product.product_tmpl_id.warranty_worksheet_template_id or default_template)
+                 for service, unit, product in lines]
+        # A Field Service (task) template used by several instances of the visit (e.g. an older
+        # free service snapshot) gives way to the product's Warranty Worksheet template; without
+        # one the conflict stays and is blocked by _warranty_worksheet_template_problems.
+        templates = [template for __, __, __, template in lines]
+        resolved = []
+        for service, unit, product, template in lines:
+            product_template = product.product_tmpl_id.warranty_worksheet_template_id
+            if template and template.sudo().res_model == 'project.task' \
+                    and templates.count(template) > 1 \
+                    and product_template.sudo().res_model == 'warranty.job.worksheet':
+                template = product_template
+            resolved.append((service, unit, product, template))
+        return resolved
 
     def _warranty_worksheet_template_problems(self):
         """Approved shared-worksheet fix: a Field Service (task) worksheet template holds one
@@ -593,7 +784,7 @@ class WarrantyServiceJob(models.Model):
         return [_("worksheet template %s would be used by several worksheet instances of one "
                   "visit; a Field Service worksheet template holds only one checklist per task. "
                   "Set a Warranty Worksheet template (Warranty > Configuration > Warranty "
-                  "Worksheet Templates) on the product or free service", template.name)
+                  "Worksheet Templates) on the product; it is then used instead", template.name)
                 for template in duplicates]
 
     def action_view_worksheets(self):
@@ -617,8 +808,9 @@ class WarrantyServiceJob(models.Model):
         # Phase 4.8: also the next visit of a Rescheduled job.
         if self.state not in ('confirmed', 'rescheduled'):
             return False
-        services = task.warranty_entitlement_ids.filtered(lambda s: s.state == 'job_created')
-        sheets = task.warranty_worksheet_ids.filtered(lambda sheet: sheet.state == 'todo')
+        services = self._warranty_visit_services(task).filtered(
+            lambda s: s.state == 'job_created')
+        sheets = self._warranty_visit_sheets(task).filtered(lambda sheet: sheet.state == 'todo')
         self.with_context(warranty_visit_marker=_VISIT_MARKER).state = 'in_progress'
         # sudo: technicians start visits; the free service / worksheet statuses follow the job.
         services.sudo().write({'state': 'in_progress'})
@@ -680,6 +872,9 @@ class WarrantyServiceJob(models.Model):
             if self.state != 'in_progress':
                 raise UserError(_("Only service jobs In Progress can be put on hold (%(job)s is "
                                   "%(state)s).", job=self.name, state=labels[self.state]))
+            if self.job_type == 'warranty_inspection':
+                raise UserError(_("Inspection job %s is not put on hold: complete the inspection "
+                                  "and decide the Case Type first.", self.name))
             new_state = hold_action
         old_state = self.state
         self.with_context(warranty_hold_marker=_HOLD_MARKER).write({'state': new_state})
@@ -716,7 +911,7 @@ class WarrantyServiceJob(models.Model):
         """Customer Sign-off Required? / Check Visit Outcome / Validate Completion Requirements
         (Part 4 diagram; approved K2-K4, M6): every problem, listed at once."""
         self.ensure_one()
-        if self.state == 'completed' or task.fsm_done or task.state in ('1_done', '1_canceled'):
+        if self.state == 'completed' or self._warranty_visit_closed(task):
             return [_("Visit %(task)s of service job %(job)s is already closed.", task=task.name,
                       job=self.name)]
         problems = self._warranty_completion_blockers()
@@ -735,7 +930,7 @@ class WarrantyServiceJob(models.Model):
             problems.append(_("Customer sign-off is required: use Sign Report on visit %s.",
                               task.name))
         problems += self._warranty_completion_date_problems(task)
-        for sheet in task.warranty_worksheet_ids:
+        for sheet in self._warranty_visit_sheets(task):
             problems += sheet._warranty_completion_problems()
         return problems
 
@@ -751,27 +946,36 @@ class WarrantyServiceJob(models.Model):
         # sudo: Helpdesk users complete visits without Field Service rights (approved K10); the
         # access to the job was checked above as the user.
         task = task.sudo()
-        if task.warranty_service_job_id != self:
+        if not self._warranty_is_visit_of(task):
             raise UserError(_("%(task)s is not a visit of service job %(job)s.", task=task.name,
                               job=self.name))
         problems = self._warranty_visit_completion_problems(task)
         if self.job_type == 'chargeable_inspection':
             problems += self._warranty_inspection_problems(inspection)
+        elif self.job_type == 'warranty_inspection':
+            problems += self._warranty_case_type_problems(inspection, findings=True)
         if problems:
             raise UserError(_("Visit %(task)s cannot be completed:\n%(problems)s", task=task.name,
                               problems='\n'.join('- %s' % problem for problem in problems)))
-        sheets = task.warranty_worksheet_ids
+        # Shared visit (approved v1): only this job's worksheets and free services.
+        sheets = self._warranty_visit_sheets(task)
         # Already completed services are never completed (consumed) twice.
-        services = task.warranty_entitlement_ids.filtered(lambda s: s.state != 'completed')
+        services = self._warranty_visit_services(task).filtered(lambda s: s.state != 'completed')
         today = self.company_id._warranty_today()
         warnings = self._warranty_completion_date_warnings(today, services)
         marker = {'warranty_completion_marker': _COMPLETION_MARKER}
         # Requirement 5: all or nothing (also when a caller catches an error).
         with self.env.cr.savepoint():
             now = fields.Datetime.now()
-            task._warranty_close_visits({'fsm_done': True, 'state': '1_done',
-                                         'warranty_visit_outcome': 'completed',
-                                         'warranty_completion_date': now})
+            if task.warranty_shared_job_ids:
+                # Approved Q4: the visit's customer sign-off, traceable on every job.
+                self._warranty_record_shared_outcome(task, {
+                    'outcome': 'completed', 'completion_date': now,
+                    'signed_by': task.worksheet_signed_by or False})
+            else:
+                task._warranty_close_visits({'fsm_done': True, 'state': '1_done',
+                                             'warranty_visit_outcome': 'completed',
+                                             'warranty_completion_date': now})
             # sudo (task above): the worksheet / free service / case statuses follow the
             # validated completion.
             sheets.with_context(**marker).write({'state': 'completed'})
@@ -796,11 +1000,30 @@ class WarrantyServiceJob(models.Model):
             }
         return True
 
+    def _warranty_case_type_problems(self, inspection, findings=False):
+        """Optional Case Type (approved G2): the inspection of an undetermined case records the
+        findings and the final Case Type."""
+        inspection = inspection or {}
+        problems = []
+        if inspection is None or not inspection:
+            return [_("Use Complete Inspection on the visit: findings and the final Case Type "
+                      "are required.")]
+        if findings and not (inspection.get('diagnosis') or '').strip():
+            problems.append(_("Record the inspection findings."))
+        if not self.warranty_case_id.case_type and not inspection.get('case_type'):
+            problems.append(_("Select the final Case Type of the warranty case."))
+        elif inspection.get('case_type') == 'free_service':
+            problems.append(_("A free service request is not decided by an inspection (Free "
+                              "Service cases are typed when created)."))
+        return problems
+
     def _warranty_inspection_problems(self, inspection):
         """Approved C7: Diagnosis and Repair Required (Yes / No) at inspection completion;
         Repair Details when a repair is required."""
         inspection = inspection or {}
         problems = []
+        if inspection and not self.warranty_case_id.case_type:
+            problems += self._warranty_case_type_problems(inspection)
         if not (inspection.get('diagnosis') or '').strip():
             problems.append(_("Record the inspection result: the diagnosis is required."))
         if inspection.get('repair_required') not in ('yes', 'no'):
@@ -818,6 +1041,29 @@ class WarrantyServiceJob(models.Model):
         # sudo: the case status follows the validated completion.
         case = self.warranty_case_id.sudo()
         marker = {'warranty_completion_marker': _COMPLETION_MARKER}
+        if self.job_type == 'warranty_inspection':
+            self.sudo().with_context(**marker).write(
+                {'inspection_diagnosis': inspection['diagnosis'].strip()})
+            case._warranty_apply_inspection(self, inspection)
+            return _("Inspection completed: warranty case %(case)s back to New with Case Type "
+                     "%(type)s - check eligibility, coverage and approval for that type. "
+                     "Findings: %(findings)s", case=case.name, type=case._warranty_case_type_label(),
+                     findings=self.inspection_diagnosis)
+        if self.job_type == 'chargeable_inspection' and not case.case_type \
+                and inspection.get('case_type') not in ('chargeable_inspection',
+                                                        'chargeable_repair'):
+            # Undetermined case, paid inspection (approved G1): a warranty Case Type found on
+            # site goes back to the full warranty eligibility.
+            self.sudo().with_context(**marker).write(
+                {'inspection_diagnosis': inspection['diagnosis'].strip(),
+                 'inspection_repair_required': inspection['repair_required']})
+            case._warranty_apply_inspection(self, inspection)
+            return _("Paid inspection completed: warranty case %(case)s back to New with Case "
+                     "Type %(type)s for the warranty eligibility check. Diagnosis: "
+                     "%(findings)s", case=case.name, type=case._warranty_case_type_label(),
+                     findings=self.inspection_diagnosis)
+        if self.job_type == 'chargeable_inspection' and not case.case_type:
+            case._warranty_apply_inspection(self, inspection, keep_state=True)
         if self.job_type == 'chargeable_inspection':
             self.sudo().with_context(**marker).write({
                 'inspection_diagnosis': inspection['diagnosis'].strip(),
@@ -973,11 +1219,10 @@ class WarrantyServiceJob(models.Model):
         self._warranty_check_visit_access(planning=bool(planning))
         # sudo: Helpdesk users may have no Field Service rights; the job access is checked above.
         task = task.sudo()
-        if task.warranty_service_job_id != self:
+        if not self._warranty_is_visit_of(task):
             raise UserError(_("%(task)s is not a visit of service job %(job)s.", task=task.name,
                               job=self.name))
-        if task.fsm_done or task.state in ('1_done', '1_canceled') \
-                or self.state not in OPEN_VISIT_JOB_STATES:
+        if self._warranty_visit_closed(task) or self.state not in OPEN_VISIT_JOB_STATES:
             raise UserError(_("Visit %(task)s of service job %(job)s is already closed.",
                               task=task.name, job=self.name))
         notes = (notes or '').strip()
@@ -1002,9 +1247,16 @@ class WarrantyServiceJob(models.Model):
         old_state = self.state
         # Requirement: all or nothing.
         with self.env.cr.savepoint():
-            task._warranty_close_visits({
-                'state': '1_canceled', 'warranty_visit_outcome': outcome,
-                'warranty_noncompletion_reason': reason, 'warranty_noncompletion_notes': notes})
+            if task.warranty_shared_job_ids:
+                # Approved Q5: only this job leaves the shared visit; the others continue.
+                self._warranty_record_shared_outcome(task, {
+                    'outcome': outcome, 'noncompletion_reason': reason,
+                    'noncompletion_notes': notes})
+            else:
+                task._warranty_close_visits({
+                    'state': '1_canceled', 'warranty_visit_outcome': outcome,
+                    'warranty_noncompletion_reason': reason,
+                    'warranty_noncompletion_notes': notes})
             body = Markup('<p><b>%s</b></p><ul><li>%s</li><li>%s</li><li>%s</li><li>%s</li></ul>') % (
                 _("Visit %(task)s (visit %(no)s) not completed - reported by %(user)s.",
                   task=task.name, no=task.warranty_visit_no, user=self.env.user.name),
@@ -1051,8 +1303,6 @@ class WarrantyServiceJob(models.Model):
         problems = self._warranty_worksheet_template_problems()
         if not planned_date or not main_technician:
             problems.append(_("Planned Date and Main Technician are required"))
-        else:
-            problems += self._warranty_planned_date_problems(planned_date)
         if self.helpdesk_ticket_id.fold:
             problems.append(_("Helpdesk ticket %s is closed: reopen it first",
                               self.helpdesk_ticket_id.display_name))
@@ -1060,14 +1310,14 @@ class WarrantyServiceJob(models.Model):
             raise UserError(_("The next visit of %(job)s cannot be planned: %(problems)s.",
                               job=self.name, problems='; '.join(problems)))
         previous = self.planned_date
-        # Planned date / technician rules of 4.2 (constraints: no past date, Field Service users
-        # of the job company); the previous values stay on the previous visits and are tracked.
+        # Technician rules of 4.2 (Field Service users of the job company); a past date is
+        # allowed (D4 revised); the previous values stay on the previous visits and are tracked.
         self.with_context(warranty_visit_marker=_VISIT_MARKER).write({
             'planned_date': planned_date,
             'main_technician_id': main_technician.id,
             'support_technician_ids': [(6, 0, support_technicians.ids)],
         })
-        visit_no = max(self.sudo().visit_ids.mapped('warranty_visit_no') or [0]) + 1
+        visit_no = max(self.sudo()._warranty_all_visits().mapped('warranty_visit_no') or [0]) + 1
         task = self._warranty_create_visit_task(visit_no)
         sheets = self._warranty_create_worksheets(task)
         self.with_context(warranty_visit_marker=_VISIT_MARKER).write({'state': 'rescheduled'})
@@ -1083,6 +1333,9 @@ class WarrantyServiceJob(models.Model):
             "Worksheet instances: %s. Free services not consumed.",
             ', '.join(sheets.mapped('name')) or _("none")))
         self._warranty_history(body)
+        self._warranty_log_date_notes(self._warranty_service_day(self.planned_date),
+                                      task.warranty_entitlement_ids,
+                                      self._warranty_planned_date_problems())
         plan_todo = self.activity_ids.filtered(
             lambda activity: activity.summary == _("Plan the next visit of %s", self.name))
         plan_todo.action_feedback(feedback=_("Next visit %s planned.", task.name))
@@ -1102,7 +1355,7 @@ class WarrantyServiceJob(models.Model):
         if self.state not in CONFIRMED_JOB_STATES:
             raise UserError(_("Only confirmed, started or incomplete service jobs are cancelled "
                               "with Cancel Job (%s); Draft / Planned jobs use Cancel.", self.name))
-        timers = self._warranty_running_timers(self.visit_ids)
+        timers = self._warranty_running_timers(self.visit_ids | self._warranty_open_shared_visits())
         if timers:
             raise UserError(_("Stop the running timers of %(job)s first (%(users)s).",
                               job=self.name, users=', '.join(timers.user_id.mapped('name'))))
@@ -1124,6 +1377,12 @@ class WarrantyServiceJob(models.Model):
         visits._warranty_close_visits({'state': '1_canceled',
                                        'warranty_visit_outcome': 'cancelled',
                                        'warranty_noncompletion_notes': reason})
+        # Shared visits (approved Q5 / Q7): only this job's outcome, the others continue.
+        shared = self._warranty_open_shared_visits()
+        for task in shared:
+            self._warranty_record_shared_outcome(task, {'outcome': 'cancelled',
+                                                        'noncompletion_notes': reason})
+        visits |= shared
         services = self.entitlement_ids.sudo().filtered(lambda s: s.state != 'completed')
         restored = []
         for service in services:
@@ -1194,6 +1453,11 @@ class WarrantyServiceJob(models.Model):
             problems.append(_("Completion Mode is Single: use Complete Visit on the visit."))
         if self.job_type == 'chargeable_inspection':
             problems.append(_("Inspection jobs need the inspection result: use Complete Visit."))
+        if self._warranty_open_shared_visits():
+            # Approved Q8: no batch completion for shared visits in v1.
+            problems.append(_("On a shared Field Service visit: complete it on the visit (no "
+                              "batch completion for shared visits)."))
+            return problems
         # sudo: the visits are read for the check (Helpdesk users may not read tasks).
         visits = self.sudo().visit_ids.filtered(
             lambda task: not task.fsm_done and task.state not in ('1_done', '1_canceled'))
@@ -1250,9 +1514,11 @@ class WarrantyServiceJob(models.Model):
 
     # ------------------------------------------------------------------ cross-card merge (D3)
     def _warranty_planned_date_problems(self, planned_date=None):
-        """Approved D3: the planned visit date (company warranty timezone) must be inside the
-        window of every free service of the job; usage-based services have no date window.
-        Returns service-level reasons."""
+        """D3 revised 2026-10-29: the due date / service window is a target, not a planning
+        restriction - planned visit dates (company warranty timezone) outside the window of a
+        free service of the job are logged as a Service date note at Plan Job and Plan Next
+        Visit, never refused; usage-based services have no date window. Returns service-level
+        reasons."""
         self.ensure_one()
         planned_date = planned_date or self.planned_date
         if not planned_date:
@@ -1263,9 +1529,10 @@ class WarrantyServiceJob(models.Model):
             window = service._warranty_service_window()
             if window and not window[0] <= day <= window[1]:
                 problems.append(_("planned date %(day)s is outside the service window of "
-                                  "%(service)s (%(card)s): %(start)s - %(end)s%(hint)s", day=day,
-                                  service=service.name, card=service.warranty_card_id.name,
-                                  start=window[0], end=window[1],
+                                  "%(service)s (%(card)s): %(start)s - %(end)s (due %(due)s; not "
+                                  "blocking)%(hint)s", day=day, service=service.name,
+                                  card=service.warranty_card_id.name, start=window[0],
+                                  end=window[1], due=service.due_date or '-',
                                   hint=service._warranty_late_service_hint(day, window)))
         return problems
 
@@ -1283,7 +1550,7 @@ class WarrantyServiceJob(models.Model):
         outside the permitted dates it is a warning and an audit note
         (_warranty_completion_date_warnings)."""
         self.ensure_one()
-        services = task.warranty_entitlement_ids.filtered(lambda s: s.state != 'completed')
+        services = self._warranty_visit_services(task).filtered(lambda s: s.state != 'completed')
         labels = dict(services._fields['state']._description_selection(self.env))
         problems = [_("Free service %(service)s (%(card)s) is %(state)s and cannot be completed.",
                       service=service.name, card=service.warranty_card_id.name,

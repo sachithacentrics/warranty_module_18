@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- SRS 10.6 sample WR/000045. -->
+    <record id="seq_warranty_replacement" model="ir.sequence">
+        <field name="name">Warranty Replacement</field>
+        <field name="code">warranty.replacement</field>
+        <field name="prefix">WR/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

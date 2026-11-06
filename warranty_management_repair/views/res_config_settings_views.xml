@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_warranty_repair" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.repair</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management.res_config_settings_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_mrf_settings']" position="after">
+                <block title="Repair and Backup Units" name="warranty_repair_settings">
+                <setting id="warranty_repair_intake_location" string="Warranty Repair Intake Location"
+                         help="Where customer machines are received for a workshop repair. It must be an internal location outside the warehouses, so that the machines are never available to Sales.">
+                    <field name="warranty_repair_intake_location_id" options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_backup_issue_type" string="Backup Issue Operation Type"
+                         help="The internal transfer that lends a backup unit to a customer. Its default locations are Backup Stock and Service / Loan With Customer, both outside the warehouses.">
+                    <field name="warranty_backup_issue_type_id" options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_backup_return_type" string="Backup Return Operation Type"
+                         help="The internal transfer that receives a backup unit back. Its default locations are Service / Loan With Customer and Returned - Inspection, both outside the warehouses.">
+                    <field name="warranty_backup_return_type_id" options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_backup_approvers" string="Backup Damage / Loss Approvers"
+                         help="Who approve damage and loss assessments of backup units. The user who submitted an assessment cannot approve it.">
+                    <field name="warranty_backup_approver_user_ids" widget="many2many_tags"
+                           options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_backup_charge_product" string="Backup Damage / Loss Charge Product"
+                         help="Select the service product used to charge customers for damaged or lost backup units. The charge amount is based on the approved assessment.">
+                    <field name="warranty_backup_charge_product_id" options="{'no_create': True}"/>
+                </setting>
+                </block>
+                <block title="Warranty Replacement" name="warranty_replacement_settings">
+                <setting id="warranty_replacement_return_type" string="Replacement Return Operation Type"
+                         help="The receipt that brings the old unit back from the customer. Its default destination must be outside the warehouses, so that the old unit is never available to Sales.">
+                    <field name="warranty_replacement_return_type_id" options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_replacement_delivery_type" string="Replacement Delivery Operation Type"
+                         help="The delivery that sends the new unit to the customer. New serials are taken from its default source location.">
+                    <field name="warranty_replacement_delivery_type_id" options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_replacement_gm_users" string="Replacement GM Approvers"
+                         help="Who approve Full Product, Indoor Unit and Outdoor Unit replacements as Manager / General Manager. The user who submitted a request cannot approve it.">
+                    <field name="warranty_replacement_gm_user_ids" widget="many2many_tags"
+                           options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_replacement_finance_users" string="Replacement Finance Approvers"
+                         help="Who approve replacements for Finance when Finance approval is needed. One person cannot sign both levels of a request.">
+                    <field name="warranty_replacement_finance_user_ids" widget="many2many_tags"
+                           options="{'no_create': True}"/>
+                </setting>
+                <setting id="warranty_replacement_full_finance" string="Full Product: Finance Approval"
+                         help="Whether a Full Product replacement also needs Finance approval. No Full Product request can be submitted until this is set.">
+                    <field name="warranty_replacement_full_finance"/>
+                </setting>
+                <setting id="warranty_replacement_extension_base" string="Fixed Extension Added To"
+                         help="What the Add Fixed Extension policy adds to. That policy cannot be used until this is set.">
+                    <field name="warranty_replacement_extension_base"/>
+                </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

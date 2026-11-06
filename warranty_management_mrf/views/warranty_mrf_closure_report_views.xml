@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.9 (design part5_9_closure_audit_reporting_design.md rev. 2): closure, reopen,
+         batch closure, and the reports under Warranty -> Reports. -->
+    <record id="material_purchase_requisition_view_form_closure" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.closure</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
+        <field name="arch" type="xml">
+            <!-- A closed request is frozen: its standard Received button would only be refused. -->
+            <xpath expr="//button[@name='action_received']" position="attributes">
+                <attribute name="invisible">state != 'stock' or warranty_closed</attribute>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <field name="warranty_closed" invisible="1"/>
+                <field name="can_warranty_close" invisible="1"/>
+                <field name="can_warranty_reopen" invisible="1"/>
+                <button name="action_warranty_close" type="object" string="Close Material Request"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                        invisible="not can_warranty_close or state not in ('approve', 'stock', 'receive')"/>
+                <button name="action_warranty_reopen" type="object" string="Reopen"
+                        invisible="not can_warranty_reopen"/>
+            </xpath>
+            <xpath expr="//sheet/*[1]" position="before">
+                <div class="alert alert-secondary" role="alert" invisible="not warranty_closed">
+                    <strong>Closed</strong> by <field name="warranty_closed_by_id" readonly="1" class="d-inline"/>
+                    on <field name="warranty_closed_date" readonly="1" class="d-inline"/><br/>Materials, coverage,
+                    issues and quotations are frozen; corrections need the controlled Reopen. Vendor claims,
+                    recovery and accounting continue.
+                </div>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Closure" name="warranty_closure" invisible="not is_warranty_mrf">
+                    <div class="alert alert-warning" role="alert"
+                         invisible="warranty_closed or not warranty_close_problems">
+                        <strong>Not ready to close:</strong>
+                        <field name="warranty_close_problems" class="d-block" readonly="1"/>
+                    </div>
+                    <group>
+                        <group string="Closure">
+                            <field name="warranty_mrf_status" readonly="1"/>
+                            <field name="warranty_closed_by_id"/>
+                            <field name="warranty_closed_date"/>
+                            <field name="warranty_invoice_status"
+                                   groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
+                        </group>
+                        <group string="Last Reopening" invisible="not warranty_reopened_by_id">
+                            <field name="warranty_reopened_by_id"/>
+                            <field name="warranty_reopened_date"/>
+                            <field name="warranty_reopen_admin_exception"/>
+                            <field name="warranty_reopen_reason"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="material_purchase_requisition_view_search_closure" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.search.closure</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <filter name="warranty_reconciled" string="Reconciled (ready to close)"
+                        domain="[('warranty_mrf_status', '=', 'reconciled')]"/>
+                <filter name="warranty_closed" string="Closed" domain="[('warranty_closed', '=', True)]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form_closure" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.closure</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="warranty_has_open_requests" invisible="1"/>
+                <button name="action_warranty_close_requests" type="object" string="Close Material Requests"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                        invisible="not warranty_has_open_requests"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_form_closure" model="ir.ui.view">
+        <field name="name">warranty.case.form.closure</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="warranty_has_open_requests" invisible="1"/>
+                <button name="action_warranty_close_requests" type="object" string="Close Material Requests"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                        invisible="not warranty_has_open_requests"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_close_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.close.wizard.form</field>
+        <field name="model">warranty.mrf.close.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Close Material Requests">
+                <p>
+                    Each request is validated: only requests without blockers can be closed. Closing records
+                    you and the date; materials are then frozen (Reopen: Requisition Managers with a reason).
+                    Open vendor claims and recoveries do not block.
+                </p>
+                <group>
+                    <field name="origin" invisible="not origin"/>
+                    <field name="eligible_count" string="Can be closed"/>
+                    <field name="blocked_count" string="Blocked"/>
+                </group>
+                <field name="line_ids">
+                    <list editable="bottom" create="false" delete="false"
+                          decoration-muted="not eligible">
+                        <field name="selected" readonly="not eligible"/>
+                        <field name="requisition_id"/>
+                        <field name="status"/>
+                        <field name="eligible"/>
+                        <field name="problems"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_apply" type="object" string="Close Selected Requests"
+                            class="btn-primary" invisible="not eligible_count"/>
+                    <button string="Discard" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_reopen_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.reopen.wizard.form</field>
+        <field name="model">warranty.mrf.reopen.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reopen Material Request">
+                <group>
+                    <field name="requisition_id"/>
+                    <field name="closed_by_id"/>
+                    <field name="closed_date"/>
+                    <field name="is_admin" invisible="1"/>
+                    <field name="admin_exception" invisible="not is_admin"/>
+                    <field name="reason" required="1"
+                           placeholder="Why must the closed request be corrected?"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Reopen" class="btn-primary"/>
+                    <button string="Discard" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="res_config_settings_view_form_warranty_mrf_closure" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.mrf.closure</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management_mrf.res_config_settings_view_form_warranty_mrf"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_mrf_settings']" position="inside">
+                <setting id="warranty_mrf_close_requires_invoice" string="Require Customer Invoice to Close"
+                         help="Enable this option to require customer-paid materials to be invoiced before closing a material request. If disabled, the request can be closed when all operational requirements are completed.">
+                    <field name="warranty_mrf_close_requires_invoice"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- A. Material Approval and Cost -->
+    <record id="warranty_mrf_approval_cost_report_view_list" model="ir.ui.view">
+        <field name="name">warranty.mrf.approval.cost.report.list</field>
+        <field name="model">warranty.mrf.approval.cost.report</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="date" optional="show"/>
+                <field name="requisition_id"/>
+                <field name="case_id"/>
+                <field name="job_id" optional="show"/>
+                <field name="partner_id" optional="hide"/>
+                <field name="warranty_mrf_status"/>
+                <field name="approval_round" optional="hide"/>
+                <field name="approvers" optional="show"/>
+                <field name="approved_by_id" optional="hide"/>
+                <field name="approved_date" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="estimated_cost" sum="Total"/>
+                <field name="approved_amount" sum="Total" optional="hide"/>
+                <field name="approved_net_cost" sum="Total"/>
+                <field name="actual_cost" sum="Total"/>
+                <field name="actual_unverified_cost" sum="Total" optional="show"/>
+                <field name="covered_actual" sum="Total" optional="hide"/>
+                <field name="goodwill_actual" sum="Total" optional="hide"/>
+                <field name="customer_actual" sum="Total" optional="show"/>
+                <field name="warranty_cost" sum="Total"/>
+                <field name="billed_amount" sum="Total" optional="show"/>
+                <field name="invoice_status" optional="show"/>
+                <field name="qty_used" sum="Total" optional="hide"/>
+                <field name="qty_returned" sum="Total" optional="hide"/>
+                <field name="vendor_claimed" sum="Total" optional="show"/>
+                <field name="vendor_recovered" sum="Total" optional="show"/>
+                <field name="vendor_outstanding" sum="Total" optional="hide"/>
+                <field name="net_warranty_cost" sum="Total" optional="show"/>
+                <field name="closed" optional="show"/>
+                <button name="action_open_request" type="object" icon="fa-external-link" title="Open Request"/>
+            </list>
+        </field>
+    </record>
+    <record id="warranty_mrf_approval_cost_report_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.mrf.approval.cost.report.pivot</field>
+        <field name="model">warranty.mrf.approval.cost.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Material Approval and Cost">
+                <field name="case_id" type="row"/>
+                <field name="warranty_mrf_status" type="col"/>
+                <field name="estimated_cost" type="measure"/>
+                <field name="approved_net_cost" type="measure"/>
+                <field name="actual_cost" type="measure"/>
+                <field name="vendor_recovered" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+    <record id="warranty_mrf_approval_cost_report_view_graph" model="ir.ui.view">
+        <field name="name">warranty.mrf.approval.cost.report.graph</field>
+        <field name="model">warranty.mrf.approval.cost.report</field>
+        <field name="arch" type="xml">
+            <graph string="Material Approval and Cost" type="bar">
+                <field name="warranty_mrf_status"/>
+                <field name="actual_cost" type="measure"/>
+            </graph>
+        </field>
+    </record>
+    <record id="warranty_mrf_approval_cost_report_view_search" model="ir.ui.view">
+        <field name="name">warranty.mrf.approval.cost.report.search</field>
+        <field name="model">warranty.mrf.approval.cost.report</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="requisition_id"/>
+                <field name="case_id"/>
+                <field name="job_id"/>
+                <field name="partner_id"/>
+                <field name="approvers"/>
+                <field name="approved_by_id"/>
+                <field name="estimated_cost" string="Estimated (min)" filter_domain="[('estimated_cost', '&gt;=', self)]"/>
+                <filter name="active_requests" string="Active Requests" domain="[('state', 'not in', ('cancel', 'reject'))]"/>
+                <filter name="closed" string="Closed" domain="[('closed', '=', True)]"/>
+                <filter name="reconciled" string="Reconciled (not closed)" domain="[('warranty_mrf_status', '=', 'reconciled')]"/>
+                <separator/>
+                <filter name="goodwill" string="With Goodwill" domain="[('has_goodwill', '=', True)]"/>
+                <filter name="customer_paid" string="With Customer-Paid Parts" domain="[('has_customer_paid', '=', True)]"/>
+                <filter name="pending_invoicing" string="Pending Invoicing" domain="[('invoice_status', '=', 'pending')]"/>
+                <filter name="unverified" string="Unverified Cost" domain="[('has_unverified', '=', True)]"/>
+                <filter name="not_recorded" string="Approved Cost Not Recorded" domain="[('approved_not_recorded', '=', True)]"/>
+                <filter name="open_recovery" string="Open Vendor Recovery" domain="[('vendor_outstanding', '&gt;', 0)]"/>
+                <separator/>
+                <filter name="date" string="Request Date" date="date"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_stage" string="MRF Stage" context="{'group_by': 'warranty_mrf_status'}"/>
+                    <filter name="group_case" string="Warranty Case" context="{'group_by': 'case_id'}"/>
+                    <filter name="group_job" string="Service Job" context="{'group_by': 'job_id'}"/>
+                    <filter name="group_approver" string="Approved By" context="{'group_by': 'approved_by_id'}"/>
+                    <filter name="group_company" string="Company" context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="action_warranty_mrf_approval_cost_report" model="ir.actions.act_window">
+        <field name="name">Material Approval and Cost</field>
+        <field name="res_model">warranty.mrf.approval.cost.report</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="context">{'search_default_active_requests': 1}</field>
+    </record>
+
+    <!-- B. Vendor Claim Recovery -->
+    <record id="warranty_vendor_claim_recovery_report_view_list" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.recovery.report.list</field>
+        <field name="model">warranty.vendor.claim.recovery.report</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="claim_id"/>
+                <field name="allocation_scope" optional="hide"/>
+                <field name="partner_id"/>
+                <field name="claim_type" optional="hide"/>
+                <field name="case_id"/>
+                <field name="job_id" optional="show"/>
+                <field name="requisition_id" optional="show"/>
+                <field name="product_id"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="claimed_amount" sum="Total"/>
+                <field name="accepted_amount" sum="Total"/>
+                <field name="not_accepted_amount" sum="Total"/>
+                <field name="recovered_amount" sum="Total"/>
+                <field name="settled_amount" sum="Total"/>
+                <field name="outstanding_amount" sum="Total"/>
+                <field name="written_off_amount" sum="Total" optional="show"/>
+                <field name="goodwill" optional="hide"/>
+                <field name="over_claimed" optional="hide"/>
+                <field name="state" widget="badge"/>
+                <field name="recovery_status" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="warranty_vendor_claim_recovery_report_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.recovery.report.pivot</field>
+        <field name="model">warranty.vendor.claim.recovery.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Vendor Claim Recovery">
+                <field name="partner_id" type="row"/>
+                <field name="recovery_status" type="col"/>
+                <field name="claimed_amount" type="measure"/>
+                <field name="accepted_amount" type="measure"/>
+                <field name="recovered_amount" type="measure"/>
+                <field name="settled_amount" type="measure"/>
+                <field name="outstanding_amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+    <record id="warranty_vendor_claim_recovery_report_view_search" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.recovery.report.search</field>
+        <field name="model">warranty.vendor.claim.recovery.report</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="claim_id"/>
+                <field name="partner_id"/>
+                <field name="case_id"/>
+                <field name="job_id"/>
+                <field name="requisition_id"/>
+                <field name="product_id"/>
+                <field name="claimed_amount" string="Claimed (min)" filter_domain="[('claimed_amount', '&gt;=', self)]"/>
+                <filter name="open" string="Open Claims" domain="[('state', 'not in', ('closed', 'cancel'))]"/>
+                <filter name="outstanding" string="Outstanding" domain="[('outstanding_amount', '&gt;', 0)]"/>
+                <filter name="unsettled" string="Recovered, not Settled"
+                        domain="[('recovered_amount', '&gt;', 0)]"/>
+                <filter name="rejected" string="Rejected by Vendor" domain="[('vendor_result', '=', 'rejected')]"/>
+                <filter name="written_off" string="Written Off" domain="[('written_off_amount', '&gt;', 0)]"/>
+                <filter name="unassigned" string="Unassigned Allocations" domain="[('allocation_scope', '=', 'claim')]"/>
+                <separator/>
+                <filter name="sent_date" string="Sent On" date="sent_date"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_partner" string="Vendor / Manufacturer" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_state" string="Claim Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_recovery" string="Recovery Status" context="{'group_by': 'recovery_status'}"/>
+                    <filter name="group_claim" string="Claim" context="{'group_by': 'claim_id'}"/>
+                    <filter name="group_case" string="Warranty Case" context="{'group_by': 'case_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="action_warranty_vendor_claim_recovery_report" model="ir.actions.act_window">
+        <field name="name">Vendor Claim Recovery</field>
+        <field name="res_model">warranty.vendor.claim.recovery.report</field>
+        <field name="view_mode">list,pivot</field>
+    </record>
+
+    <!-- C. Material Audit Trail -->
+    <record id="warranty_mrf_audit_event_view_list" model="ir.ui.view">
+        <field name="name">warranty.mrf.audit.event.list</field>
+        <field name="model">warranty.mrf.audit.event</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="date"/>
+                <field name="event_type"/>
+                <field name="entity" optional="hide"/>
+                <field name="event"/>
+                <field name="field_name" optional="show"/>
+                <field name="old_value" optional="show"/>
+                <field name="new_value" optional="show"/>
+                <field name="amount" optional="show"/>
+                <field name="note" optional="show"/>
+                <field name="user_id"/>
+                <field name="requisition_id" optional="show"/>
+                <field name="claim_id" optional="show"/>
+                <field name="case_id" optional="hide"/>
+                <field name="job_id" optional="hide"/>
+                <field name="product_id" optional="hide"/>
+                <field name="document"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <button name="action_open_document" type="object" icon="fa-external-link" title="Open Document"/>
+            </list>
+        </field>
+    </record>
+    <record id="warranty_mrf_audit_event_view_search" model="ir.ui.view">
+        <field name="name">warranty.mrf.audit.event.search</field>
+        <field name="model">warranty.mrf.audit.event</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="requisition_id"/>
+                <field name="claim_id"/>
+                <field name="case_id"/>
+                <field name="job_id"/>
+                <field name="user_id"/>
+                <field name="note"/>
+                <filter name="type_tracking" string="Field Changes" domain="[('event_type', '=', 'tracking')]"/>
+                <filter name="type_approval" string="Approvals" domain="[('event_type', '=', 'approval')]"/>
+                <filter name="type_usage" string="Usage and Reversals" domain="[('event_type', 'in', ('usage', 'reversal'))]"/>
+                <filter name="type_stock" string="Stock Movements" domain="[('event_type', '=', 'stock')]"/>
+                <filter name="type_recovery" string="Claims and Recovery" domain="[('entity', '=', 'claim')]"/>
+                <separator/>
+                <filter name="date" string="Date" date="date"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_request" string="Material Request" context="{'group_by': 'requisition_id'}"/>
+                    <filter name="group_claim" string="Vendor Claim" context="{'group_by': 'claim_id'}"/>
+                    <filter name="group_case" string="Warranty Case" context="{'group_by': 'case_id'}"/>
+                    <filter name="group_type" string="Event Type" context="{'group_by': 'event_type'}"/>
+                    <filter name="group_user" string="User" context="{'group_by': 'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="action_warranty_mrf_audit_event" model="ir.actions.act_window">
+        <field name="name">Material Audit Trail</field>
+        <field name="res_model">warranty.mrf.audit.event</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <!-- Menus: Warranty -> Reports (same actions for the accounting shortcuts). -->
+    <menuitem id="menu_warranty_mrf_approval_cost_report" name="Material Approval and Cost"
+              parent="menu_warranty_reports" action="action_warranty_mrf_approval_cost_report" sequence="5"
+              groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_warranty_vendor_claim_recovery_report" name="Vendor Claim Recovery"
+              parent="menu_warranty_reports" action="action_warranty_vendor_claim_recovery_report" sequence="20"
+              groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_warranty_mrf_audit_event" name="Material Audit Trail"
+              parent="menu_warranty_reports" action="action_warranty_mrf_audit_event" sequence="30"
+              groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_warranty_mrf_approval_cost_report_accounting" name="Warranty Material Approval and Cost"
+              parent="account.menu_finance_reports" action="action_warranty_mrf_approval_cost_report" sequence="89"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_warranty_vendor_claim_recovery_report_accounting" name="Warranty Vendor Claim Recovery"
+              parent="account.menu_finance_reports" action="action_warranty_vendor_claim_recovery_report" sequence="91"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+</odoo>

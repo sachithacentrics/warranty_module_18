@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_cost_line_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.cost.line.wizard.form</field>
+        <field name="model">warranty.cost.line.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Cost Line">
+                <group>
+                    <field name="line_id"/>
+                    <field name="action" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="approved_amount" invisible="action != 'actual'"/>
+                    <field name="amount" invisible="action != 'actual'"/>
+                    <field name="cost_date" invisible="action != 'actual'"
+                           required="action == 'actual'"/>
+                    <field name="reason"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Confirm" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

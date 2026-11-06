@@ -20,6 +20,8 @@
                         icon="fa-barcode" invisible="warranty_unit_count == 0">
                     <field name="warranty_unit_count" widget="statinfo" string="Unit Warranties"/>
                 </button>
+                <button name="action_view_warranty_history" type="object" class="oe_stat_button"
+                        icon="fa-history" string="Warranty History" invisible="warranty_card_count == 0"/>
             </xpath>
         </field>
     </record>

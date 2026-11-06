@@ -7,6 +7,47 @@ from .warranty_service_job import CLOSED_JOB_STATES, _COMPLETION_MARKER
 class WarrantyServiceEntitlement(models.Model):
     _inherit = 'warranty.service.entitlement'
 
+    def _warranty_job_units(self, job):
+        """The units this service covers on `job` (no job: its active case): Units to Service of
+        the case (as for the worksheets), else the card's units. Cancelled units are not
+        serviced."""
+        self.ensure_one()
+        card = self.warranty_card_id
+        case = job.warranty_case_id or self._warranty_active_cases()[:1]
+        units = case.service_unit_ids.filtered(
+            lambda unit: unit.warranty_card_id == card) or card.unit_warranty_ids
+        return units.filtered(lambda unit: unit.state != 'cancelled').sorted('name')
+
+    @api.depends_context('warranty_service_job_id')
+    @api.depends('warranty_card_id')
+    def _compute_warranty_job_unit_display(self):
+        job = self.env['warranty.service.job'].browse(
+            self.env.context.get('warranty_service_job_id'))
+        for service in self:
+            units = service._warranty_job_units(job)
+            service.warranty_job_product_display = '\n'.join(
+                unit.product_id.display_name or '-' for unit in units)
+            service.warranty_job_unit_display = '\n'.join(units.mapped('name'))
+            service.warranty_job_serial_display = '\n'.join(
+                ', '.join(unit.serial_ids.mapped('name')) or '-' for unit in units)
+            service.warranty_job_units_display = '\n'.join(
+                '%s / %s / %s' % (unit.name, unit.product_id.display_name or '-',
+                                  ', '.join(unit.serial_ids.mapped('name')) or '-')
+                for unit in units)
+
+    # Display only, Free Services tab of the job: one line per unit, aligned across the columns.
+    # sudo: Field Service users may have no Inventory rights.
+    warranty_job_product_display = fields.Text(
+        string='Product', compute='_compute_warranty_job_unit_display', compute_sudo=True)
+    warranty_job_unit_display = fields.Text(
+        string='Unit Warranty Number', compute='_compute_warranty_job_unit_display',
+        compute_sudo=True)
+    warranty_job_serial_display = fields.Text(
+        string='Serial No.', compute='_compute_warranty_job_unit_display', compute_sudo=True)
+    # One column per service for narrow lists (dialogs): wrapped lines keep each unit's mapping.
+    warranty_job_units_display = fields.Text(
+        string='Warranty Units (Unit / Product / Serial No.)',
+        compute='_compute_warranty_job_unit_display', compute_sudo=True)
     service_job_ids = fields.Many2many(
         'warranty.service.job', 'warranty_service_job_entitlement_rel', 'entitlement_id',
         'job_id', string='Service Jobs', readonly=True, copy=False)
@@ -48,6 +89,25 @@ class WarrantyServiceEntitlement(models.Model):
     def _warranty_on_open_job(self):
         self.ensure_one()
         return bool(self.open_service_job_id)
+
+    def _warranty_selectable_services(self, ticket, case=None):
+        """Pending Services selection (SRS Figure 4): without the services of an open service
+        job, except the job of `case` and the service-origin job waiting for its case on
+        `ticket` (reused, not duplicated); _check_services_open_job keeps the backend check."""
+        ticket, case = ticket._origin, case and case._origin
+
+        def selectable(service):
+            # sudo: the jobs of the services are read for the availability only.
+            jobs = service.sudo().service_job_ids.filtered(
+                lambda job: job.state not in CLOSED_JOB_STATES)
+            return all(
+                (case and job.warranty_case_id == case)
+                or (job.job_origin == 'service' and not job.warranty_case_id
+                    and job.state in ('draft', 'planned') and ticket
+                    and job.origin_ticket_id == ticket)
+                for job in jobs)
+
+        return self.filtered(selectable)
 
     @api.ondelete(at_uninstall=False)
     def _unlink_except_open_service_job(self):

@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- SRS service flow alignment (doc/srs_service_flow_alignment_design.md). -->
+
+    <!-- Service Job: origin, Create or Link Helpdesk Ticket, Report Fault. -->
+    <record id="warranty_service_job_view_form_service_origin" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.service.origin</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='action_confirm_job']" position="attributes">
+                <attribute name="invisible">state != 'planned' or not warranty_case_id</attribute>
+            </xpath>
+            <xpath expr="//header/button[@name='action_confirm_job']" position="before">
+                <field name="job_origin" invisible="1"/>
+                <field name="job_type" invisible="1"/>
+                <button name="action_open_ticket_wizard" type="object"
+                        string="Create or Link Helpdesk Ticket" class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="job_origin != 'service' or warranty_case_id or helpdesk_ticket_id or state not in ('planned')"/>                <field name="case_state" invisible="1"/>
+                <button name="action_check_case_eligibility" type="object"
+                        string="Check Eligibility" groups="helpdesk.group_helpdesk_user"
+                        invisible="1"/>
+                <button name="action_open_fault_wizard" type="object" string="Report Fault"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="job_type != 'warranty' or not entitlement_ids or state not in ('confirmed', 'rescheduled', 'in_progress', 'awaiting_parts', 'workshop')"/>
+            </xpath>
+            <field name="warranty_case_id" position="before">
+                <field name="job_origin"/>
+            </field>
+            <div name="button_box" position="inside">
+                <button name="action_view_helpdesk_ticket" type="object"
+                        class="oe_stat_button" icon="fa-life-ring"
+                        invisible="not helpdesk_ticket_count">
+                    <field name="helpdesk_ticket_count" widget="statinfo" string="Helpdesk Ticket"/>
+                </button>
+            </div>
+            <field name="warranty_case_id" position="after">
+                <field name="case_eligibility_result" invisible="not warranty_case_id"
+                       decoration-warning="case_eligibility_result == 'manual_review'"
+                       decoration-danger="case_eligibility_result in ('not_eligible', 'out_of_warranty')"/>
+                <field name="case_eligibility_reason"
+                       invisible="not case_eligibility_reason or state not in ('draft', 'planned')"/>
+            </field>
+            <field name="merge_type" position="after">
+                <field name="reported_case_ids" widget="many2many_tags"
+                       invisible="not reported_case_ids"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Warranty Case: Prepare Inspection Job (undetermined Case Type), inspection job and the
+         free-service job a complaint was reported from. -->
+    <record id="warranty_case_view_form_inspection" model="ir.ui.view">
+        <field name="name">warranty.case.form.inspection</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_case_view_form_fsm"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='action_prepare_service_job']" position="after">
+                <button name="action_prepare_inspection_job" type="object"
+                        string="Prepare Inspection Job" class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="case_type or state != 'eligibility_checked' or eligibility_result != 'preliminary_passed' or open_service_job_id"/>
+            </xpath>
+            <xpath expr="//field[@name='inspection_findings']" position="before">
+                <group>
+                    <field name="inspection_job_id" invisible="not inspection_job_id"/>
+                </group>
+            </xpath>
+            <xpath expr="//field[@name='case_type']" position="after">
+                <field name="source_service_job_id" invisible="not source_service_job_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Free service: Create Service Job (SRS 9.4 steps 5-6). -->
+    <record id="warranty_service_entitlement_view_form_service_origin" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.form.service.origin</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="inherit_id" ref="warranty_management.warranty_service_entitlement_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='action_open_due_date_wizard']" position="after">
+                <field name="open_service_job_id" invisible="1"/>
+                <button name="action_open_service_job_wizard" type="object"
+                        string="Create Service Job" groups="helpdesk.group_helpdesk_user"
+                        invisible="not id or open_service_job_id or state not in ('pending', 'scheduled', 'rescheduled', 'missed')"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_server_create_service_job" model="ir.actions.server">
+        <field name="name">Create Service Job</field>
+        <field name="model_id" ref="warranty_management.model_warranty_service_entitlement"/>
+        <field name="binding_model_id" ref="warranty_management.model_warranty_service_entitlement"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="groups_id" eval="[(4, ref('helpdesk.group_helpdesk_user'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_open_service_job_wizard()</field>
+    </record>
+
+    <!-- Warranty Card: Create Service Job for its open free services. -->
+    <record id="warranty_card_view_form_service_origin" model="ir.ui.view">
+        <field name="name">warranty.card.form.service.origin</field>
+        <field name="model">warranty.card</field>
+        <field name="inherit_id" ref="warranty_management.warranty_card_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_open_service_job_wizard" type="object"
+                        string="Create Service Job" groups="helpdesk.group_helpdesk_user"
+                        invisible="state != 'confirmed' or not service_entitlement_count"/>
+            </xpath>
+            <div name="button_box" position="inside">
+                <button name="action_view_service_jobs" type="object"
+                        class="oe_stat_button" icon="fa-calendar-check-o"
+                        invisible="service_job_count == 0">
+                    <field name="service_job_count" widget="statinfo" string="Service Jobs"/>
+                </button>
+            </div>
+        </field>
+    </record>
+
+    <!-- Wizards. -->
+    <record id="warranty_service_job_create_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.job.create.wizard.form</field>
+        <field name="model">warranty.service.job.create.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Service Job">
+                <div class="alert alert-warning" role="alert" invisible="not problems">
+                    <field name="problems" nolabel="1"/>
+                </div>
+                <group>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="company_id" invisible="1"/>
+                        <field name="existing_job_ids" invisible="1"/>
+                        <field name="technician_candidate_ids" invisible="1"/>
+                        <field name="job_id" options="{'no_create': True}"
+                               invisible="not existing_job_ids"/>
+                    </group>
+                    <group invisible="job_id">
+                        <field name="planned_date"/>
+                        <field name="main_technician_id" options="{'no_create': True}"/>
+                        <field name="support_technician_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
+                </group>
+                <field name="entitlement_ids" nolabel="1">
+                    <list create="0">
+                        <field name="name"/>
+                        <field name="warranty_card_id"/>
+                        <field name="service_no"/>
+                        <field name="due_date"/>
+                        <field name="scheduled_date"/>
+                        <field name="state" widget="badge"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_create" type="object" string="Create Service Job"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_ticket_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.job.ticket.wizard.form</field>
+        <field name="model">warranty.service.job.ticket.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Helpdesk Ticket">
+                <p class="text-muted">
+                    Only the Helpdesk ticket is linked. Then create the Free Service warranty
+                    case on this ticket with the job's free services (Warranty Cases > New): it
+                    is linked to the job; the job is confirmed once the case is Eligible.
+                </p>
+                <group>
+                    <field name="job_id"/>
+                    <field name="candidate_ticket_ids" invisible="1"/>
+                    <field name="mode" widget="radio"/>
+                    <field name="ticket_id" options="{'no_create': True}"
+                           invisible="mode != 'link'" required="mode == 'link'"/>
+                    <field name="description" invisible="mode != 'create'"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Apply" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_fault_report_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.fault.report.wizard.form</field>
+        <field name="model">warranty.fault.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Report Fault">
+                <p class="text-muted">
+                    A separate Warranty Complaint case is created on the same ticket; the free
+                    service of this job is completed as usual.
+                </p>
+                <group>
+                    <field name="job_id"/>
+                    <field name="unit_candidate_ids" invisible="1"/>
+                    <field name="unit_id" options="{'no_create': True}"/>
+                    <field name="description"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Report Fault"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

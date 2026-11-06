@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management - Helpdesk',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.2.4',
     'category': 'Sales/After-Sales',
     'summary': 'Helpdesk-first warranty cases (Part 3)',
     'description': """

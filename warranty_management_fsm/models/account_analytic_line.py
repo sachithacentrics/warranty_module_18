@@ -12,7 +12,7 @@ class AccountAnalyticLine(models.Model):
     @api.model
     def _warranty_closed_visits(self, tasks):
         # sudo: the visit status is read only.
-        return tasks.sudo().filtered(lambda task: task.warranty_service_job_id and (
+        return tasks.sudo().filtered(lambda task: task.warranty_is_visit and (
             task.fsm_done or task.state in ('1_done', '1_canceled')))
 
     def _warranty_check_closed_visit(self, tasks):

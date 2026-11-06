@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_opportunity_view_list" model="ir.ui.view">
+        <field name="name">amc.opportunity.list</field>
+        <field name="model">amc.opportunity</field>
+        <field name="arch" type="xml">
+            <list string="AMC Opportunities">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="plan_id"/>
+                <field name="expected_value"/>
+                <field name="currency_id" optional="show"/>
+                <field name="user_id" optional="show"/>
+                <field name="state" widget="badge" decoration-success="state == 'won'"
+                       decoration-danger="state == 'lost'" decoration-info="state == 'offer_sent'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="amc_opportunity_view_form" model="ir.ui.view">
+        <field name="name">amc.opportunity.form</field>
+        <field name="model">amc.opportunity</field>
+        <field name="arch" type="xml">
+            <form string="AMC Opportunity">
+                <header>
+                    <button name="action_offer_sent" type="object" string="Mark Offer Sent"
+                            invisible="state != 'new'"/>
+                    <button name="action_create_contract" type="object" string="Create Contract"
+                            class="btn-primary" invisible="state not in ('new', 'offer_sent')"/>
+                    <button name="action_mark_lost" type="object" string="Mark Lost"
+                            invisible="state not in ('new', 'offer_sent')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="new,offer_sent,won"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_contracts" type="object" class="oe_stat_button"
+                                icon="fa-file-text-o" invisible="not contract_count">
+                            <field name="contract_count" widget="statinfo" string="Contracts"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="state in ('won', 'lost')"
+                                   options="{'no_create': True}"/>
+                            <field name="site_id" readonly="state in ('won', 'lost')"
+                                   options="{'no_create': True}"/>
+                            <field name="plan_id" readonly="state in ('won', 'lost')"
+                                   options="{'no_create': True}"/>
+                            <field name="expected_quantity" readonly="state in ('won', 'lost')"/>
+                        </group>
+                        <group>
+                            <field name="pricelist_id"/>
+                            <field name="currency_id"/>
+                            <field name="expected_value" readonly="state in ('won', 'lost')"/>
+                            <field name="user_id"/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   readonly="state in ('won', 'lost')"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="Equipment, customer needs, follow-up notes"
+                           readonly="state in ('won', 'lost')"/>
+                    <group invisible="not lost_reason">
+                        <field name="lost_reason"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="amc_opportunity_view_search" model="ir.ui.view">
+        <field name="name">amc.opportunity.search</field>
+        <field name="model">amc.opportunity</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <filter name="filter_open" string="Open" domain="[('state', 'in', ('new', 'offer_sent'))]"/>
+                <filter name="filter_won" string="Won" domain="[('state', '=', 'won')]"/>
+                <filter name="filter_lost" string="Lost" domain="[('state', '=', 'lost')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_amc_opportunity" model="ir.actions.act_window">
+        <field name="name">AMC Opportunities</field>
+        <field name="res_model">amc.opportunity</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_filter_open': 1}</field>
+    </record>
+
+    <record id="amc_opportunity_lost_wizard_view_form" model="ir.ui.view">
+        <field name="name">amc.opportunity.lost.wizard.form</field>
+        <field name="model">amc.opportunity.lost.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Mark as Lost">
+                <field name="opportunity_ids" invisible="1"/>
+                <group>
+                    <field name="reason"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Mark Lost" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

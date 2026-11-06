@@ -132,10 +132,11 @@ class WarrantyServiceEntitlement(models.Model):
                 return False
             if card.free_services_balance <= 0:
                 return False
-            # sudo: the delivery address of the warranty sale is read only (Helpdesk users may
-            # have no Sales rights).
-            if site and not warranty_same_site(card.sudo().sale_order_id.partner_shipping_id,
-                                               site):
+            # Helpdesk users may have no Sales rights: the unit reads the address with sudo.
+            if site and not warranty_same_site(
+                    card.unit_warranty_ids[:1]._warranty_service_address()
+                    if card.unit_warranty_ids
+                    else card.sudo().sale_order_id.partner_shipping_id, site):
                 return False
             if product and product not in (card.product_id | card.unit_warranty_ids.product_id):
                 return False
@@ -144,6 +145,27 @@ class WarrantyServiceEntitlement(models.Model):
             return True
 
         return services.filtered(pending)
+
+    def _warranty_window_conflicts(self, company):
+        """Approved D3, revised 2026-10-29 (cross-card merge): the service windows (due dates)
+        of these services need not overlap - compatible services of different cards are
+        combined into one job and visit whatever their due dates; a service whose permitted
+        service dates ended before today is still refused (shared by the warranty case, the
+        service-origin job and Draft Job from Service)."""
+        windows = {service: service._warranty_service_window() for service in self}
+        windows = {service: window for service, window in windows.items() if window}
+        # Flexible service dates (BA-approved K2): a single service is checked too.
+        flexible = any(service._warranty_allowed_range() for service in windows)
+        if len(windows) < 2 and not (flexible and windows):
+            return []
+        today = company._warranty_today()
+        hint = _(" A Helpdesk user can Request Late Service Exception for a service whose policy "
+                 "allows it.") if any(service.late_service_handling == 'approval'
+                                      for service in windows) else ''
+        return [_("The permitted service dates of %(service)s (%(start)s - %(end)s) have "
+                  "ended.%(hint)s", service=service.name, start=window[0], end=window[1],
+                  hint=hint)
+                for service, window in windows.items() if window[1] < today]
 
     def _warranty_active_cases(self, exclude=None):
         """Active (not Rejected / Closed) warranty cases linked to the service."""

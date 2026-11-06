@@ -10,9 +10,12 @@ class ResCompany(models.Model):
     warranty_fsm_project_id = fields.Many2one(
         'project.project', string='Warranty Field Service Project',
         domain="[('is_fsm', '=', True), ('company_id', '=', id)]")
-    # Phase 4.7 (approved K2 / K3; SRS 2.7: customer sign-off, required answers and attachment
     # checks configurable before job completion).
     warranty_signoff_required = fields.Boolean(string='Customer Sign-off Required', default=True)
+    # Optional Case Type (approved G2): worksheet of the inspection visit of an undetermined case.
+    warranty_inspection_template_id = fields.Many2one(
+        'worksheet.template', string='Inspection Worksheet Template',
+        domain="[('res_model', 'in', ('project.task', 'warranty.job.worksheet'))]")
     warranty_worksheet_checklist_required = fields.Boolean(
         string='Worksheet Checklist Required', default=True)
     warranty_worksheet_attachment_required = fields.Boolean(

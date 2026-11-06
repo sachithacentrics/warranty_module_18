@@ -15,7 +15,7 @@
                 <field name="warranty_end_date"/>
                 <field name="company_id" groups="base.group_multi_company" optional="hide"/>
                 <field name="state" widget="badge"
-                       decoration-info="state == 'draft'"
+                       decoration-info="state in ('draft', 'pending_installation')"
                        decoration-warning="state == 'ready'"
                        decoration-success="state == 'confirmed'"
                        decoration-danger="state in ('suspended', 'cancelled')"
@@ -33,8 +33,20 @@
                     <button name="action_confirm_warranty" type="object" string="Confirm Warranty"
                             class="btn-primary" invisible="state != 'ready'"/>
                     <button name="action_download_pdf" type="object" string="Download PDF"
-                            icon="fa-download" invisible="state != 'confirmed'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,ready,confirmed"/>
+                            icon="fa-download" invisible="state not in ('confirmed', 'expired')"/>
+                    <button name="action_open_date_wizard" type="object"
+                            string="Record Start Date Exception"
+                            groups="warranty_management.group_warranty_date_correction"
+                            invisible="state not in ('draft', 'pending_installation', 'ready') or start_criterion not in ('delivery', 'invoice', 'installation')"/>
+                    <button name="action_open_date_wizard" type="object"
+                            string="Correct Warranty Dates"
+                            groups="warranty_management.group_warranty_date_correction"
+                            invisible="state not in ('confirmed', 'suspended', 'expired')"/>
+                    <button name="action_open_controlled_action" type="object"
+                            string="Request Warranty Change"
+                            invisible="state not in ('confirmed', 'suspended', 'expired')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,pending_installation,ready,confirmed,expired"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -42,6 +54,14 @@
                                 class="oe_stat_button" icon="fa-wrench"
                                 invisible="service_entitlement_count == 0">
                             <field name="service_entitlement_count" widget="statinfo" string="Services"/>
+                        </button>
+                        <button name="action_view_controlled_actions" type="object"
+                                class="oe_stat_button" icon="fa-gavel" invisible="action_count == 0">
+                            <field name="action_count" widget="statinfo" string="Controlled Actions"/>
+                        </button>
+                        <button name="action_view_warranty_history" type="object"
+                                class="oe_stat_button" icon="fa-history">
+                            <field name="history_count" widget="statinfo" string="History"/>
                         </button>
                     </div>
                     <div class="alert alert-warning" role="alert" invisible="not missing_requirements">
@@ -54,24 +74,46 @@
                     </div>
                     <group>
                         <group>
-                            <field name="partner_id" readonly="state not in ('draft', 'ready')"/>
-                            <field name="product_id" readonly="state not in ('draft', 'ready')"/>
-                            <field name="indoor_serial_id" readonly="state not in ('draft', 'ready')"/>
-                            <field name="outdoor_serial_id" readonly="state not in ('draft', 'ready')"/>
+                            <field name="partner_id" readonly="state not in ('draft', 'pending_installation', 'ready')"/>
+                            <field name="product_id" readonly="state not in ('draft', 'pending_installation', 'ready')"
+                                   invisible="not product_id and state not in ('draft', 'pending_installation', 'ready')"/>
+                            <field name="indoor_serial_id" readonly="state not in ('draft', 'pending_installation', 'ready')"
+                                   invisible="not indoor_serial_id and state not in ('draft', 'pending_installation', 'ready')"/>
+                            <field name="outdoor_serial_id" readonly="state not in ('draft', 'pending_installation', 'ready')"
+                                   invisible="not outdoor_serial_id and state not in ('draft', 'pending_installation', 'ready')"/>
                             <field name="sale_order_id"/>
                             <field name="pricelist_id"/>
                         </group>
                         <group>
                             <field name="start_criterion"/>
                             <field name="warranty_basis"/>
-                            <field name="installation_date" readonly="state not in ('draft', 'ready')"/>
+                            <field name="installation_date" readonly="1"
+                                   invisible="start_criterion != 'installation'"/>
                             <field name="warranty_start_date"
-                                   readonly="start_criterion != 'custom' or state not in ('draft', 'ready')"/>
+                                   readonly="start_criterion != 'custom' or state not in ('draft', 'pending_installation', 'ready')"/>
+                            <field name="warranty_original_end_date" invisible="not warranty_original_end_date"/>
                             <field name="warranty_end_date"
-                                   readonly="start_criterion != 'custom' or state not in ('draft', 'ready')"/>
-                            <field name="confirmation_status"/>
+                                   readonly="start_criterion != 'custom' or state not in ('draft', 'pending_installation', 'ready')"/>
+                            <field name="expected_start_date"
+                                   invisible="state not in ('draft', 'pending_installation', 'ready')"/>
+                            <field name="expected_end_date"
+                                   invisible="state not in ('draft', 'pending_installation', 'ready')"/>
+                            <field name="confirmation_status" invisible="1"/>
                             <field name="company_id" groups="base.group_multi_company" readonly="1"/>
                             <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Warranty Start Date Source" name="start_date_source">
+                        <group>
+                            <field name="start_date_source"/>
+                            <field name="source_picking_id" invisible="not source_picking_id"/>
+                            <field name="source_invoice_id" invisible="not source_invoice_id"/>
+                            <field name="source_datetime" invisible="not source_datetime"/>
+                            <field name="source_verification" invisible="not source_verification"/>
+                            <field name="start_exception_date" invisible="not start_exception_date"/>
+                        </group>
+                        <group>
+                            <field name="start_source_note" nolabel="1" colspan="2"/>
                         </group>
                     </group>
                     <notebook>
@@ -83,6 +125,9 @@
                                     <field name="unit_number"/>
                                     <field name="sale_order_line_id" optional="hide"/>
                                     <field name="stock_move_line_id" optional="show"/>
+                                    <field name="delivery_datetime" optional="show"/>
+                                    <field name="source_invoice_id" optional="hide"/>
+                                    <field name="source_invoice_posted_at" optional="hide"/>
                                     <field name="serial_ids" widget="many2many_tags"/>
                                     <field name="start_date"/>
                                     <field name="end_date"/>
@@ -92,29 +137,13 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Free Services" name="free_services"
-                              invisible="not warranty_free_services_enabled">
-                            <field name="warranty_free_services_enabled" invisible="1"/>
+                        <page string="Free Services" name="free_services">
                             <field name="free_services_included" invisible="1"/>
                             <div class="alert alert-warning" role="alert"
                                  invisible="not free_service_schedule_note">
                                 <field name="free_service_schedule_note" nolabel="1"/>
                             </div>
                             <group>
-                                <group>
-                                    <field name="free_services_allowed"/>
-                                    <field name="schedule_method"/>
-                                    <label for="free_service_frequency"/>
-                                    <div class="o_row">
-                                        <field name="free_service_frequency"/>
-                                        <field name="free_service_frequency_unit"/>
-                                    </div>
-                                    <label for="free_service_period"/>
-                                    <div class="o_row">
-                                        <field name="free_service_period"/>
-                                        <field name="free_service_period_unit"/>
-                                    </div>
-                                </group>
                                 <group>
                                     <field name="free_services_used"/>
                                     <field name="free_services_missed"/>
@@ -155,9 +184,9 @@
                                            decoration-danger="due_status == 'overdue'"/>
                                     <field name="scheduled_date" optional="show"/>
                                     <field name="usage_due" optional="show"
-                                           column_invisible="parent.warranty_basis != 'usage'"/>
+                                            column_invisible="parent.warranty_basis != 'usage'"/>
                                     <field name="usage_unit" optional="show"
-                                           column_invisible="parent.warranty_basis != 'usage'"/>
+                                            column_invisible="parent.warranty_basis != 'usage'"/>
                                     <field name="merge_status" optional="hide"/>
                                     <field name="state" widget="badge" decoration-info="state == 'draft'"
                                            decoration-warning="state == 'missed'"
@@ -184,9 +213,11 @@
                                     <field name="card_grouping_mode"/>
                                     <field name="warranty_duration"/>
                                     <field name="warranty_duration_unit"/>
-                                    <field name="usage_limit"/>
-                                    <field name="usage_unit"/>
-                                    <field name="payment_check_required"/>
+                                    <field name="usage_limit" invisible="warranty_basis != 'usage'"
+                                   required="warranty_basis == 'usage'"/>
+                            <field name="usage_unit" invisible="warranty_basis != 'usage'"
+                                   required="warranty_basis == 'usage'"/>
+                                    <field name="payment_check_required" invisible="1"/>
                                 </group>
                                 <group>
                                     <field name="free_services_allowed"/>
@@ -204,10 +235,29 @@
                                 <field name="invoice_ids" widget="many2many_tags"/>
                             </group>
                         </page>
+                        <page string="Warranty Date History" name="warranty_date_history">
+                            <field name="date_log_ids" readonly="1">
+                                <list>
+                                    <field name="log_datetime"/>
+                                    <field name="event"/>
+                                    <field name="user_id"/>
+                                    <field name="old_start" optional="show"/>
+                                    <field name="old_end" optional="show"/>
+                                    <field name="new_start" optional="show"/>
+                                    <field name="new_end" optional="show"/>
+                                    <field name="start_date_source" optional="hide"/>
+                                    <field name="picking_id" optional="hide"/>
+                                    <field name="invoice_id" optional="hide"/>
+                                    <field name="task_reference" optional="hide"/>
+                                    <field name="reason"/>
+                                    <field name="attachment_ids" widget="many2many_tags" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Other Information" name="other_information">
                             <group>
                                 <group>
-                                    <field name="current_active_serial"/>
+                                    <field name="current_active_serial" invisible="1"/>
                                     <field name="replacement_count"/>
                                 </group>
                                 <group>
@@ -233,8 +283,11 @@
                 <field name="product_id"/>
                 <field name="sale_order_id"/>
                 <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_pending_installation" string="Pending Installation"
+                        domain="[('state', '=', 'pending_installation')]"/>
                 <filter name="filter_ready" string="Ready to Confirm" domain="[('state', '=', 'ready')]"/>
                 <filter name="filter_confirmed" string="Confirmed" domain="[('state', '=', 'confirmed')]"/>
+                <filter name="filter_expired" string="Expired" domain="[('state', '=', 'expired')]"/>
                 <group expand="0" string="Group By">
                     <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
                     <filter name="group_partner" string="Customer" context="{'group_by': 'partner_id'}"/>

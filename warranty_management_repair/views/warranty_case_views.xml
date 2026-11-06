@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_case_view_form_repair" model="ir.ui.view">
+        <field name="name">warranty.case.form.repair</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_repairs" type="object" class="oe_stat_button"
+                        icon="fa-wrench" groups="stock.group_stock_user"
+                        invisible="not warranty_repair_count">
+                    <field name="warranty_repair_count" widget="statinfo" string="Repairs"/>
+                </button>
+                <button name="action_view_warranty_replacements" type="object" class="oe_stat_button"
+                        icon="fa-exchange" invisible="not warranty_replacement_count">
+                    <field name="warranty_replacement_count" widget="statinfo" string="Replacements"/>
+                </button>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_warranty_create_replacement" type="object"
+                        string="Request Replacement" groups="helpdesk.group_helpdesk_user"
+                        invisible="state not in ('approved', 'job_created', 'in_progress')
+                                   or eligibility_result != 'eligible'"/>
+                <field name="warranty_goodwill_can_complete" invisible="1"/>
+                <button name="action_warranty_create_goodwill_replacement" type="object"
+                        string="Request Goodwill Replacement" groups="helpdesk.group_helpdesk_user"
+                        invisible="state != 'eligibility_checked'
+                                   or eligibility_result not in ('not_eligible', 'out_of_warranty')
+                                   or warranty_goodwill_can_complete"/>
+                <button name="action_warranty_complete_goodwill_case" type="object"
+                        string="Complete Warranty Case" class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="not warranty_goodwill_can_complete"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

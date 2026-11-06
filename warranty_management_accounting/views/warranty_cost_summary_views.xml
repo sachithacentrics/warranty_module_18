@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_case_view_form_cost_lines" model="ir.ui.view">
+        <field name="name">warranty.case.form.cost.lines</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_cost_lines" type="object" class="oe_stat_button"
+                        icon="fa-money"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="warranty_cost_line_count" widget="statinfo" string="Cost Lines"/>
+                </button>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Warranty Cost" name="warranty_cost"
+                      groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="warranty_cost_overview" readonly="1" nolabel="1"/>
+                    <group>
+                        <field name="warranty_summary_currency_id" invisible="1"/>
+                        <field name="warranty_labour_hours" widget="float_time"/>
+                        <field name="warranty_total_expected"/>
+                    </group>
+                    <group string="Vendor Recovery">
+                        <group>
+                            <field name="cost_currency_id" invisible="1"/>
+                            <field name="vendor_recovery_status"/>
+                            <field name="vendor_claimed_amount"/>
+                            <field name="vendor_accepted_amount"/>
+                        </group>
+                        <group>
+                            <field name="vendor_recovered_amount"/>
+                            <field name="vendor_outstanding_amount"/>
+                            <field name="net_warranty_material_cost"/>
+                            <field name="warranty_net_cost" class="fw-bold"/>
+                        </group>
+                    </group>
+                    <p class="text-muted">
+                        Parts come from Material Requests, labour from visit timesheets and
+                        replacements from their Done replacement record; a Component replacement
+                        counts through its Material Request only. Actual cost of a line counts once
+                        it is approved. Only posted vendor credit notes count as recovered. No
+                        journal entries are posted.
+                    </p>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form_cost_lines" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.cost.lines</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_cost_lines" type="object" class="oe_stat_button"
+                        icon="fa-money" invisible="not warranty_case_id"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="warranty_cost_line_count" widget="statinfo" string="Cost Lines"/>
+                </button>
+            </xpath>
+            <xpath expr="//notebook[@name='notebook']" position="inside">
+                <page string="Warranty Cost" name="warranty_cost"
+                      groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="warranty_cost_overview" readonly="1" nolabel="1"/>
+                    <group>
+                        <field name="warranty_summary_currency_id" invisible="1"/>
+                        <field name="warranty_labour_hours" widget="float_time"/>
+                        <field name="warranty_total_expected"/>
+                        <field name="warranty_net_cost" class="fw-bold"/>
+                    </group>
+                    <p class="text-muted">
+                        Labour on a shared visit is split equally across its jobs. A replacement
+                        cost and its recovery show on the warranty case. No journal entries are
+                        posted.
+                    </p>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_repair_order_form_cost_lines" model="ir.ui.view">
+        <field name="name">repair.form.cost.lines</field>
+        <field name="model">repair.order</field>
+        <field name="inherit_id" ref="repair.view_repair_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_cost_lines" type="object" class="oe_stat_button"
+                        icon="fa-money" invisible="not warranty_case_id"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="warranty_cost_line_count" widget="statinfo" string="Cost Lines"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_repair_order_form_warranty" model="ir.ui.view">
+        <field name="name">repair.form.warranty</field>
+        <field name="model">repair.order</field>
+        <field name="inherit_id" ref="repair.view_repair_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_repair_cancel']" position="before">
+                <field name="warranty_machine_replaced" invisible="1"/>
+                <button name="action_warranty_complete_case" type="object"
+                        string="Complete Warranty Case" class="oe_highlight"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="(warranty_intake_state != 'returned' and not warranty_machine_replaced)
+                                   or state != 'done'
+                                   or warranty_case_state not in ('approved', 'chargeable')"/>
+            </xpath>
+            <xpath expr="//field[@name='picking_id']" position="attributes">
+                <attribute name="readonly">warranty_case_id and state != 'draft'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='under_warranty']" position="attributes">
+                <attribute name="readonly">warranty_case_id or state in ['cancel', 'done']</attribute>
+            </xpath>
+            <xpath expr="//field[@name='under_warranty']" position="after">
+                <field name="warranty_intake_state" widget="badge"
+                       invisible="not warranty_case_id"/>
+                <field name="warranty_repair_result"
+                       invisible="not warranty_case_id"
+                       readonly="state in ('done', 'cancel')"/>
+            </xpath>
+            <xpath expr="//field[@name='tag_ids']" position="before">
+                <field name="ticket_id" readonly="warranty_case_id or state != 'draft'"
+                       invisible="not ticket_id" options="{'no_create': True}"/>
+                <field name="warranty_case_id" readonly="state != 'draft'"
+                       options="{'no_create': True}"/>
+                <field name="warranty_case_state" invisible="1"/>
+                <field name="warranty_service_job_id" invisible="not warranty_service_job_id"/>
+                <field name="warranty_card_id" invisible="not warranty_card_id"/>
+                <field name="warranty_unit_id" invisible="not warranty_unit_id"/>
+            </xpath>
+            <xpath expr="//page[@name='parts']" position="inside">
+                <div class="alert alert-info" role="alert" invisible="not warranty_case_id">
+                    This Repair Order is linked to a warranty case: request its parts with a Material Request of the case. Only Remove lines can be added here.
+                </div>
+            </xpath>
+            <xpath expr="//page[@name='parts']" position="after">
+                <!-- Linked MRF parts, read-only: nothing is issued or consumed from this list.
+                     Groups: the vendor record rule hides other requests from other users. -->
+                <page string="Material Requests" name="warranty_material_requests"
+                      invisible="not warranty_case_id"
+                      groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user">
+                    <field name="warranty_mrf_line_ids" readonly="1">
+                        <list create="false" edit="false" delete="false">
+                            <field name="requisition_id"/>
+                            <field name="product_id"/>
+                            <field name="coverage_type" widget="badge" optional="show"/>
+                            <field name="qty" string="Requested"/>
+                            <field name="approved_qty" optional="show"/>
+                            <field name="issued_qty" string="Issued / Delivered"/>
+                            <field name="used_qty"/>
+                            <field name="returned_qty"/>
+                            <field name="to_reconcile_qty"/>
+                            <field name="uom" optional="show"/>
+                            <field name="reconcile_state" widget="badge"
+                                   decoration-success="reconcile_state == 'reconciled'"
+                                   decoration-info="reconcile_state == 'return_pending'"
+                                   decoration-warning="reconcile_state == 'open'"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

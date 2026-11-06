@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.8: vendor / manufacturer reimbursement claims (design part5_8_vendor_claim_design.md
+         rev. 2). Claims never post; recoveries are standard vendor credit notes. -->
+    <record id="warranty_vendor_claim_view_list" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.list</field>
+        <field name="model">warranty.vendor.claim</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'cancel'" decoration-danger="over_claimed">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="claim_type" optional="hide"/>
+                <field name="case_id"/>
+                <field name="job_ids" widget="many2many_tags" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="claimed_amount" sum="Total"/>
+                <field name="accepted_amount" sum="Total"/>
+                <field name="recovered_amount" sum="Total"/>
+                <field name="settled_amount" sum="Total" optional="show"/>
+                <field name="outstanding_amount" sum="Total"/>
+                <field name="goodwill" optional="show"/>
+                <field name="over_claimed" optional="show"/>
+                <field name="vendor_result" widget="badge" optional="show"/>
+                <field name="recovery_status" widget="badge"
+                       decoration-success="recovery_status == 'recovered'"
+                       decoration-warning="recovery_status in ('pending', 'partial')"
+                       decoration-danger="recovery_status in ('rejected', 'written_off')"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_vendor_claim_view_form" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.form</field>
+        <field name="model">warranty.vendor.claim</field>
+        <field name="arch" type="xml">
+            <form string="Vendor Claim">
+                <header>
+                    <field name="can_approve" invisible="1"/>
+                    <button name="action_submit" type="object" string="Submit for Approval"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="not can_approve"/>
+                    <button name="action_open_reject" type="object" string="Reject"
+                            invisible="not can_approve"/>
+                    <button name="action_mark_sent" type="object" string="Mark Sent to Vendor"
+                            class="btn-primary" invisible="state != 'approved'"/>
+                    <button name="action_open_reset" type="object" string="Reset to Draft"
+                            invisible="state not in ('to_approve', 'approved')"/>
+                    <button name="action_open_response" type="object" string="Record Vendor Response"
+                            class="btn-primary" invisible="state != 'sent'"/>
+                    <button name="action_open_response" type="object" string="Correct Vendor Response"
+                            invisible="1"/>
+                    <button name="action_create_credit_note" type="object" string="Create Draft Credit Note"
+                            groups="account.group_account_invoice"
+                            invisible="state != 'answered' or outstanding_amount &lt;= 0 or over_claimed"/>
+                    <button name="action_open_allocate" type="object" string="Allocate Credit Note"
+                            groups="account.group_account_invoice"
+                            invisible="1"/>
+                    <button name="action_open_close" type="object" string="Close"
+                            invisible="state != 'answered'"/>
+                    <button name="action_open_cancel" type="object" string="Cancel"
+                            invisible="state in ('closed', 'cancel')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,to_approve,approved,sent,answered,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_credit_notes" type="object" class="oe_stat_button"
+                                icon="fa-file-text-o" invisible="not credit_note_count"
+                                groups="account.group_account_invoice,account.group_account_readonly">
+                            <field name="credit_note_count" widget="statinfo" string="Credit Notes"/>
+                        </button>
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="not over_claimed">
+                        Over-claimed: a consumption was reversed after this claim; the claimed quantity
+                        exceeds the consumed quantity. Recovery allocation and closure are blocked until
+                        the claim is corrected.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not supplier_warranty_warning">
+                        <strong>Supplier warranty:</strong>
+                        <field name="supplier_warranty_warning" class="d-block" readonly="1"/>
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="not goodwill">
+                        Goodwill claim: the parts were covered as goodwill; Finance approval is required.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="state != 'draft'"/>
+                            <field name="claim_type" readonly="state != 'draft'"/>
+                            <field name="proposed_partner_id" invisible="not proposed_partner_id"/>
+                            <field name="partner_source"/>
+                            <field name="partner_override_reason" readonly="state != 'draft'"
+                                   invisible="not partner_override_reason and partner_id == proposed_partner_id"/>
+                            <field name="case_id" readonly="id"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="job_ids" widget="many2many_tags"/>
+                            <field name="requisition_ids" widget="many2many_tags"/>
+                            <field name="previous_claim_id" invisible="not previous_claim_id"/>
+                        </group>
+                        <group>
+                            <field name="user_id" readonly="state != 'draft'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="claimed_amount"/>
+                            <field name="approved_amount" invisible="not approved_amount"/>
+                            <field name="accepted_amount"/>
+                            <field name="not_accepted_amount" invisible="not response_date"/>
+                            <field name="recovered_amount"/>
+                            <field name="settled_amount"/>
+                            <field name="outstanding_amount"/>
+                            <field name="written_off_amount" invisible="state != 'closed'"/>
+                            <field name="vendor_result" invisible="not vendor_result"/>
+                            <field name="recovery_status"/>
+                            <field name="over_claimed" invisible="1"/>
+                            <field name="goodwill" invisible="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="failure_description" readonly="state != 'draft'"
+                               placeholder="Failure symptom, diagnosis, date of failure, part condition..."/>
+                    </group>
+                    <notebook>
+                        <page string="Claimed Parts" name="lines">
+                            <field name="line_ids" readonly="state != 'draft' or not case_id">
+                                <list editable="bottom">
+                                    <field name="mrf_line_id" readonly="id"
+                                           domain="[('requisition_id.warranty_case_id', '=', parent.case_id)]"
+                                           options="{'no_create': True, 'no_create_edit': True}"/>
+                                    <field name="requisition_id"/>
+                                    <field name="job_id" optional="show"/>
+                                    <field name="product_id"/>
+                                    <field name="qty"/>
+                                    <field name="uom_id" optional="show"/>
+                                    <field name="tracking" column_invisible="True"/>
+                                    <field name="allowed_lot_ids" column_invisible="True"/>
+                                    <field name="lot_ids" widget="many2many_tags" optional="show"
+                                           readonly="tracking == 'none'"
+                                           options="{'no_create': True, 'no_create_edit': True}"
+                                           groups="stock.group_stock_user,material_purchase_requisitions.group_purchase_requisition_user"/>
+                                    <field name="lot_names" optional="hide"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="unit_cost"/>
+                                    <field name="claimed_amount" sum="Total"/>
+                                    <field name="accepted_amount" sum="Total"/>
+                                    <field name="recovered_amount" sum="Total" optional="show"/>
+                                    <field name="settled_amount" sum="Total" optional="hide"/>
+                                    <field name="vendor_reason" optional="show"/>
+                                    <field name="goodwill" optional="show"/>
+                                    <field name="supplier_warranty_info" optional="show"/>
+                                    <field name="over_claimed" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Approval and Vendor" name="approval">
+                            <group>
+                                <group string="Internal Approval">
+                                    <field name="submitted_by_id"/>
+                                    <field name="submitted_date"/>
+                                    <field name="finance_required"/>
+                                    <field name="approver_user_ids" widget="many2many_tags"/>
+                                    <field name="warranty_approved_by_id"/>
+                                    <field name="warranty_approved_date"/>
+                                    <field name="finance_approved_by_id" invisible="not finance_required"/>
+                                    <field name="finance_approved_date" invisible="not finance_required"/>
+                                </group>
+                                <group string="Vendor">
+                                    <field name="vendor_reference"/>
+                                    <field name="sent_by_id"/>
+                                    <field name="sent_date"/>
+                                    <field name="response_date"/>
+                                    <field name="responded_by_id"/>
+                                    <field name="defective_return_required" readonly="state != 'draft'"/>
+                                    <field name="defective_return_ref" invisible="not defective_return_required"/>
+                                </group>
+                            </group>
+                            <group string="Closure" invisible="state not in ('closed', 'cancel')">
+                                <field name="closed_by_id" invisible="state != 'closed'"/>
+                                <field name="closed_date" invisible="state != 'closed'"/>
+                                <field name="close_reason" invisible="not close_reason"/>
+                                <field name="cancel_reason" invisible="state != 'cancel'"/>
+                            </group>
+                        </page>
+                        <page string="Credit Notes" name="recovery">
+                            <field name="recovery_ids" readonly="1">
+                                <list decoration-muted="not active or move_state == 'cancel'">
+                                    <field name="move_id"/>
+                                    <field name="claim_line_id"/>
+                                    <field name="move_state"/>
+                                    <field name="payment_state" widget="badge"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="recovered_amount" sum="Total"/>
+                                    <field name="settled_amount" sum="Total"/>
+                                    <field name="user_id"/>
+                                    <field name="date"/>
+                                    <field name="note" optional="hide"/>
+                                    <field name="active" optional="show"/>
+                                    <field name="removed_reason" optional="show"/>
+                                    <button name="action_open_remove" type="object" string="Remove Allocation"
+                                            icon="fa-times" groups="account.group_account_invoice"
+                                            invisible="not active"/>
+                                </list>
+                            </field>
+                            <p class="text-muted">
+                                Recovered = allocations of posted, not reversed vendor credit notes. Settled =
+                                the reconciled share of those credit notes (offset against vendor bills or
+                                refunded); a credit note alone is not a cash receipt. Claims never post or
+                                change accounting documents.
+                            </p>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_vendor_claim_view_search" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.search</field>
+        <field name="model">warranty.vendor.claim</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="case_id"/>
+                <field name="job_ids"/>
+                <field name="requisition_ids"/>
+                <field name="vendor_reference"/>
+                <filter name="open" string="Open" domain="[('state', 'not in', ('closed', 'cancel'))]"/>
+                <filter name="to_approve" string="Waiting Approval" domain="[('state', '=', 'to_approve')]"/>
+                <filter name="sent" string="Sent to Vendor" domain="[('state', '=', 'sent')]"/>
+                <filter name="outstanding" string="Outstanding Recovery" domain="[('outstanding_amount', '>', 0)]"/>
+                <filter name="over_claimed" string="Over-claimed" domain="[('over_claimed', '=', True)]"/>
+                <filter name="goodwill" string="Goodwill" domain="[('goodwill', '=', True)]"/>
+                <separator/>
+                <filter name="rejected" string="Rejected by Vendor" domain="[('vendor_result', '=', 'rejected')]"/>
+                <filter name="written_off" string="Written Off" domain="[('recovery_status', '=', 'written_off')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_partner" string="Vendor / Manufacturer" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_recovery" string="Recovery Status" context="{'group_by': 'recovery_status'}"/>
+                    <filter name="group_case" string="Warranty Case" context="{'group_by': 'case_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="warranty_vendor_claim_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.pivot</field>
+        <field name="model">warranty.vendor.claim</field>
+        <field name="arch" type="xml">
+            <pivot string="Vendor Claims">
+                <field name="partner_id" type="row"/>
+                <field name="recovery_status" type="col"/>
+                <field name="claimed_amount" type="measure"/>
+                <field name="accepted_amount" type="measure"/>
+                <field name="recovered_amount" type="measure"/>
+                <field name="outstanding_amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_warranty_vendor_claim" model="ir.actions.act_window">
+        <field name="name">Vendor Claims</field>
+        <field name="res_model">warranty.vendor.claim</field>
+        <field name="view_mode">list,form,pivot</field>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No vendor claims yet</p>
+            <p>Use <b>New</b>, or <b>Create Vendor Claim</b> on a warranty case, service job,
+               Material Request or Done Vendor Replacement.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_warranty_vendor_claim" name="Vendor Claims"
+              parent="warranty_management.menu_warranty_root" action="action_warranty_vendor_claim"
+              sequence="70"
+              groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_warranty_vendor_claim_accounting" name="Warranty Vendor Claims"
+              parent="account.menu_finance_payables" action="action_warranty_vendor_claim"
+              sequence="90" groups="account.group_account_readonly,account.group_account_invoice"/>
+
+    <!-- Wizards -->
+    <record id="warranty_vendor_claim_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.wizard.form</field>
+        <field name="model">warranty.vendor.claim.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Vendor Claim">
+                <div class="alert alert-warning" role="alert" invisible="not proposal_note">
+                    <field name="proposal_note" readonly="1"/>
+                </div>
+                <group>
+                    <group>
+                        <field name="case_id"/>
+                        <field name="proposed_partner_id"/>
+                        <field name="partner_source"/>
+                        <field name="partner_id" required="1"/>
+                        <field name="claim_type"/>
+                        <field name="partner_override_reason"
+                               invisible="partner_id == proposed_partner_id and not proposal_note"/>
+                    </group>
+                    <group>
+                        <field name="previous_claim_id"/>
+                        <field name="failure_description"/>
+                    </group>
+                </group>
+                <field name="line_ids">
+                    <list editable="bottom" create="false" delete="false">
+                        <field name="selected"/>
+                        <field name="requisition_id"/>
+                        <field name="product_id"/>
+                        <field name="bucket"/>
+                        <field name="max_qty"/>
+                        <field name="qty"/>
+                        <field name="tracking" column_invisible="True"/>
+                        <field name="allowed_lot_ids" column_invisible="True"/>
+                        <field name="lot_ids" widget="many2many_tags" readonly="tracking == 'none'"
+                               options="{'no_create': True, 'no_create_edit': True}"/>
+                        <field name="currency_id" column_invisible="True"/>
+                        <field name="unit_cost"/>
+                        <field name="amount"/>
+                        <field name="proposal"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_apply" type="object" string="Create Claim" class="btn-primary"/>
+                    <button name="action_refresh_proposal" type="object" string="Propose Partner Again"/>
+                    <button string="Discard" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_vendor_claim_reason_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.reason.wizard.form</field>
+        <field name="model">warranty.vendor.claim.reason.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="claim_id" readonly="1"/>
+                    <field name="action" readonly="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="outstanding_amount" invisible="action != 'close'"
+                           string="Not recovered (written off when closing)"/>
+                    <field name="reason" required="action != 'close'"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Confirm" class="btn-primary"/>
+                    <button string="Discard" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_vendor_claim_response_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.response.wizard.form</field>
+        <field name="model">warranty.vendor.claim.response.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Vendor Response">
+                <group>
+                    <group>
+                        <field name="claim_id" readonly="1"/>
+                        <field name="vendor_reference"/>
+                        <field name="response_date"/>
+                    </group>
+                    <group>
+                        <field name="correction" invisible="1"/>
+                        <field name="correction_reason" invisible="not correction" required="correction"/>
+                    </group>
+                </group>
+                <field name="line_ids">
+                    <list editable="bottom" create="false" delete="false">
+                        <field name="product_id"/>
+                        <field name="qty"/>
+                        <field name="currency_id" column_invisible="True"/>
+                        <field name="claimed_amount"/>
+                        <field name="accepted_amount"/>
+                        <field name="vendor_reason"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_apply" type="object" string="Record Response" class="btn-primary"/>
+                    <button name="action_accept_all" type="object" string="Accept All"/>
+                    <button name="action_reject_all" type="object" string="Reject All"/>
+                    <button string="Discard" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_vendor_claim_allocate_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.vendor.claim.allocate.wizard.form</field>
+        <field name="model">warranty.vendor.claim.allocate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Allocate Vendor Credit Note">
+                <group>
+                    <field name="claim_id" readonly="1"/>
+                    <field name="company_id" invisible="1"/>
+                    <field name="commercial_partner_id" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="move_id" options="{'no_create': True}"/>
+                    <field name="claim_line_id" options="{'no_create': True}"/>
+                    <field name="move_available"/>
+                    <field name="claim_available"/>
+                    <field name="line_available"/>
+                    <field name="amount"/>
+                    <field name="note"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Allocate" class="btn-primary"/>
+                    <button string="Discard" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Request, service job and warranty case: Create Vendor Claim, smart button, figures. -->
+    <record id="material_purchase_requisition_view_form_vendor_claim" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.vendor.claim</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="can_warranty_vendor_claim" invisible="1"/>
+                <button name="action_create_vendor_claim" type="object" string="Create Vendor Claim"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                        invisible="not can_warranty_vendor_claim or state in ('draft', 'cancel', 'reject')"/>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button name="action_view_vendor_claims" type="object" class="oe_stat_button"
+                        icon="fa-reply" invisible="not vendor_claim_count"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="vendor_claim_count" widget="statinfo" string="Vendor Claims"/>
+                </button>
+            </xpath>
+            <xpath expr="//page[@name='warranty_material_cost']" position="inside">
+                <group string="Vendor Recovery" invisible="not vendor_claim_count">
+                    <group>
+                        <field name="vendor_recovery_status"/>
+                        <field name="vendor_claimed_amount"/>
+                        <field name="vendor_accepted_amount"/>
+                    </group>
+                    <group>
+                        <field name="vendor_recovered_amount"/>
+                        <field name="vendor_settled_amount"/>
+                        <field name="vendor_outstanding_amount"/>
+                        <field name="net_warranty_material_cost"/>
+                    </group>
+                </group>
+            </xpath>
+            <xpath expr="//field[@name='requisition_line_ids']/list/field[@name='cost_status']" position="after">
+                <field name="vendor_claimed_qty" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form_vendor_claim" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.vendor.claim</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_create_vendor_claim" type="object" string="Create Vendor Claim"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                        invisible="not material_request_count"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_vendor_claims" type="object" class="oe_stat_button"
+                        icon="fa-reply" invisible="not vendor_claim_count"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="vendor_claim_count" widget="statinfo" string="Vendor Claims"/>
+                </button>
+            </xpath>
+            <xpath expr="//page[@name='warranty_material_cost']/group" position="after">
+                <group string="Vendor Recovery" invisible="not vendor_claim_count">
+                    <group>
+                        <field name="vendor_recovery_status"/>
+                        <field name="vendor_claimed_amount"/>
+                        <field name="vendor_accepted_amount"/>
+                    </group>
+                    <group>
+                        <field name="vendor_recovered_amount"/>
+                        <field name="vendor_settled_amount"/>
+                        <field name="vendor_outstanding_amount"/>
+                        <field name="net_warranty_material_cost"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_form_vendor_claim" model="ir.ui.view">
+        <field name="name">warranty.case.form.vendor.claim</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_create_vendor_claim" type="object" string="Create Vendor Claim"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                        invisible="not material_request_count"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_vendor_claims" type="object" class="oe_stat_button"
+                        icon="fa-reply" invisible="not vendor_claim_count"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice">
+                    <field name="vendor_claim_count" widget="statinfo" string="Vendor Claims"/>
+                </button>
+            </xpath>
+            <xpath expr="//page[@name='warranty_material_cost']/group" position="after">
+                <group string="Vendor Recovery" invisible="not vendor_claim_count">
+                    <group>
+                        <field name="vendor_recovery_status"/>
+                        <field name="vendor_claimed_amount"/>
+                        <field name="vendor_accepted_amount"/>
+                    </group>
+                    <group>
+                        <field name="vendor_recovered_amount"/>
+                        <field name="vendor_settled_amount"/>
+                        <field name="vendor_outstanding_amount"/>
+                        <field name="net_warranty_material_cost"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Product: claimable parts (SRS 12 #15) -->
+    <record id="product_template_form_view_warranty_claim" model="ir.ui.view">
+        <field name="name">product.template.form.warranty.claim</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='purchase']" position="inside">
+                <group string="Warranty Vendor Claims" name="warranty_vendor_claims">
+                    <field name="warranty_vendor_claimable"/>
+                    <field name="warranty_claim_partner_id" invisible="not warranty_vendor_claimable"/>
+                    <field name="warranty_vendor_warranty_months" invisible="not warranty_vendor_claimable"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Vendor credit note: link to the claims it recovers. -->
+    <record id="account_move_view_form_warranty_claim" model="ir.ui.view">
+        <field name="name">account.move.form.warranty.claim</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_vendor_claims" type="object" class="oe_stat_button"
+                        icon="fa-reply" invisible="not warranty_vendor_claim_count">
+                    <field name="warranty_vendor_claim_count" widget="statinfo" string="Warranty Claims"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Settings -->
+    <record id="res_config_settings_view_form_warranty_vendor_claim" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.vendor.claim</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management_mrf.res_config_settings_view_form_warranty_mrf"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_mrf_settings']" position="after">
+                <block title="Vendor Claims" name="warranty_vendor_claim_settings">
+                    <setting id="warranty_vendor_claim_enabled" string="Vendor Claims"
+                             help="If enabled, the cost of eligible warranty parts can be claimed back from suppliers or manufacturers. If disabled, vendor claims cannot be created.">
+                        <field name="warranty_vendor_claim_enabled"/>
+                    </setting>
+                    <setting id="warranty_claim_approvers" string="Claim Approvers"
+                             help="Warranty approvers review every vendor claim. Finance approvers must also approve claims at or above the Finance Approval Threshold, and every goodwill claim."
+                             title="Warranty approvers review every vendor claim. Finance approvers must also approve claims at or above the Finance Approval Threshold, and every goodwill claim.">
+                        <div class="content-group">
+                            <div class="row"><label for="warranty_claim_approver_ids" class="col-lg-4"/>
+                                <field name="warranty_claim_approver_ids" widget="many2many_tags"/></div>
+                            <div class="row"><label for="warranty_claim_finance_approver_ids" class="col-lg-4"/>
+                                <field name="warranty_claim_finance_approver_ids" widget="many2many_tags"/></div>
+                            <div class="row"><label for="warranty_claim_finance_threshold" class="col-lg-4"/>
+                                <field name="warranty_claim_finance_threshold"/></div>
+                        </div>
+                    </setting>
+                    <setting id="warranty_claim_evidence_required" string="Claim Evidence Required"
+                             help="If enabled, a vendor claim needs at least one attachment before it is sent to the vendor. If disabled, attachments are optional.">
+                        <field name="warranty_claim_evidence_required"/>
+                    </setting>
+                    <setting id="warranty_claim_recovery_account" string="Recovery Account"
+                             help="The account used on the vendor credit notes created from claims. It must be set before a credit note can be created.">
+                        <field name="warranty_claim_recovery_account_id" options="{'no_create': True}"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

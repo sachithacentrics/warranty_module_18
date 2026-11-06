@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- AMC General Configuration (Mapping 3), per company. -->
+    <record id="res_config_settings_view_form_amc" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.amc</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="70"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="AMC" string="AMC" name="amc_management" groups="base.group_system">
+                    <block title="General AMC Settings" name="amc_general_settings">
+                        <setting id="amc_enabled" string="AMC Enabled"
+                                 help="Annual Maintenance Contracts are used by this company">
+                            <field name="amc_enabled"/>
+                        </setting>
+                        <setting id="amc_default_plan" string="Default AMC Plan"
+                                 help="Plan proposed for new AMC opportunities and contracts">
+                            <field name="amc_default_plan_id" options="{'no_create': True}"/>
+                        </setting>
+                        <setting id="amc_default_pricelist" string="Default Pricelist (fallback)"
+                                 groups="product.group_product_pricelist"
+                                 help="Used only when the customer has no pricelist of its own or of its country; it does not restrict the AMC currency">
+                            <field name="amc_default_pricelist_id" options="{'no_create': True}"/>
+                        </setting>
+                        <setting id="amc_currency" string="AMC Currency"
+                                 help="AMC contracts use the currency of the customer's pricelist (multi-currency); without any applicable pricelist this fallback currency is used. Exchange rates: Accounting / Settings > Currencies">
+                            <field name="amc_fallback_currency_id" readonly="1"/>
+                        </setting>
+                        <setting id="amc_default_billing_plan" string="Default Billing Plan"
+                                 help="Billing plan proposed for new AMC Plans">
+                            <field name="amc_default_billing_plan_id" options="{'no_create': True}"/>
+                        </setting>
+                        <setting id="amc_default_start_rule" string="Default Start Criteria"
+                                 help="When the AMC coverage starts (proposed for new AMC Plans)">
+                            <field name="amc_default_start_rule"/>
+                        </setting>
+                        <setting id="amc_default_renewal_rule" string="Default Renewal Rule"
+                                 help="Renewal handling proposed for new AMC Plans">
+                            <field name="amc_default_renewal_rule"/>
+                        </setting>
+                        <setting id="amc_activation_trigger" string="Activation Trigger"
+                                 help="When an AMC contract becomes Active: on Sales Order confirmation, or when the first scheduled invoice is fully paid (billing: phase A5). A plan can override it">
+                            <field name="amc_activation_trigger"/>
+                        </setting>
+                        <setting id="amc_product" string="AMC Service Product"
+                                 help="Service product of AMC quotation lines (invoiced on delivered quantities)">
+                            <field name="amc_product_id" options="{'no_create': True}"/>
+                        </setting>
+                        <setting id="amc_default_alert_days" string="Default Alert Days"
+                                 help="Days before a preventive visit is due when the alert is created (proposed for new AMC Plans)">
+                            <field name="amc_default_alert_days"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_amc_config_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module': 'amc_management', 'bin_size': False}</field>
+    </record>
+</odoo>

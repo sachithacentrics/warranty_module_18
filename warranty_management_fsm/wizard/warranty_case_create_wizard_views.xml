@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ticket of a service-origin job: everything comes from the job; units per service. -->
+    <record id="warranty_case_create_wizard_view_form_fsm" model="ir.ui.view">
+        <field name="name">warranty.case.create.wizard.form.fsm</field>
+        <field name="model">warranty.case.create.wizard</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_create_wizard_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='case_type']" position="before">
+                <field name="warranty_from_service_job" invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='case_type']" position="attributes">
+                <attribute name="readonly">warranty_from_service_job</attribute>
+            </xpath>
+            <xpath expr="//field[@name='product_id']" position="attributes">
+                <attribute name="readonly">warranty_from_service_job</attribute>
+            </xpath>
+            <xpath expr="//field[@name='serial_id']" position="attributes">
+                <attribute name="readonly">warranty_from_service_job</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_add_all_pending']/.." position="attributes">
+                <attribute name="invisible">warranty_from_service_job</attribute>
+            </xpath>
+            <xpath expr="//field[@name='service_entitlement_ids']" position="attributes">
+                <attribute name="readonly">warranty_from_service_job</attribute>
+            </xpath>
+            <xpath expr="//field[@name='service_entitlement_ids']/list/field[@name='warranty_units_display']" position="replace">
+                <field name="warranty_job_units_display"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

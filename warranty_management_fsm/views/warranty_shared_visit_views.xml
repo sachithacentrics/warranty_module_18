@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Shared Field Service visit (BA-approved v1, doc/shared_visit_design.md). -->
+    <record id="warranty_shared_visit_line_company_rule" model="ir.rule">
+        <field name="name">Shared Visit Line: multi-company</field>
+        <field name="model_id" ref="model_warranty_shared_visit_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Service Jobs list: Action > Create Merged Field Service Visit. -->
+    <record id="action_server_create_shared_visit" model="ir.actions.server">
+        <field name="name">Create Merged Field Service Visit</field>
+        <field name="model_id" ref="model_warranty_service_job"/>
+        <field name="binding_model_id" ref="model_warranty_service_job"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('helpdesk.group_helpdesk_user'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_open_shared_visit_wizard()</field>
+    </record>
+
+    <record id="warranty_shared_visit_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.shared.visit.wizard.form</field>
+        <field name="model">warranty.shared.visit.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Merged Field Service Visit">
+                <p class="text-muted">
+                    One Field Service visit for the selected service jobs. Each job keeps its own
+                    case, card, free services, worksheets, materials and history, is confirmed
+                    with its usual checks and is completed separately on the visit.
+                </p>
+                <group>
+                    <field name="job_ids" widget="many2many_tags"/>
+                    <field name="planned_date"/>
+                    <field name="technician_candidate_ids" invisible="1"/>
+                    <field name="main_technician_id" options="{'no_create': True}"/>
+                    <field name="support_technician_ids" widget="many2many_tags"
+                           options="{'no_create': True}"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Create Visit"
+                            class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Visit form: the service jobs of a shared visit, completed / reported one by one. -->
+    <record id="project_task_view_form_warranty_shared" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.shared</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='description_page']" position="before">
+                <page string="Service Jobs on this Visit" name="warranty_shared_jobs"
+                      invisible="not warranty_shared_line_ids">
+                    <field name="warranty_shared_line_ids">
+                        <list create="0" delete="0" edit="0">
+                            <field name="task_closed" column_invisible="1"/>
+                            <field name="job_id"/>
+                            <field name="helpdesk_ticket_id" optional="show"/>
+                            <field name="warranty_case_id" optional="show"/>
+                            <field name="entitlement_ids" widget="many2many_tags" optional="show"/>
+                            <field name="job_state"/>
+                            <field name="outcome"/>
+                            <field name="completion_date" optional="show"/>
+                            <field name="noncompletion_reason" optional="hide"/>
+                            <field name="signed_by" optional="hide"/>
+                            <button name="action_complete" type="object" string="Complete"
+                                    class="btn-primary"
+                                    groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                                    invisible="outcome or task_closed"
+                                    confirm="Complete this service job on the visit? Its worksheets, free services and warranty case are completed; the other jobs are not changed."/>
+                            <button name="action_not_completed" type="object"
+                                    string="Not Completed"
+                                    groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                                    invisible="outcome or task_closed"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Service Job: its shared visits (visit history of the job). -->
+    <record id="warranty_service_job_view_form_shared" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.shared</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <page name="visits" position="after">
+                <page string="Shared Visits" name="shared_visits" invisible="not shared_visit_ids"
+                      groups="industry_fsm.group_fsm_user,project.group_project_user">
+                    <field name="shared_visit_ids">
+                        <list create="0" delete="0">
+                            <field name="name"/>
+                            <field name="planned_date_begin" string="Planned"/>
+                            <field name="user_ids" widget="many2many_avatar_user"/>
+                            <field name="state"/>
+                        </list>
+                    </field>
+                </page>
+            </page>
+        </field>
+    </record>
+</odoo>

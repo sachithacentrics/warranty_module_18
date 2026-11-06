@@ -9,36 +9,72 @@
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
                 <button name="action_create_warranty_case" type="object" string="Create Warranty Case"
-                        class="btn-primary" invisible="not partner_id"
+                        class="btn-primary"
+                        invisible="not is_warranty or not partner_id or not warranty_has_cards"
                         groups="helpdesk.group_helpdesk_user"/>
             </xpath>
+            <xpath expr="//field[@name='partner_id'][hasclass('field_partner_id')]" position="attributes">
+                <attribute name="readonly">warranty_is_linked</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_id'][hasclass('field_partner_id')]" position="after">
+                <field name="is_warranty"/>
+                <field name="warranty_is_linked" invisible="1"/>
+                <field name="warranty_has_cards" invisible="1"/>
+                <field name="warranty_available_product_ids" invisible="1"/>
+                <field name="warranty_unit_serial_ids" invisible="1"/>
+            </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_history" type="object" class="oe_stat_button"
+                        icon="fa-history" string="Warranty History"
+                        invisible="warranty_case_count == 0"/>
                 <button name="action_view_warranty_cases" type="object" class="oe_stat_button"
                         icon="fa-shield" invisible="not warranty_case_count">
                     <field name="warranty_case_count" widget="statinfo" string="Warranty Cases"/>
                 </button>
             </xpath>
             <xpath expr="//notebook/page[@name='description']" position="after">
-                <page string="Warranty" name="warranty">
+                <page string="Warranty" name="warranty" invisible="not is_warranty">
+                    <div class="alert alert-info" role="alert"
+                         invisible="not partner_id or warranty_has_cards">
+                        The customer has no confirmed warranty card in this company: no warranty
+                        case can be created.
+                    </div>
                     <div class="alert alert-warning" role="alert" invisible="not warranty_overdue_warning">
                         <strong>Overdue Warning: </strong><field name="warranty_overdue_warning" class="d-inline"/>
                     </div>
                     <group>
                         <group>
                             <field name="commercial_partner_id" invisible="1"/>
-                            <field name="warranty_site_id" options="{'no_create': True}"/>
-                            <field name="warranty_product_id" options="{'no_create': True}"/>
-                            <field name="warranty_serial_id" options="{'no_create': True}"/>
+                            <field name="warranty_site_id" invisible="1"/>
+                            <field name="warranty_site_address"/>
+                            <field name="warranty_product_id" options="{'no_create': True}"
+                                   readonly="warranty_is_linked"/>
+                            <field name="warranty_serial_id" options="{'no_create': True}"
+                                   readonly="warranty_is_linked"/>
                         </group>
                         <group>
                             <field name="warranty_card_id"/>
                             <field name="warranty_unit_id"/>
+                            <field name="warranty_available_card_ids" widget="many2many_tags"
+                                   invisible="not partner_id or warranty_is_linked"/>
                         </group>
                     </group>
-                    <field name="warranty_free_services_enabled" invisible="1"/>
-                    <separator string="Pending Services" invisible="not warranty_free_services_enabled"/>
-                    <field name="warranty_pending_service_ids" readonly="1"
-                           invisible="not warranty_free_services_enabled">
+                    <separator string="Linked Free Services" invisible="not warranty_is_linked"/>
+                    <field name="warranty_linked_service_ids" readonly="1"
+                           invisible="not warranty_is_linked">
+                        <list create="0" delete="0">
+                            <field name="name"/>
+                            <field name="warranty_card_id"/>
+                            <field name="warranty_units_display"/>
+                            <field name="service_no"/>
+                            <field name="due_date"/>
+                            <field name="scheduled_date"/>
+                            <field name="state" widget="badge"/>
+                            <field name="merge_status" widget="badge"/>
+                        </list>
+                    </field>
+                    <separator string="Pending Services"/>
+                    <field name="warranty_pending_service_ids" readonly="1">
                         <list create="0" delete="0">
                             <field name="name"/>
                             <field name="warranty_card_id"/>

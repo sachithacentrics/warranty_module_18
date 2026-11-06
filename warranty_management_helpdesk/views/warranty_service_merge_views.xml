@@ -33,7 +33,7 @@
             <xpath expr="//button[@name='action_view_warranty_cases']" position="before">
                 <button name="action_view_warranty_pending_services" type="object"
                         class="oe_stat_button" icon="fa-list-ul"
-                        invisible="not warranty_pending_service_count or not warranty_free_services_enabled">
+                        invisible="not warranty_pending_service_count">
                     <field name="warranty_pending_service_count" widget="statinfo" string="Pending Services"/>
                 </button>
             </xpath>
@@ -59,9 +59,10 @@
                 <field name="site_confirmed_date" invisible="not site_confirmed_partner_ids"/>
             </xpath>
             <xpath expr="//header" position="inside">
+                <field name="warranty_site_confirmation_needed" invisible="1"/>
                 <button name="action_open_site_wizard" type="object" string="Confirm Same Site"
                         groups="helpdesk.group_helpdesk_manager"
-                        invisible="not service_entitlement_ids or state not in ('new', 'eligibility_checked')"/>
+                        invisible="not warranty_site_confirmation_needed or state not in ('new', 'eligibility_checked')"/>
             </xpath>
             <xpath expr="//field[@name='service_entitlement_ids']" position="attributes">
                 <attribute name="readonly">state not in ('new', 'eligibility_checked')</attribute>

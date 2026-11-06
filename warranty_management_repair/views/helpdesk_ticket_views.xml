@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- A New warranty ticket starts with Create Warranty Case: the standard actions stay hidden until
+         the ticket leaves the New stage. Visibility only. -->
+    <record id="helpdesk_ticket_view_form_warranty_header" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty.header</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="priority">200</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header//button[@name='action_timer_start'][hasclass('btn-primary')]" position="attributes">
+                <attribute name="invisible" add="is_warranty and stage_id == %(helpdesk.stage_new)d" separator=" or "/>
+            </xpath>
+            <xpath expr="//header//button[@name='action_timer_start'][hasclass('btn-secondary')]" position="attributes">
+                <attribute name="invisible" add="is_warranty and stage_id == %(helpdesk.stage_new)d" separator=" or "/>
+            </xpath>
+            <xpath expr="//header//button[@name='%(helpdesk_account.helpdesk_ticket_action_refund)d']" position="attributes">
+                <attribute name="invisible" add="is_warranty and stage_id == %(helpdesk.stage_new)d" separator=" or "/>
+            </xpath>
+            <!-- Return / Repair (workshop intake, Figure 6): also in New once a warranty case exists. -->
+            <xpath expr="//header//button[@name='%(stock.act_stock_return_picking)d']" position="attributes">
+                <attribute name="invisible" add="is_warranty and stage_id == %(helpdesk.stage_new)d and not warranty_case_count" separator=" or "/>
+            </xpath>
+            <xpath expr="//header//button[@name='action_repair_order_form']" position="attributes">
+                <attribute name="invisible" add="is_warranty and stage_id == %(helpdesk.stage_new)d and not warranty_case_count" separator=" or "/>
+            </xpath>
+            <xpath expr="//header//button[@name='action_generate_fsm_task']" position="attributes">
+                <attribute name="invisible" add="is_warranty and stage_id == %(helpdesk.stage_new)d" separator=" or "/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

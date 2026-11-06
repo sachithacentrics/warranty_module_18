@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="seq_amc_opportunity" model="ir.sequence">
+        <field name="name">AMC Opportunity</field>
+        <field name="code">amc.opportunity</field>
+        <field name="prefix">AMCO/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_amc_contract" model="ir.sequence">
+        <field name="name">AMC Contract</field>
+        <field name="code">amc.contract</field>
+        <field name="prefix">AMC/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_amc_price_override" model="ir.sequence">
+        <field name="name">AMC Override Request</field>
+        <field name="code">amc.price.override</field>
+        <field name="prefix">AMCR/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- Approved B4a: AMC quotation lines are invoiced on delivered quantities (set by the AMC
+         billing schedule in phase A5). -->
+    <record id="product_amc_service" model="product.product">
+        <field name="name">AMC Contract Service</field>
+        <field name="type">service</field>
+        <field name="invoice_policy">delivery</field>
+        <field name="service_type">manual</field>
+        <field name="sale_ok" eval="True"/>
+        <field name="purchase_ok" eval="False"/>
+        <field name="list_price">0.0</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

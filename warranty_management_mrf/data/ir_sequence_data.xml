@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Mapping D5 / SRS sample data: warranty Material Requests MRF/000001. -->
+    <record id="seq_warranty_material_request" model="ir.sequence">
+        <field name="name">Warranty Material Request</field>
+        <field name="code">warranty.material.request</field>
+        <field name="prefix">MRF/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <!-- Phase 5.8 / SRS 10.7 sample VCL/00012: vendor / manufacturer claims. -->
+    <record id="seq_warranty_vendor_claim" model="ir.sequence">
+        <field name="name">Warranty Vendor Claim</field>
+        <field name="code">warranty.vendor.claim</field>
+        <field name="prefix">VCL/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

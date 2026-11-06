@@ -14,28 +14,28 @@
                         <field name="priority" widget="priority"/>
                     </group>
                     <group>
-                        <field name="site_id" options="{'no_create': True}"/>
+                        <field name="site_id" options="{'no_create': True}" invisible="1"/>
+                        <field name="site_address"/>
                         <field name="product_id" options="{'no_create': True}"/>
+                        <field name="warranty_unit_serial_ids" invisible="1"/>
                         <field name="serial_id" options="{'no_create': True}"/>
                     </group>
                 </group>
                 <group>
                     <field name="customer_complaint"/>
-                    <field name="warranty_free_services_enabled" invisible="1"/>
-                    <field name="merged_adhoc_request" invisible="not warranty_free_services_enabled"/>
+                    <field name="merged_adhoc_request"/>
                     <field name="merged_adhoc_description"
-                           invisible="not merged_adhoc_request or not warranty_free_services_enabled"/>
+                           invisible="not merged_adhoc_request"/>
                 </group>
                 <field name="available_service_ids" invisible="1"/>
-                <separator string="Pending Services" invisible="not warranty_free_services_enabled"/>
-                <div invisible="not warranty_free_services_enabled">
+                <separator string="Pending Services"/>
+                <div>
                     <button name="action_add_all_pending" type="object" string="Add All Pending"
                             class="btn-secondary" icon="fa-plus"/>
                     <span class="text-muted ms-2">Several units / warranty cards: leave Product and
                         Serial empty (they narrow the list to one unit).</span>
                 </div>
-                <field name="service_entitlement_ids" options="{'no_create': True}"
-                       invisible="not warranty_free_services_enabled">
+                <field name="service_entitlement_ids" options="{'no_create': True}">
                     <list>
                         <field name="name"/>
                         <field name="warranty_card_id"/>

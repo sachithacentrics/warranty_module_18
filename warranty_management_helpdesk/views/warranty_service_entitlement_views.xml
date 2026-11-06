@@ -5,8 +5,12 @@
         <field name="model">warranty.service.entitlement</field>
         <field name="inherit_id" ref="warranty_management.warranty_service_entitlement_view_form"/>
         <field name="arch" type="xml">
+            <!-- A free service belongs to the card and covers all its units. -->
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="warranty_units_display" string="Product" invisible="not warranty_units_display"/>
+            </xpath>
             <xpath expr="//field[@name='merge_status']" position="after">
-                <field name="helpdesk_ticket_id"/>
+                <field name="helpdesk_ticket_id" invisible="not helpdesk_ticket_id"/>
                 <field name="warranty_case_ids" widget="many2many_tags"
                        invisible="not warranty_case_ids"/>
             </xpath>

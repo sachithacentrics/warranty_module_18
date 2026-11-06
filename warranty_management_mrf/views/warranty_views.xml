@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.1: Create / Link Material Request and smart buttons on the warranty case,
+         service job, Field Service visit and Helpdesk ticket. -->
+    <record id="warranty_case_view_form_mrf" model="ir.ui.view">
+        <field name="name">warranty.case.form.mrf</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_create_material_request" type="object" string="Create Material Request"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="state not in ('approved', 'job_created', 'in_progress', 'chargeable')"/>
+                <button name="action_link_material_request" type="object" string="Link Material Request"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="True"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_material_requests" type="object" class="oe_stat_button"
+                        icon="fa-cubes" invisible="not material_request_count">
+                    <field name="material_request_count" widget="statinfo" string="Material Requests"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form_mrf" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.mrf</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_create_material_request" type="object" string="Create Material Request"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="state not in ('confirmed', 'rescheduled', 'in_progress', 'awaiting_parts', 'workshop', 'incomplete')"/>
+                <button name="action_link_material_request" type="object" string="Link Material Request"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="True"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_material_requests" type="object" class="oe_stat_button"
+                        icon="fa-cubes" invisible="not material_request_count">
+                    <field name="material_request_count" widget="statinfo" string="Material Requests"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="project_task_view_form_warranty_mrf" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.mrf</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="warranty_service_job_id" invisible="1"/>
+                <button name="action_warranty_create_material_request" type="object"
+                        string="Create Material Request"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="not warranty_service_job_id or state in ('1_done', '1_canceled')"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_warranty_view_material_requests" type="object" class="oe_stat_button"
+                        icon="fa-cubes" invisible="not warranty_material_request_count">
+                    <field name="warranty_material_request_count" widget="statinfo" string="Material Requests"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="helpdesk_ticket_view_form_warranty_mrf" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty.mrf</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_warranty_view_material_requests" type="object" class="oe_stat_button"
+                        icon="fa-cubes" invisible="not warranty_material_request_count">
+                    <field name="warranty_material_request_count" widget="statinfo" string="Material Requests"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_link_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.link.wizard.form</field>
+        <field name="model">warranty.mrf.link.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Link Material Request">
+                <group>
+                    <field name="warranty_case_id"/>
+                    <field name="warranty_service_job_id" invisible="not warranty_service_job_id"/>
+                    <field name="warranty_task_id" invisible="not warranty_task_id"/>
+                    <field name="company_id" invisible="1"/>
+                    <field name="requisition_id" options="{'no_create': True}"/>
+                </group>
+                <p class="text-muted">Only standalone requests in status New of the case company can be linked.
+                    The request keeps its number, requester and lines.</p>
+                <footer>
+                    <button name="action_link" type="object" string="Link" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Phase 5.2: Decide Coverage (mapping D7). -->
+    <record id="warranty_mrf_coverage_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.coverage.wizard.form</field>
+        <field name="model">warranty.mrf.coverage.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Decide Coverage">
+                <group>
+                    <field name="requisition_id"/>
+                </group>
+                <p class="text-muted">Tick the lines to decide (lines pending a coverage
+                    decision are preselected).</p>
+                <field name="line_ids" nolabel="1">
+                    <list editable="bottom" create="0" delete="0" no_open="1"
+                          decoration-muted="not selected">
+                        <field name="requisition_line_id" column_invisible="1" force_save="1"/>
+                        <field name="selected" widget="boolean_toggle" nolabel="1"/>
+                        <field name="product_id" readonly="1"/>
+                        <field name="qty" readonly="1"/>
+                        <field name="uom" readonly="1"/>
+                        <field name="coverage_type" readonly="1"
+                               decoration-warning="coverage_type == 'pending'"
+                               decoration-danger="coverage_type == 'not_covered'"
+                               decoration-success="coverage_type == 'covered'"/>
+                        <field name="goodwill" readonly="1" optional="hide"/>
+                        <field name="coverage_default_reason" readonly="1"/>
+                    </list>
+                </field>
+                <group>
+                    <field name="decision" widget="radio"/>
+                    <field name="reason" placeholder="Policy / equipment check, e.g. part failed within the covered period"/>
+                </group>
+                <p class="text-muted">Goodwill covers a part the policy does not cover (SRS 16.1).
+                    The decision is logged on the request, the warranty case and the service job.</p>
+                <footer>
+                    <button name="action_apply" type="object" string="Apply" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Mapping D10: defaults of new warranty Material Requests. -->
+    <record id="res_config_settings_view_form_warranty_mrf" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.mrf</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management.res_config_settings_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='warranty_management']" position="inside">
+                <block title="Material Requests" name="warranty_mrf_settings">
+                    <setting id="warranty_mrf_source_location" string="Source Location"
+                             help="The stock location that warranty material requests take parts from. If empty, the stock of the company's first warehouse is used.">
+                        <field name="warranty_mrf_source_location_id" options="{'no_create': True}"/>
+                    </setting>
+                    <setting id="warranty_mrf_dest_location" string="Technician Location"
+                             help="Where requested parts are sent when the main technician has no destination location of their own.">
+                        <field name="warranty_mrf_dest_location_id" options="{'no_create': True}"/>
+                    </setting>
+                    <setting id="warranty_mrf_picking_type" string="Picking Type"
+                             help="The internal transfer type used to move warranty parts. If empty, the internal transfers of the company's first warehouse are used.">
+                        <field name="warranty_mrf_picking_type_id" options="{'no_create': True}"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

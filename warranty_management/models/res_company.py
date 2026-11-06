@@ -1,5 +1,7 @@
 import logging
 
+import pytz
+
 from odoo import _, api, fields, models
 from odoo.addons.base.models.res_partner import _tz_get
 from odoo.exceptions import ValidationError
@@ -18,13 +20,13 @@ def get_valid_service_alert_users(users, company):
     return users.filtered(lambda user: is_valid_service_alert_user(user, company))
 
 
-# Warranty Scope Modes with free services (SRS: the scope mode enables capability blocks).
-FREE_SERVICE_SCOPE_MODES = ('free_services', 'amc_free_services')
-
 
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
+    # BA decision 2026-10-28 (deviation from SRS 1.2 item 12): the Warranty Scope Mode no longer
+    # limits warranty functionality and is not shown in Settings. The field is kept, unused, so
+    # that existing configurations are preserved.
     warranty_scope_mode = fields.Selection([
         ('warranty_only', 'Warranty Only'),
         ('free_services', 'Free Services'),
@@ -81,6 +83,39 @@ class ResCompany(models.Model):
         context={'active_test': False},
         help="Users who approve or reject the warranty card PDF download requests of this "
              "company (never their own requests).")
+    # Printed on the warranty card; the company's own wording, nothing is fixed in the report.
+    warranty_card_hotline = fields.Char(
+        string='Warranty Card Hot Line',
+        help="The hot line printed on the warranty card. If empty, the company phone is used.")
+    warranty_card_return_note = fields.Text(
+        string='Registration Copy Note',
+        help="Note printed on the Registration Copy, for example how and when to return it.")
+    warranty_card_valid_note = fields.Text(
+        string='Warranty Validity Note',
+        help="Validity note printed in red on the Registration Copy.")
+    warranty_card_terms = fields.Html(
+        string='Warranty Terms and Conditions',
+        help="The warranty terms and conditions printed on the back of the warranty card.")
+    # Part 9 controlled actions (SRS 12).
+    warranty_exception_approver_ids = fields.Many2many(
+        'res.users', 'warranty_company_exception_approver_rel', 'company_id', 'user_id',
+        string='Warranty Exception Approvers', domain=[('share', '=', False)],
+        context={'active_test': False},
+        help="Users who approve or reject warranty change requests: suspension, cancellation, "
+             "correction, relocation, transfer and extension. A user never decides their own "
+             "request.")
+    warranty_exception_evidence_required = fields.Boolean(
+        string='Suspension Evidence Required', default=True,
+        help="A warranty suspension request needs an attached document or photo.")
+    warranty_relocation_allowed = fields.Boolean(
+        string='Product Relocation Allowed', default=True,
+        help="Warranty units can be moved to another site of the same customer, with approval.")
+    warranty_transfer_allowed = fields.Boolean(
+        string='Ownership Transfer Allowed', default=True,
+        help="A warranty card can be transferred to another customer, with approval.")
+    warranty_extension_max_days = fields.Integer(
+        string='Maximum Warranty Extension (Days)', default=0,
+        help="The longest controlled warranty extension in days. 0 means no maximum.")
     warranty_service_alert_user_ids = fields.Many2many(
         'res.users', 'warranty_company_alert_user_rel', 'company_id', 'user_id',
         string='Service Alert Responsible Users', domain=[('share', '=', False)],
@@ -90,8 +125,9 @@ class ResCompany(models.Model):
              "their own activity.")
     warranty_timezone = fields.Selection(
         _tz_get, string='Warranty Timezone',
-        help="Timezone used to evaluate free service due and expiry dates. When empty, the "
-             "timezone of the company contact is used, then UTC.")
+        help="Timezone used to evaluate free service due and expiry dates and to convert "
+             "delivery, invoice posting and installation times into warranty start dates. When "
+             "empty, the timezone of the company contact is used, then UTC.")
 
     @api.constrains('default_free_service_count', 'default_free_service_period')
     def _check_default_free_service_values(self):
@@ -137,9 +173,9 @@ class ResCompany(models.Model):
                     "users allowed in that company: %(users)s",
                     company=company.name, users=', '.join(invalid.mapped('name'))))
 
-    def _warranty_today(self, log_missing_timezone=False):
-        """Today's date in the warranty timezone of the company:
-        Warranty Timezone > company contact timezone > UTC."""
+    def _warranty_tz_name(self, log_missing_timezone=False):
+        """Warranty timezone of the company: Warranty Timezone > company contact timezone >
+        UTC."""
         self.ensure_one()
         tz_name = self.warranty_timezone or self.partner_id.tz
         if not tz_name:
@@ -148,4 +184,20 @@ class ResCompany(models.Model):
                     "Warranty service monitoring: no Warranty Timezone or company timezone "
                     "configured for company %s (id %s); UTC is used.", self.name, self.id)
             tz_name = 'UTC'
-        return fields.Date.context_today(self.with_context(tz=tz_name))
+        return tz_name
+
+    def _warranty_today(self, log_missing_timezone=False):
+        """Today's date in the warranty timezone of the company."""
+        self.ensure_one()
+        return fields.Date.context_today(self.with_context(
+            tz=self._warranty_tz_name(log_missing_timezone)))
+
+    def _warranty_local_datetime(self, value):
+        """UTC datetime `value` (naive, as stored by Odoo) in the warranty timezone (aware)."""
+        self.ensure_one()
+        return pytz.utc.localize(value).astimezone(pytz.timezone(self._warranty_tz_name()))
+
+    def _warranty_local_date(self, value):
+        """Date of the UTC datetime `value` in the warranty timezone (Start Date Automation:
+        delivery validation, invoice posting and installation completion times)."""
+        return self._warranty_local_datetime(value).date() if value else False

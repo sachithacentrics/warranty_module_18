@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Part 8.2: named Cost and Finance Approvers who have no other cost role. Kept in step with
+         the company settings; it gives read access to the Warranty Cost Report only. -->
+    <record id="group_warranty_cost_report" model="res.groups">
+        <field name="name">Warranty Cost Report (named approvers)</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+    </record>
+
+    <!-- Each user reads only the rows built for them, and only of their selected companies. -->
+    <record id="rule_warranty_cost_report_company" model="ir.rule">
+        <field name="name">warranty_cost_report: multi-company</field>
+        <field name="model_id" ref="model_warranty_cost_report"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_warranty_cost_report_own" model="ir.rule">
+        <field name="name">warranty_cost_report: own rows</field>
+        <field name="model_id" ref="model_warranty_cost_report"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+    </record>
+</odoo>

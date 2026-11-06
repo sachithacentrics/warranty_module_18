@@ -1,10 +1,33 @@
-from odoo import _, api, models
+from odoo import _, api, fields, models
 
 from .mrp_bom import ROLE_FIELDS
 
 
 class WarrantyCard(models.Model):
     _inherit = 'warranty.card'
+
+    # Display only, see warranty.unit. sudo: read for the visibility of the fields.
+    warranty_show_indoor_serial = fields.Boolean(compute='_compute_warranty_show_serials',
+                                                 compute_sudo=True)
+    warranty_show_outdoor_serial = fields.Boolean(compute='_compute_warranty_show_serials',
+                                                  compute_sudo=True)
+
+    @api.depends('product_id', 'indoor_serial_id', 'outdoor_serial_id',
+                 'unit_warranty_ids.warranty_show_indoor_serial',
+                 'unit_warranty_ids.warranty_show_outdoor_serial')
+    def _compute_warranty_show_serials(self):
+        for card in self:
+            roles = {}
+            if card.product_id:
+                bom = self.env['mrp.bom']._bom_find(
+                    card.product_id, company_id=card.company_id.id,
+                    bom_type='phantom')[card.product_id]
+                roles = bom._warranty_role_lines() if bom else {}
+            units = card.unit_warranty_ids
+            card.warranty_show_indoor_serial = 'indoor' in roles or bool(card.indoor_serial_id) \
+                or any(units.mapped('warranty_show_indoor_serial'))
+            card.warranty_show_outdoor_serial = 'outdoor' in roles or bool(card.outdoor_serial_id) \
+                or any(units.mapped('warranty_show_outdoor_serial'))
 
     @api.depends('unit_warranty_ids.indoor_serial_id', 'unit_warranty_ids.outdoor_serial_id')
     def _compute_state(self):

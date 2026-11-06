@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_warranty_backup_unit_user,warranty.backup.unit user,model_warranty_backup_unit,base.group_user,1,0,0,0
+access_warranty_backup_unit_helpdesk_user,warranty.backup.unit helpdesk user,model_warranty_backup_unit,helpdesk.group_helpdesk_user,1,1,1,0
+access_warranty_backup_unit_stock_user,warranty.backup.unit stock user,model_warranty_backup_unit,stock.group_stock_user,1,1,1,0
+access_warranty_backup_unit_billing,warranty.backup.unit billing,model_warranty_backup_unit,account.group_account_invoice,1,1,0,0
+access_warranty_backup_unit_helpdesk_manager,warranty.backup.unit helpdesk manager,model_warranty_backup_unit,helpdesk.group_helpdesk_manager,1,1,1,1
+access_warranty_backup_unit_stock_manager,warranty.backup.unit stock manager,model_warranty_backup_unit,stock.group_stock_manager,1,1,1,1
+access_warranty_replacement_component_user,warranty.replacement.component user,model_warranty_replacement_component_line,base.group_user,1,1,0,0
+access_warranty_replacement_component_helpdesk,warranty.replacement.component helpdesk,model_warranty_replacement_component_line,helpdesk.group_helpdesk_user,1,1,1,1
+access_warranty_replacement_component_stock,warranty.replacement.component stock,model_warranty_replacement_component_line,stock.group_stock_user,1,1,1,1
+access_warranty_replacement_user,warranty.replacement user,model_warranty_replacement,base.group_user,1,1,0,0
+access_warranty_replacement_helpdesk_user,warranty.replacement helpdesk user,model_warranty_replacement,helpdesk.group_helpdesk_user,1,1,1,1

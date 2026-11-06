@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Linked Free Services of the ticket: each unit with its product and serial. -->
+    <record id="helpdesk_ticket_view_form_warranty_linked_units" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty.linked.units</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.helpdesk_ticket_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='warranty_linked_service_ids']/list/field[@name='warranty_units_display']" position="replace">
+                <field name="warranty_job_units_display"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

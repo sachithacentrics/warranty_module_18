@@ -6,8 +6,10 @@
         <field name="inherit_id" ref="warranty_management.warranty_unit_view_list"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='serial_ids']" position="after">
-                <field name="indoor_serial_id" optional="show"/>
-                <field name="outdoor_serial_id" optional="show"/>
+                <field name="warranty_show_indoor_serial" column_invisible="1"/>
+                <field name="warranty_show_outdoor_serial" column_invisible="1"/>
+                <field name="indoor_serial_id" optional="show" invisible="not warranty_show_indoor_serial"/>
+                <field name="outdoor_serial_id" optional="show" invisible="not warranty_show_outdoor_serial"/>
             </xpath>
         </field>
     </record>
@@ -18,9 +20,12 @@
         <field name="inherit_id" ref="warranty_management.warranty_unit_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='serial_ids']" position="after">
-                <field name="indoor_serial_id" readonly="1"/>
-                <field name="outdoor_serial_id" readonly="1"/>
-                <field name="kit_serials_corrected"/>
+                <field name="warranty_show_indoor_serial" invisible="1"/>
+                <field name="warranty_show_outdoor_serial" invisible="1"/>
+                <field name="indoor_serial_id" readonly="1" invisible="not warranty_show_indoor_serial"/>
+                <field name="outdoor_serial_id" readonly="1" invisible="not warranty_show_outdoor_serial"/>
+                <field name="kit_serials_corrected"
+                       invisible="not warranty_show_indoor_serial and not warranty_show_outdoor_serial"/>
             </xpath>
         </field>
     </record>

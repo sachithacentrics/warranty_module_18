@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_plan_view_list" model="ir.ui.view">
+        <field name="name">amc.plan.list</field>
+        <field name="model">amc.plan</field>
+        <field name="arch" type="xml">
+            <list string="AMC Plans">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="visit_count"/>
+                <field name="included_free_services"/>
+                <field name="pricing_method"/>
+                <field name="billing_plan_id"/>
+                <field name="duration_value" string="Duration"/>
+                <field name="duration_unit" string="Unit"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="amc_plan_view_form" model="ir.ui.view">
+        <field name="name">amc.plan.form</field>
+        <field name="model">amc.plan</field>
+        <field name="arch" type="xml">
+            <form string="AMC Plan">
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger"
+                            invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. Retail AMC"/></h1>
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        <field name="entitlement_summary" nolabel="1"/>
+                    </div>
+                    <group>
+                        <group string="Service Entitlements (per covered equipment line)"
+                               name="entitlements">
+                            <field name="service_basis"/>
+                            <field name="visit_count"/>
+                            <label for="frequency_value" invisible="service_basis != 'period'"/>
+                            <div class="o_row" invisible="service_basis != 'period'">
+                                <field name="frequency_value"/>
+                                <span>visits per</span>
+                                <field name="frequency_unit"/>
+                            </div>
+                            <label for="usage_interval" invisible="service_basis != 'usage'"/>
+                            <div class="o_row" invisible="service_basis != 'usage'">
+                                <field name="usage_interval"/>
+                                <field name="usage_unit"/>
+                            </div>
+                            <field name="included_free_services"/>
+                            <field name="alert_days"/>
+                        </group>
+                        <group string="Contract Rules" name="contract_rules">
+                            <field name="pricing_method"/>
+                            <field name="billing_plan_id" options="{'no_create': True}"/>
+                            <field name="start_rule"/>
+                            <label for="duration_value"/>
+                            <div class="o_row">
+                                <field name="duration_value"/>
+                                <field name="duration_unit"/>
+                            </div>
+                            <field name="renewal_rule"/>
+                            <field name="activation_trigger" placeholder="Company default"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Applicability" name="applicability">
+                            <group>
+                                <field name="pricelist_ids" widget="many2many_tags"
+                                       options="{'no_create': True}"/>
+                                <field name="product_ids" widget="many2many_tags"
+                                       options="{'no_create': True}"/>
+                                <field name="category_ids" widget="many2many_tags"
+                                       options="{'no_create': True}"/>
+                            </group>
+                        </page>
+                        <page string="Description" name="description">
+                            <field name="description" placeholder="Internal notes about this plan"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="amc_plan_view_search" model="ir.ui.view">
+        <field name="name">amc.plan.search</field>
+        <field name="model">amc.plan</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="product_ids"/>
+                <field name="pricelist_ids"/>
+                <filter name="filter_archived" string="Archived" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="group_pricing" string="Pricing Method"
+                            context="{'group_by': 'pricing_method'}"/>
+                    <filter name="group_billing" string="Billing Plan"
+                            context="{'group_by': 'billing_plan_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_amc_plan" model="ir.actions.act_window">
+        <field name="name">AMC Plans</field>
+        <field name="res_model">amc.plan</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first AMC Plan</p>
+            <p>A plan defines the preventive visits and on-demand services of each covered
+                equipment, the pricing method, the billing plan and the contract rules.</p>
+        </field>
+    </record>
+</odoo>

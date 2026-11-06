@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Approvers named before Part 8.2 also reach the report. -->
+    <function model="res.company" name="_warranty_cost_sync_report_group"/>
+</odoo>

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Part 8.3: no new menu. Warranty Settings is the main interface; the overrides sit on the
+         existing forms. Rights are enforced on the server, the views only follow them. -->
+    <record id="res_config_settings_view_form_warranty_accounting" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.accounting</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management_accounting.res_config_settings_view_form_warranty_cost"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_cost_settings']" position="after">
+                <block title="Warranty Accounting" name="warranty_accounting_settings"
+                       groups="account.group_account_readonly,account.group_account_invoice">
+                    <setting id="warranty_provision_accounting" string="Warranty Provision Accounting"
+                             help="Off by default. It needs the journal and the Warranty Expense and Warranty Provision accounts. When on, posting a warranty sale invoice creates a draft provision entry, which Accounting reviews and posts.">
+                        <field name="warranty_provision_enabled" readonly="not warranty_accounting_can_edit"/>
+                        <field name="warranty_accounting_can_edit" invisible="1"/>
+                        <div class="content-group">
+                            <div class="row"><label for="warranty_provision_method" class="col-lg-4"/>
+                                <field name="warranty_provision_method" required="1"
+                                       readonly="not warranty_accounting_can_edit"/></div>
+                            <div class="row" invisible="warranty_provision_method != 'percentage'">
+                                <label for="warranty_provision_rate" class="col-lg-4"/>
+                                <field name="warranty_provision_rate"
+                                       readonly="not warranty_accounting_can_edit"/></div>
+                            <div class="row" invisible="warranty_provision_method != 'fixed'">
+                                <label for="warranty_provision_amount" class="col-lg-4"/>
+                                <field name="warranty_provision_amount"
+                                       readonly="not warranty_accounting_can_edit"/></div>
+                        </div>
+                    </setting>
+                    <setting id="warranty_accounting_accounts" string="Journal and Accounts"
+                             help="Existing journal and accounts of this company. The Vendor Recovery Account stays under Vendor Claims, and the inspection product and amount stay on the Helpdesk team."
+                             title="Existing journal and accounts of this company. The Vendor Recovery Account stays under Vendor Claims, and the inspection product and amount stay on the Helpdesk team.">
+                        <div class="content-group">
+                            <div class="row"><label for="warranty_accounting_journal_id" class="col-lg-4"/>
+                                <field name="warranty_accounting_journal_id" options="{'no_create': True}"
+                                       readonly="not warranty_accounting_can_edit"/></div>
+                            <div class="row"><label for="warranty_expense_account_id" class="col-lg-4"/>
+                                <field name="warranty_expense_account_id" options="{'no_create': True}"
+                                       readonly="not warranty_accounting_can_edit"/></div>
+                            <div class="row"><label for="warranty_provision_account_id" class="col-lg-4"/>
+                                <field name="warranty_provision_account_id" options="{'no_create': True}"
+                                       readonly="not warranty_accounting_can_edit"/></div>
+                            <div class="row"><label for="warranty_cost_recognition_account_id" class="col-lg-4"/>
+                                <field name="warranty_cost_recognition_account_id" options="{'no_create': True}"
+                                       readonly="not warranty_accounting_can_edit"/></div>
+                            <div class="row"><label for="warranty_accounting_issues" class="col-lg-4"/>
+                                <field name="warranty_accounting_issues"/></div>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_company_form_warranty_accounting" model="ir.ui.view">
+        <field name="name">res.company.form.warranty.accounting</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet" position="after">
+                <chatter/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="product_template_form_view_warranty_provision" model="ir.ui.view">
+        <field name="name">product.template.form.warranty.provision</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="warranty_management.product_template_form_view_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='warranty_configuration']" position="inside">
+                <group string="Warranty Provision" name="warranty_provision"
+                       groups="account.group_account_readonly,account.group_account_invoice">
+                    <group>
+                        <field name="warranty_accounting_can_edit" invisible="1"/>
+                        <field name="warranty_provision_method" placeholder="Use Next Level"
+                               readonly="not warranty_accounting_can_edit"/>
+                        <field name="warranty_provision_rate"
+                               invisible="warranty_provision_method != 'percentage'"
+                               readonly="not warranty_accounting_can_edit"/>
+                        <field name="warranty_provision_amount"
+                               invisible="warranty_provision_method != 'fixed'"
+                               readonly="not warranty_accounting_can_edit"/>
+                    </group>
+                    <group>
+                        <field name="warranty_provision_effective"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="product_category_form_view_warranty_provision" model="ir.ui.view">
+        <field name="name">product.category.form.warranty.provision</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="warranty_management.product_category_form_view_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='free_service_configuration']" position="after">
+                <group string="Warranty Provision" name="warranty_provision"
+                       groups="account.group_account_readonly,account.group_account_invoice">
+                    <group>
+                        <field name="warranty_accounting_can_edit" invisible="1"/>
+                        <field name="warranty_provision_method" placeholder="Use Next Level"
+                               readonly="not warranty_accounting_can_edit"/>
+                        <field name="warranty_provision_rate"
+                               invisible="warranty_provision_method != 'percentage'"
+                               readonly="not warranty_accounting_can_edit"/>
+                        <field name="warranty_provision_amount"
+                               invisible="warranty_provision_method != 'fixed'"
+                               readonly="not warranty_accounting_can_edit"/>
+                    </group>
+                    <group>
+                        <field name="warranty_provision_effective"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_policy_view_form_provision" model="ir.ui.view">
+        <field name="name">warranty.policy.form.provision</field>
+        <field name="model">warranty.policy</field>
+        <field name="inherit_id" ref="warranty_management.warranty_policy_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='service_date_rules']" position="after">
+                <group name="warranty_provision"
+                       groups="account.group_account_readonly,account.group_account_invoice">
+                    <group string="Warranty Provision" name="warranty_provision_left">
+                        <field name="warranty_accounting_can_edit" invisible="1"/>
+                        <field name="warranty_provision_method" placeholder="Use Next Level"
+                               readonly="not warranty_accounting_can_edit"/>
+                        <field name="warranty_provision_rate"
+                               invisible="warranty_provision_method != 'percentage'"
+                               readonly="not warranty_accounting_can_edit"/>
+                        <field name="warranty_provision_amount"
+                               invisible="warranty_provision_method != 'fixed'"
+                               readonly="not warranty_accounting_can_edit"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="helpdesk_team_view_form_warranty_deduction" model="ir.ui.view">
+        <field name="name">helpdesk.team.form.warranty.deduction</field>
+        <field name="model">helpdesk.team</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.helpdesk_team_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='warranty_inspection_amount']/.." position="after">
+                <div class="row">
+                    <field name="warranty_accounting_can_edit" invisible="1"/>
+                    <label for="warranty_inspection_deduction_product_id" class="col-lg-4 o_light_label"/>
+                    <field name="warranty_inspection_deduction_product_id"
+                           readonly="not warranty_accounting_can_edit"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

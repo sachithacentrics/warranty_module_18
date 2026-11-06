@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.6: actual consumption, unused / customer returns, Cancel Remaining. -->
+    <record id="warranty_mrf_consumption_view_list" model="ir.ui.view">
+        <field name="name">warranty.mrf.consumption.list</field>
+        <field name="model">warranty.mrf.consumption</field>
+        <field name="arch" type="xml">
+            <list string="Material Usage" create="false" edit="false" delete="false"
+                  decoration-muted="state == 'reversed'">
+                <field name="date"/>
+                <field name="requisition_id" optional="show"/>
+                <field name="job_id" optional="hide"/>
+                <field name="task_id" optional="hide"/>
+                <field name="kind" widget="badge"/>
+                <field name="product_id"/>
+                <field name="qty"/>
+                <field name="uom_id"/>
+                <field name="lot_names" optional="show"/>
+                <field name="transfer_ref" optional="show"/>
+                <field name="user_id" optional="show"/>
+                <field name="note" optional="hide"/>
+                <field name="state" widget="badge" decoration-muted="state == 'reversed'"/>
+                <field name="can_reverse" column_invisible="1"/>
+                <button name="action_open_reverse" type="object" string="Reverse" icon="fa-undo"
+                        invisible="not can_reverse"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_consumption_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.consumption.form</field>
+        <field name="model">warranty.mrf.consumption</field>
+        <field name="arch" type="xml">
+            <form string="Material Usage" create="false" edit="false" delete="false">
+                <header>
+                    <field name="can_reverse" invisible="1"/>
+                    <button name="action_open_reverse" type="object" string="Reverse"
+                            invisible="not can_reverse"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="kind"/>
+                            <field name="product_id"/>
+                            <label for="qty"/>
+                            <div class="o_row">
+                                <field name="qty"/>
+                                <field name="uom_id"/>
+                            </div>
+                            <field name="lot_names"/>
+                            <field name="transfer_ref" invisible="not transfer_ref"/>
+                            <field name="lot_ids" widget="many2many_tags" groups="stock.group_stock_user,industry_fsm.group_fsm_user"/>
+                            <field name="move_ids" widget="many2many_tags" invisible="not move_ids" groups="stock.group_stock_user,industry_fsm.group_fsm_user"/>
+                            <field name="picking_id" invisible="not picking_id" groups="stock.group_stock_user,industry_fsm.group_fsm_user"/>
+                        </group>
+                        <group>
+                            <field name="requisition_id"/>
+                            <field name="case_id"/>
+                            <field name="job_id"/>
+                            <field name="task_id"/>
+                            <field name="user_id"/>
+                            <field name="date"/>
+                        </group>
+                    </group>
+                    <group string="Notes / Reason">
+                        <field name="note" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Reversal" invisible="state != 'reversed'">
+                        <field name="reversed_by_id"/>
+                        <field name="reversed_date"/>
+                        <field name="reverse_reason"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Material Request: actions, quantities, usage history. -->
+    <record id="material_purchase_requisition_view_form_consumption" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.warranty.consumption</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="can_warranty_record_usage" invisible="1"/>
+                <field name="can_warranty_return_unused" invisible="1"/>
+                <field name="can_warranty_customer_resolve" invisible="1"/>
+                <field name="can_warranty_cancel_remaining" invisible="1"/>
+                <button name="action_warranty_record_usage" type="object" string="Confirm Material Usage"
+                        class="btn-primary" invisible="not can_warranty_record_usage"/>
+                <button name="action_warranty_return_unused" type="object" string="Return Unused"
+                        invisible="not can_warranty_return_unused"/>
+                <button name="action_warranty_customer_keep" type="object" string="Customer Keeps"
+                        invisible="not can_warranty_customer_resolve"/>
+                <button name="action_warranty_customer_return" type="object" string="Customer Return"
+                        invisible="not can_warranty_customer_resolve"/>
+                <button name="action_warranty_cancel_remaining" type="object" string="Cancel Remaining"
+                        invisible="not can_warranty_cancel_remaining"/>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <field name="warranty_return_picking_count" invisible="1"/>
+                <button name="action_view_warranty_returns" type="object" class="oe_stat_button"
+                        icon="fa-undo" invisible="not warranty_return_picking_count">
+                    <field name="warranty_return_picking_count" widget="statinfo" string="Returns"/>
+                </button>
+            </xpath>
+            <xpath expr="//field[@name='requisition_line_ids']/list/field[@name='issue_state']" position="after">
+                <field name="used_qty" string="Used" readonly="1" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="warranty_unused_qty" readonly="1" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="kept_qty" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="returned_qty" readonly="1" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="in_return_qty" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="cancelled_qty" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="to_reconcile_qty" string="Remaining to Return" readonly="1" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="reconcile_state" widget="badge" optional="show" column_invisible="not parent.is_warranty_mrf"
+                       decoration-success="reconcile_state == 'reconciled'"
+                       decoration-info="reconcile_state == 'return_pending'"
+                       decoration-warning="reconcile_state == 'open'"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Material Usage" name="warranty_material_usage" invisible="not is_warranty_mrf">
+                    <div class="alert alert-warning" role="alert" invisible="not warranty_material_issues">
+                        <strong>Open material items (they block the completion of the service job):</strong>
+                        <field name="warranty_material_issues" class="d-block" readonly="1"/>
+                    </div>
+                    <field name="warranty_consumption_ids" readonly="1"
+                           context="{'list_view_ref': 'warranty_management_mrf.warranty_mrf_consumption_view_list'}"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Service job: Materials tab (E-14) and actions. -->
+    <record id="warranty_service_job_view_form_materials" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.materials</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="can_warranty_record_usage" invisible="1"/>
+                <button name="action_warranty_record_usage" type="object" string="Confirm Material Usage"
+                        invisible="not can_warranty_record_usage"/>
+                <button name="action_warranty_return_unused" type="object" string="Return Unused"
+                        invisible="not can_warranty_record_usage"/>
+            </xpath>
+            <xpath expr="//notebook[@name='notebook']" position="inside">
+                <page string="Materials" name="warranty_materials" invisible="not material_request_count">
+                    <div class="alert alert-warning" role="alert" invisible="not warranty_material_issues">
+                        <strong>Open material items (completion is blocked until they are resolved):</strong>
+                        <field name="warranty_material_issues" class="d-block" readonly="1"/>
+                    </div>
+                    <field name="warranty_material_line_ids" readonly="1">
+                        <list create="false" edit="false" delete="false">
+                            <field name="requisition_id"/>
+                            <field name="product_id"/>
+                            <field name="coverage_type" widget="badge" optional="show"/>
+                            <field name="qty" string="Requested"/>
+                            <field name="approved_qty" optional="show"/>
+                            <field name="issued_qty" string="Issued / Delivered"/>
+                            <field name="used_qty"/>
+                            <field name="kept_qty" optional="hide"/>
+                            <field name="returned_qty"/>
+                            <field name="in_return_qty" optional="hide"/>
+                            <field name="cancelled_qty" optional="hide"/>
+                            <field name="to_reconcile_qty"/>
+                            <field name="uom" optional="show"/>
+                            <field name="reconcile_state" widget="badge"
+                                   decoration-success="reconcile_state == 'reconciled'"
+                                   decoration-info="reconcile_state == 'return_pending'"
+                                   decoration-warning="reconcile_state == 'open'"/>
+                        </list>
+                    </field>
+                    <separator string="Material Usage History"/>
+                    <field name="warranty_consumption_ids" readonly="1"
+                           context="{'list_view_ref': 'warranty_management_mrf.warranty_mrf_consumption_view_list'}"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Warranty visit: actions and its usage records (E-14). -->
+    <record id="project_task_view_form_warranty_consumption" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.consumption</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="can_warranty_record_usage" invisible="1"/>
+                <button name="action_warranty_record_usage" type="object" string="Confirm Material Usage"
+                        invisible="not warranty_service_job_id or not can_warranty_record_usage or state in ('1_done', '1_canceled')"/>
+                <button name="action_warranty_return_unused" type="object" string="Return Unused"
+                        invisible="not warranty_service_job_id or not can_warranty_record_usage or state in ('1_done', '1_canceled')"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Material Usage" name="warranty_material_usage" invisible="not warranty_service_job_id">
+                    <field name="warranty_consumption_ids" readonly="1"
+                           context="{'list_view_ref': 'warranty_management_mrf.warranty_mrf_consumption_view_list'}"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- E-15 (D18): no Field Service Products on warranty visits (also refused server-side). -->
+    <record id="project_task_view_form_warranty_no_products" model="ir.ui.view">
+        <field name="name">project.task.form.warranty.no.products</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="industry_fsm_sale.view_task_form2_inherit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_fsm_view_material']" position="attributes">
+                <attribute name="invisible" add="warranty_service_job_id" separator=" or "/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Wizards. -->
+    <record id="warranty_mrf_material_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.material.wizard.form</field>
+        <field name="model">warranty.mrf.material.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Material Usage / Returns">
+                <field name="mode" invisible="1"/>
+                <field name="reason_required" invisible="1"/>
+                <group>
+                    <field name="requisition_ids" widget="many2many_tags"/>
+                    <field name="job_id" invisible="not job_id"/>
+                    <field name="task_id" invisible="not task_id"/>
+                </group>
+                <p class="text-muted" invisible="mode != 'use'">Enter the quantity used (covered parts are moved from
+                    the technician location to Warranty Consumption) or installed (customer-paid parts, no second stock
+                    movement), with the serial / lot numbers of tracked parts.</p>
+                <p class="text-muted" invisible="mode != 'full'">Every remaining issued / delivered quantity is recorded
+                    as used / installed with the remaining serial / lot numbers. Stock and serial numbers are checked.</p>
+                <p class="text-muted" invisible="mode != 'return'">One return transfer from the technician location
+                    to the store is created; the store validates it.</p>
+                <p class="text-muted" invisible="mode != 'keep'">Delivered customer-paid parts that were not installed
+                    stay with the customer (no stock movement).</p>
+                <p class="text-muted" invisible="mode != 'customer_return'">A standard return of the quotation delivery
+                    is created (validated by the store); the quotation quantities are updated for the credit note.</p>
+                <p class="text-muted" invisible="mode != 'cancel'">The approved quantity that is not issued and not on
+                    an open transfer or purchase order is cancelled; the approval history is kept.</p>
+                <field name="line_ids" nolabel="1">
+                    <list editable="bottom" create="0" delete="0">
+                        <field name="line_id" column_invisible="1" force_save="1"/>
+                        <field name="tracking" column_invisible="1"/>
+                        <field name="available_lot_ids" column_invisible="1"/>
+                        <field name="requisition_id" readonly="1" optional="hide"/>
+                        <field name="product_id" readonly="1"/>
+                        <field name="coverage_type" readonly="1" optional="show"/>
+                        <field name="issued_qty" readonly="1"/>
+                        <field name="max_qty" string="Available" readonly="1" force_save="1"/>
+                        <field name="qty" readonly="parent.mode == 'full'"/>
+                        <field name="uom_id" readonly="1"/>
+                        <field name="lot_ids" widget="many2many_tags" readonly="parent.mode in ('full', 'cancel') or tracking == 'none'"
+                               domain="[('id', 'in', available_lot_ids)]" options="{'no_create': True}"/>
+                    </list>
+                </field>
+                <group>
+                    <field name="note" required="reason_required" string="Notes / Reason"/>
+                    <field name="confirm_full" invisible="mode != 'full'" required="mode == 'full'"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Apply" class="btn-primary"
+                            invisible="mode == 'full'"/>
+                    <button name="action_apply" type="object" string="Confirm Full Consumption" class="btn-primary"
+                            invisible="mode != 'full'"
+                            confirm="Record every remaining issued / delivered part as used or installed?"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Confirm Material Usage: one row per line; quantities and checks of the request methods. -->
+    <record id="warranty_mrf_usage_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.material.wizard.usage.form</field>
+        <field name="model">warranty.mrf.material.wizard</field>
+        <field name="priority">32</field>
+        <field name="arch" type="xml">
+            <form string="Confirm Material Usage">
+                <group>
+                    <field name="requisition_ids" widget="many2many_tags"/>
+                    <field name="job_id" invisible="not job_id"/>
+                    <field name="task_id" invisible="not task_id"/>
+                </group>
+                <p class="text-muted">Enter what was actually used now on each line (tracked parts: with their
+                    serial / lot numbers). What is left unused is not returned until you use Return Unused and the
+                    store validates the transfer. A wrong entry is corrected with Reverse in Material Usage.</p>
+                <field name="line_ids" nolabel="1">
+                    <list editable="bottom" create="0" delete="0">
+                        <field name="line_id" column_invisible="1" force_save="1"/>
+                        <field name="tracking" column_invisible="1"/>
+                        <field name="available_lot_ids" column_invisible="1"/>
+                        <field name="requisition_id" readonly="1" optional="hide"/>
+                        <field name="product_id" readonly="1" width="180px"/>
+                        <field name="requested_qty" readonly="1"/>
+                        <field name="issued_qty" readonly="1"/>
+                        <field name="used_qty" readonly="1"/>
+                        <field name="returned_qty" readonly="1" optional="hide"/>
+                        <field name="max_qty" string="Available" readonly="1" force_save="1"/>
+                        <field name="qty" string="Used Now"/>
+                        <field name="left_unused_qty" readonly="1"/>
+                        <field name="uom_id" readonly="1" optional="hide"/>
+                        <field name="lot_ids" widget="many2many_tags" readonly="tracking == 'none'"
+                               domain="[('id', 'in', available_lot_ids)]" options="{'no_create': True}"/>
+                    </list>
+                </field>
+                <group>
+                    <field name="note" string="Notes"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Confirm Material Usage" class="btn-primary"/>
+                    <button name="action_all_used" type="object" string="All Parts Were Used"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_reverse_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.reverse.wizard.form</field>
+        <field name="model">warranty.mrf.reverse.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reverse Material Entry">
+                <group>
+                    <field name="consumption_id"/>
+                    <field name="reason" placeholder="Why is this entry wrong?"/>
+                </group>
+                <p class="text-muted">Used parts are moved back to the technician location. The entry is kept
+                    as Reversed (audit history).</p>
+                <footer>
+                    <button name="action_reverse" type="object" string="Reverse" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_cancel_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.cancel.wizard.form</field>
+        <field name="model">warranty.mrf.cancel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cancel Material Request">
+                <group>
+                    <field name="requisition_id"/>
+                    <field name="reason" placeholder="Why are these materials no longer requested?"/>
+                </group>
+                <footer>
+                    <button name="action_cancel" type="object" string="Cancel Request" class="btn-primary"/>
+                    <button string="Close" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Settings (E-4). -->
+    <record id="res_config_settings_view_form_warranty_mrf_consumption" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.mrf.consumption</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management_mrf.res_config_settings_view_form_warranty_mrf"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_mrf_settings']" position="inside">
+                <setting id="warranty_mrf_consumption_location" string="Warranty Consumption Location"
+                         help="Where parts used on warranty jobs are recorded as consumed. If empty, a location is created automatically the first time parts are used.">
+                    <field name="warranty_mrf_consumption_location_id" options="{'no_create': True}"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

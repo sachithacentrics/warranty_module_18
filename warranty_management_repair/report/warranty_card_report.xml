@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- SRS 9.10 step 7, 11 step 9: the existing report, with Updated Copy and the labels. The
+         panels already print the current serial and the unit dates. -->
+    <template id="report_warranty_card_document_replacement"
+              inherit_id="warranty_management.report_warranty_card_document">
+        <xpath expr="//div[@name='warranty_card_notice']" position="inside">
+            <div t-if="card.warranty_replacement_updated" class="wc-updated">Updated Copy after replacement</div>
+        </xpath>
+        <xpath expr="//span[@name='warranty_card_start_label']" position="replace">
+            <span t-if="card.warranty_replacement_dates_changed">Original Start Date :</span>
+            <span t-else="">Start Date :</span>
+        </xpath>
+        <xpath expr="//span[@name='warranty_card_end_label']" position="replace">
+            <span t-if="card.warranty_replacement_dates_changed">Original End Date :</span>
+            <span t-else="">End Date :</span>
+        </xpath>
+        <xpath expr="//div[@name='warranty_card_internal']" position="inside">
+            <t t-set="serial_rows" t-value="[row for row in card._warranty_replacement_serial_date_rows() if not unit or row['unit'] == unit.name]"/>
+            <table t-if="serial_rows" class="wc-rows-small">
+                <thead>
+                    <tr>
+                        <th>Warranty Number</th>
+                        <th>Component</th>
+                        <th>Serial</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="serial_rows" t-as="row">
+                        <td><span t-esc="row['unit']"/></td>
+                        <td><span t-esc="row['role']"/></td>
+                        <td><span t-esc="row['serial']"/></td>
+                        <td><span t-esc="row['start']" t-options="{'widget': 'date'}"/></td>
+                        <td><span t-esc="row['end']" t-options="{'widget': 'date'}"/></td>
+                    </tr>
+                </tbody>
+            </table>
+        </xpath>
+    </template>
+</odoo>

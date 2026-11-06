@@ -266,6 +266,28 @@ class WarrantyServiceEntitlement(models.Model):
                 entitlement.with_context(warranty_due_date_audited=True).write(update)
 
 
+    def _warranty_recalculate_due_dates(self, reason):
+        """D10: due dates recalculated from the corrected warranty start date (eligible
+        entitlements selected by warranty.card._warranty_correction_entitlements); each change
+        is recorded in the due date history like a manual change. Returns the changed ones."""
+        changed = self.browse()
+        for entitlement in self:
+            due = entitlement.warranty_card_id._get_free_service_due_values(
+                entitlement.service_no)['due_date']
+            if not due or due == entitlement.due_date:
+                continue
+            self.env['warranty.service.entitlement.date.log'].create({
+                'entitlement_id': entitlement.id,
+                'previous_due_date': entitlement.due_date,
+                'new_due_date': due,
+                'reason': reason,
+            })
+            entitlement.with_context(warranty_due_date_audited=True).write({'due_date': due})
+            entitlement._reschedule_system_activities()
+            entitlement._update_due_status()
+            changed |= entitlement
+        return changed
+
     def _is_monitored(self):
         """Period-based services of confirmed cards with monitoring active and a due date.
         Usage-based monitoring needs usage readings, which are not available yet."""
@@ -532,7 +554,7 @@ class WarrantyServiceEntitlement(models.Model):
         due indicator, due alerts, expiry reminders, then the Missed / Expired transitions.
         Completed, Cancelled and Expired entitlements are never changed."""
         monitored = self.search([
-            ('warranty_card_id.state', '=', 'confirmed'),
+            ('warranty_card_id.state', 'in', ('confirmed', 'expired')),
             ('warranty_card_id.service_monitoring_active', '=', True),
             ('warranty_card_id.warranty_basis', '=', 'period'),
             ('due_date', '!=', False),

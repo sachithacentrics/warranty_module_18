@@ -6,31 +6,39 @@
         <field name="model">res.config.settings</field>
         <field name="inherit_id" ref="warranty_management.res_config_settings_view_form_warranty"/>
         <field name="arch" type="xml">
-            <xpath expr="//block[@name='warranty_general_settings']" position="inside">
+            <xpath expr="//block[@name='warranty_general_settings']" position="after">
+                <block title="Field Service Visits" name="warranty_field_service_settings">
                 <setting id="warranty_fsm_project" string="Warranty Field Service Project"
-                         help="Field Service project of the warranty visits (empty: the company's standard Field Service project)">
+                         help="The Field Service project that receives the warranty visits. If empty, the company's standard Field Service project is used.">
                     <field name="warranty_fsm_project_id" options="{'no_create': True}"/>
                 </setting>
                 <!-- Phase 4.7 (approved K2 / K3): warranty visit completion checks. -->
+                <setting id="warranty_inspection_template_id" string="Inspection Worksheet Template"
+                         help="Worksheet used by the inspection visit of a warranty case whose Case Type is not known yet. If empty, the product's or the project's worksheet is used.">
+                    <field name="warranty_inspection_template_id"/>
+                </setting>
                 <setting id="warranty_signoff_required" string="Customer Sign-off Required"
-                         help="Complete Visit needs the customer's signature (Sign Report)">
+                         help="If enabled, a warranty visit or a warranty installation task can only be completed after the customer signs the report. If disabled, they can be completed without a signature.">
                     <field name="warranty_signoff_required"/>
                 </setting>
                 <setting id="warranty_worksheet_checklist_required" string="Worksheet Checklist Required"
-                         help="Complete Visit needs every worksheet checklist filled in, with its required answers">
+                         help="If enabled, every worksheet checklist must be fully answered before the visit is completed. If disabled, the checklist can be left incomplete.">
                     <field name="warranty_worksheet_checklist_required"/>
                 </setting>
                 <setting id="warranty_worksheet_attachment_required" string="Worksheet Attachment Required"
-                         help="Complete Visit needs at least one attachment on every worksheet">
+                         help="If enabled, every worksheet needs at least one attachment, such as a photo, before the visit is completed. If disabled, attachments are optional.">
                     <field name="warranty_worksheet_attachment_required"/>
                 </setting>
+                </block>
+            </xpath>
+            <xpath expr="//block[@name='warranty_free_service_settings']" position="inside">
                 <!-- Phase 4.11 (approved E4 / E10): automatic Draft Job from Service. -->
                 <setting id="warranty_draft_job_team" string="Draft Job Helpdesk Team"
-                         help="Helpdesk team of the tickets created for the free services of cards with Draft Job from Service">
+                         help="The Helpdesk team that receives the tickets created automatically for due free services (warranty policies with Draft Job from Service). Required for these automatic jobs.">
                     <field name="warranty_draft_job_team_id" options="{'no_create': True}"/>
                 </setting>
                 <setting id="warranty_draft_job_user" string="Draft Job Automation User"
-                         help="Helpdesk user who creates and checks the automatic tickets, warranty cases and draft service jobs (never approves)">
+                         help="The user who creates and checks the automatic tickets, warranty cases and draft service jobs for due free services. This user never approves them. Required for these automatic jobs.">
                     <field name="warranty_draft_job_user_id" options="{'no_create': True}"/>
                 </setting>
             </xpath>

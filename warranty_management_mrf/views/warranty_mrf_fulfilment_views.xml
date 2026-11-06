@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.5: availability, issue, purchasing, receipts and backorders. -->
+    <record id="material_purchase_requisition_view_form_fulfilment" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.warranty.fulfilment</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='request_stock']" position="after">
+                <field name="can_warranty_fulfil" invisible="1"/>
+                <button name="action_warranty_fulfil" type="object" string="Issue / Purchase Remaining"
+                        class="btn-primary" invisible="state != 'stock' or not can_warranty_fulfil"
+                        groups="material_purchase_requisitions.group_purchase_requisition_user,stock.group_stock_user"/>
+            </xpath>
+            <xpath expr="//field[@name='approval_status']" position="after">
+                <field name="issue_progress" invisible="not issue_progress"/>
+            </xpath>
+            <xpath expr="//field[@name='requisition_line_ids']/list/field[@name='chargeable_state']" position="after">
+                <field name="approved_qty" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="available_qty" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="availability" widget="badge" optional="show" column_invisible="not parent.is_warranty_mrf"
+                       decoration-success="availability == 'available'"
+                       decoration-warning="availability == 'partial'"
+                       decoration-danger="availability == 'unavailable'"/>
+                <field name="in_issue_qty" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="issued_qty" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="outstanding_qty" optional="show" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="purchased_qty" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="received_qty" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+                <field name="issue_state" widget="badge" optional="show" column_invisible="not parent.is_warranty_mrf"
+                       decoration-success="issue_state == 'issued'" decoration-warning="issue_state == 'partial'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="material_purchase_requisition_view_search_fulfilment" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.search.warranty.fulfilment</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <filter string="Partially Issued" name="partially_issued"
+                        domain="[('warranty_mrf_status', '=', 'partially_issued')]"/>
+                <filter string="To Issue" name="to_issue"
+                        domain="[('warranty_mrf_status', 'in', ('approved', 'released', 'partially_issued'))]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form_material_status" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.material.status</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/*[1]" position="before">
+                <field name="material_shortage" invisible="1"/>
+                <div class="alert alert-warning" role="alert"
+                     invisible="not material_shortage or state not in ('confirmed', 'rescheduled', 'in_progress')">
+                    Material shortage on a Material Request of this job: consider putting the job on
+                    Awaiting Parts until the materials are issued.
+                </div>
+            </xpath>
+            <xpath expr="//group[@name='right']" position="inside">
+                <field name="material_status" invisible="material_status == 'none'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="stock_picking_view_form_warranty_mrf" model="ir.ui.view">
+        <field name="name">stock.picking.form.warranty.mrf</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='origin']" position="after">
+                <field name="warranty_mrf_id" invisible="not warranty_mrf_id"/>
+                <field name="warranty_mrf_case_id" invisible="not warranty_mrf_case_id"/>
+                <field name="warranty_mrf_job_id" invisible="not warranty_mrf_job_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="purchase_order_view_form_warranty_mrf" model="ir.ui.view">
+        <field name="name">purchase.order.form.warranty.mrf</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_ref']" position="after">
+                <field name="warranty_mrf_case_id" invisible="not warranty_mrf_case_id"/>
+                <field name="warranty_mrf_job_id" invisible="not warranty_mrf_job_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

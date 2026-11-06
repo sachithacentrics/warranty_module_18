@@ -1,0 +1,15 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_warranty_cost_line_helpdesk,warranty.cost.line helpdesk,model_warranty_cost_line,helpdesk.group_helpdesk_user,1,1,1,1
+access_warranty_cost_line_requisition,warranty.cost.line requisition,model_warranty_cost_line,material_purchase_requisitions.group_purchase_requisition_user,1,0,0,0
+access_warranty_cost_line_account_readonly,warranty.cost.line account readonly,model_warranty_cost_line,account.group_account_readonly,1,0,0,0
+access_warranty_cost_line_billing,warranty.cost.line billing,model_warranty_cost_line,account.group_account_invoice,1,1,0,0
+access_warranty_cost_line_purchase,warranty.cost.line purchase,model_warranty_cost_line,purchase.group_purchase_user,1,1,0,0
+access_warranty_cost_line_user,warranty.cost.line user,model_warranty_cost_line,base.group_user,1,0,0,0
+access_warranty_cost_line_wizard,warranty.cost.line.wizard,model_warranty_cost_line_wizard,base.group_user,1,1,1,1
+access_warranty_cost_report_helpdesk,warranty.cost.report helpdesk,model_warranty_cost_report,helpdesk.group_helpdesk_user,1,0,0,0
+access_warranty_cost_report_requisition,warranty.cost.report requisition,model_warranty_cost_report,material_purchase_requisitions.group_purchase_requisition_user,1,0,0,0
+access_warranty_cost_report_account_readonly,warranty.cost.report account readonly,model_warranty_cost_report,account.group_account_readonly,1,0,0,0
+access_warranty_cost_report_billing,warranty.cost.report billing,model_warranty_cost_report,account.group_account_invoice,1,0,0,0
+access_warranty_cost_report_approver,warranty.cost.report named approver,model_warranty_cost_report,group_warranty_cost_report,1,0,0,0
+access_warranty_reserve_report_account_readonly,warranty.reserve.report account readonly,model_warranty_reserve_report,account.group_account_readonly,1,0,0,0
+access_warranty_reserve_report_billing,warranty.reserve.report billing,model_warranty_reserve_report,account.group_account_invoice,1,0,0,0

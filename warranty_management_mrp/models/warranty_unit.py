@@ -25,6 +25,22 @@ class WarrantyUnit(models.Model):
         help="The Indoor / Outdoor serial numbers were changed by a user; later deliveries "
              "never change them.")
 
+    # Display only: views cannot call the Kit BoM methods. sudo: Helpdesk users may have no Sales,
+    # Inventory or Manufacturing rights.
+    warranty_show_indoor_serial = fields.Boolean(compute='_compute_warranty_show_serials',
+                                                 compute_sudo=True)
+    warranty_show_outdoor_serial = fields.Boolean(compute='_compute_warranty_show_serials',
+                                                  compute_sudo=True)
+
+    @api.depends('product_id', 'sale_order_line_id', 'indoor_serial_id', 'outdoor_serial_id')
+    def _compute_warranty_show_serials(self):
+        """A role of the unit's Kit BoM, or a serial already recorded (it stays visible)."""
+        for unit in self:
+            bom = unit._warranty_kit_bom()
+            roles = bom._warranty_role_lines() if bom else {}
+            unit.warranty_show_indoor_serial = 'indoor' in roles or bool(unit.indoor_serial_id)
+            unit.warranty_show_outdoor_serial = 'outdoor' in roles or bool(unit.outdoor_serial_id)
+
     def _warranty_kit_bom(self):
         """Kit BoM of the unit's product: the BoM its Sales Order line was delivered with,
         else the product's current Kit BoM."""
@@ -103,6 +119,11 @@ class WarrantyUnit(models.Model):
         if role_fields:
             self._sync_kit_serials(previous)
         return result
+
+    def _warranty_units_to_check_on_write(self):
+        """Kit serials have their own check (K4), which allows a swap in one save; confirmation
+        still runs the common check."""
+        return self.filtered(lambda unit: not unit.indoor_serial_id and not unit.outdoor_serial_id)
 
     def _sync_kit_serials(self, previous):
         """Serial(s) of the unit = its Indoor / Outdoor serials; a single-unit card shows them

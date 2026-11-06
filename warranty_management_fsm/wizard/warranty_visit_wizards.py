@@ -31,6 +31,9 @@ class WarrantyVisitNoncompletionWizard(models.TransientModel):
 
     task_id = fields.Many2one('project.task', string='Visit', required=True, readonly=True,
                               ondelete='cascade')
+    # Shared visit (approved Q5): the service job reported as not completed.
+    job_id = fields.Many2one('warranty.service.job', string='Service Job', readonly=True,
+                             ondelete='cascade')
     reason = fields.Selection(NONCOMPLETION_REASONS, string='Non-completion Reason',
                               required=True)
     notes = fields.Text(string='Notes', required=True)
@@ -44,7 +47,7 @@ class WarrantyVisitNoncompletionWizard(models.TransientModel):
 
     def _job(self):
         # sudo: the visit's job (Helpdesk users may not read Field Service tasks).
-        return self.task_id.sudo().warranty_service_job_id.with_env(self.env)
+        return self.job_id or self.task_id.sudo().warranty_service_job_id.with_env(self.env)
 
     @api.depends_context('uid')
     @api.depends('task_id')

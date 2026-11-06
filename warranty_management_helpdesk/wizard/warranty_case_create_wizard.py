@@ -1,7 +1,6 @@
 from odoo import api, fields, models
 from odoo.tools import html2plaintext
 
-from odoo.addons.warranty_management.models.res_company import FREE_SERVICE_SCOPE_MODES
 
 from ..models.warranty_case import CASE_PRIORITIES, CASE_TYPES
 
@@ -18,19 +17,27 @@ class WarrantyCaseCreateWizard(models.TransientModel):
     partner_id = fields.Many2one(related='helpdesk_ticket_id.partner_id', string='Customer')
     commercial_partner_id = fields.Many2one(
         related='helpdesk_ticket_id.partner_id.commercial_partner_id')
-    case_type = fields.Selection(CASE_TYPES, string='Case Type', required=True)
+    # Optional Case Type (approved 2026-10-29): empty = to be determined by an inspection.
+    case_type = fields.Selection(CASE_TYPES, string='Case Type')
     customer_complaint = fields.Text(
         string='Customer Complaint', compute='_compute_from_ticket', store=True,
         readonly=False)
     site_id = fields.Many2one(
         'res.partner', string='Site', compute='_compute_from_ticket', store=True,
         readonly=False, domain="[('id', 'child_of', commercial_partner_id)]")
+    # The ticket's site address, shown instead of the Site; copied to the case and its job.
+    site_address = fields.Char(string='Site Address', compute='_compute_from_ticket', store=True,
+                               readonly=False)
     product_id = fields.Many2one(
         'product.product', string='Product', compute='_compute_from_ticket', store=True,
         readonly=False)
     serial_id = fields.Many2one(
         'stock.lot', string='Serial No.', compute='_compute_from_ticket', store=True,
-        readonly=False, domain="[('product_id', '=', product_id)] if product_id else []")
+        readonly=False,
+        domain="['|', ('product_id', '=', product_id), ('id', 'in', warranty_unit_serial_ids)] "
+               "if product_id else []")
+    warranty_unit_serial_ids = fields.Many2many(
+        'stock.lot', string='Unit Serials', compute='_compute_warranty_unit_serials')
     priority = fields.Selection(
         CASE_PRIORITIES, string='Priority', compute='_compute_from_ticket', store=True,
         readonly=False)
@@ -42,27 +49,26 @@ class WarrantyCaseCreateWizard(models.TransientModel):
         domain="[('id', 'in', available_service_ids)]")
     merged_adhoc_request = fields.Boolean(string='Merged Ad-hoc Request')
     merged_adhoc_description = fields.Text(string='Ad-hoc Request')
-    # Free service UI shown only when the company's Warranty Scope Mode includes free
-    # services (approved; display only, nothing stored).
-    warranty_free_services_enabled = fields.Boolean(
-        compute='_compute_warranty_free_services_enabled')
-
-    @api.depends('helpdesk_ticket_id.company_id.warranty_scope_mode')
-    def _compute_warranty_free_services_enabled(self):
-        for record in self:
-            record.warranty_free_services_enabled = \
-                record.helpdesk_ticket_id.company_id.warranty_scope_mode in FREE_SERVICE_SCOPE_MODES
 
     @api.depends('helpdesk_ticket_id')
     def _compute_from_ticket(self):
         for wizard in self:
             ticket = wizard.helpdesk_ticket_id
             wizard.site_id = ticket.warranty_site_id
+            wizard.site_address = ticket.warranty_site_address
             wizard.product_id = ticket.warranty_product_id
             wizard.serial_id = ticket.warranty_serial_id
             wizard.priority = ticket.priority or '1'
             wizard.customer_complaint = html2plaintext(ticket.description or '').strip() \
                 or ticket.name
+
+    @api.depends('helpdesk_ticket_id', 'product_id')
+    def _compute_warranty_unit_serials(self):
+        Case = self.env['warranty.case']
+        for wizard in self:
+            ticket = wizard.helpdesk_ticket_id
+            wizard.warranty_unit_serial_ids = Case._warranty_unit_serials(
+                ticket.partner_id, ticket.company_id, wizard.product_id)
 
     @api.depends('partner_id', 'site_id', 'product_id', 'serial_id')
     def _compute_available_service_ids(self):
@@ -87,11 +93,13 @@ class WarrantyCaseCreateWizard(models.TransientModel):
 
     def action_create(self):
         self.ensure_one()
+        self.helpdesk_ticket_id._warranty_check_case_creation()
         case = self.env['warranty.case'].create({
             'helpdesk_ticket_id': self.helpdesk_ticket_id.id,
             'case_type': self.case_type,
             'customer_complaint': self.customer_complaint,
             'site_id': self.site_id.id,
+            'warranty_site_address': self.site_address,
             'product_id': self.product_id.id,
             'serial_id': self.serial_id.id,
             'priority': self.priority,

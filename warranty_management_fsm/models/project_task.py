@@ -50,10 +50,20 @@ class ProjectTask(models.Model):
     warranty_noncompletion_notes = fields.Text(string='Non-completion Notes', readonly=True,
                                                copy=False)
 
+    # A warranty visit: of one Service Job, or a shared Field Service visit of several
+    # (warranty_shared_visit.py; same locks and customer-email rules).
+    warranty_is_visit = fields.Boolean(compute='_compute_warranty_is_visit', compute_sudo=True)
+
     # Standard Worksheet buttons only for a single task-hosted instance (approved W4 and
     # shared-worksheet fix); otherwise the Worksheets list of the instances.
     warranty_hide_standard_worksheet = fields.Boolean(
         compute='_compute_warranty_worksheet_count', compute_sudo=True)
+
+    @api.depends('warranty_service_job_id', 'warranty_shared_job_ids')
+    def _compute_warranty_is_visit(self):
+        for task in self:
+            task.warranty_is_visit = bool(task.warranty_service_job_id
+                                          or task.warranty_shared_job_ids)
 
     @api.depends('warranty_worksheet_ids.template_id')
     def _compute_warranty_worksheet_count(self):
@@ -71,7 +81,7 @@ class ProjectTask(models.Model):
             closing |= self.filtered(lambda task: task.state != vals['state'])
         if vals.get('fsm_done'):
             closing |= self.filtered(lambda task: not task.fsm_done)
-        return closing.filtered('warranty_service_job_id')
+        return closing.filtered('warranty_is_visit')
 
     def _warranty_check_closure(self, tasks):
         if tasks and self.env.context.get('warranty_close_marker') is not _WARRANTY_CLOSE_MARKER:
@@ -109,7 +119,7 @@ class ProjectTask(models.Model):
         # Approved K2: the customer sign-off of a warranty visit is the standard Sign Report
         # signature (portal, written with sudo); no direct UI / API write by users.
         if SIGNOFF_FIELDS & set(vals) and not self.env.su \
-                and self.filtered('warranty_service_job_id'):
+                and self.filtered('warranty_is_visit'):
             raise UserError(_("The customer sign-off of a warranty visit is captured with Sign "
                               "Report."))
         return super().write(vals)
@@ -119,7 +129,7 @@ class ProjectTask(models.Model):
         keeps its planned date and deadline as visit history: the standard unscheduling of
         cancelled future tasks (project_enterprise) is not applied to warranty visits (they have
         no recurrence, the other effect of this method)."""
-        visits = self.filtered(lambda task: task.warranty_service_job_id
+        visits = self.filtered(lambda task: task.warranty_is_visit
                                and task.state == '1_canceled')
         return super(ProjectTask, self - visits)._inverse_state()
 
@@ -128,7 +138,7 @@ class ProjectTask(models.Model):
         names = LOCKED_VISIT_FIELDS & set(vals)
         if not names:
             return self.browse()
-        closed = self.filtered(lambda task: task.warranty_service_job_id
+        closed = self.filtered(lambda task: task.warranty_is_visit
                                and (task.fsm_done or task.state in CLOSED_TASK_STATES))
 
         def changed(task):
@@ -147,8 +157,7 @@ class ProjectTask(models.Model):
         self.ensure_one()
         # sudo: Helpdesk users may not read Field Service tasks; access checked on the job.
         job = self.sudo().warranty_service_job_id.with_env(self.env)
-        if not job:
-            raise UserError(_("%s is not a warranty visit.", self.sudo().name))
+        self._warranty_check_single_job_visit()
         job._warranty_check_visit_access()
         return {
             'type': 'ir.actions.act_window',
@@ -165,10 +174,10 @@ class ProjectTask(models.Model):
         # sudo: Helpdesk users may not read Field Service tasks; the job access is checked as
         # the user in _warranty_complete_visit().
         job = self.sudo().warranty_service_job_id.with_env(self.env)
-        if not job:
-            raise UserError(_("%s is not a warranty visit.", self.sudo().name))
-        if job.job_type == 'chargeable_inspection':
-            # Approved C7: the inspection result is recorded with the completion.
+        self._warranty_check_single_job_visit()
+        if job.job_type in ('chargeable_inspection', 'warranty_inspection'):
+            # Approved C7 / G2: the inspection result (and the final Case Type of an
+            # undetermined case) is recorded with the completion.
             job._warranty_check_completion_access()
             problems = job._warranty_visit_completion_problems(self.sudo())
             if problems:
@@ -185,6 +194,13 @@ class ProjectTask(models.Model):
             }
         return job._warranty_complete_visit(self)
 
+    def _warranty_check_single_job_visit(self):
+        if self.sudo().warranty_shared_job_ids:
+            raise UserError(_("%s is a shared visit: complete or report each service job on its "
+                              "line (Service Jobs on this Visit).", self.sudo().name))
+        if not self.sudo().warranty_service_job_id:
+            raise UserError(_("%s is not a warranty visit.", self.sudo().name))
+
     def _warranty_close_visits(self, vals):
         """The only way to close warranty visits: reserved for the approved Part 4.7
         completion and Part 4.8 cancellation flows (server code; private method)."""
@@ -199,15 +215,18 @@ class ProjectTask(models.Model):
     def action_fsm_validate(self, stop_running_timers=False):
         """Mark as done: refused for warranty visits before the stop-timers dialog."""
         self._warranty_check_closure(self.filtered(
-            lambda task: task.warranty_service_job_id and not task.fsm_done))
+            lambda task: task.warranty_is_visit and not task.fsm_done))
         return super().action_fsm_validate(stop_running_timers=stop_running_timers)
 
     def action_timer_start(self):
         """Approved V1: the standard Field Service timer starts the warranty visit. The
         technician needs an active employee in the task company (the timesheet is created on
         that employee when the timer stops)."""
-        job = self.warranty_service_job_id
-        if job and not self.user_timer_id.timer_start and self.display_timesheet_timer:
+        # Shared visit: every job on it without its outcome yet (approved Q5).
+        jobs = self.warranty_service_job_id or self.sudo().warranty_shared_line_ids.filtered(
+            lambda line: not line.outcome).job_id.with_env(self.env)
+        if self.warranty_is_visit and not self.user_timer_id.timer_start \
+                and self.display_timesheet_timer:
             # sudo: technicians may not read employees; only the user's own employee is checked.
             if not self.env['hr.employee'].sudo().search_count([
                     ('user_id', '=', self.env.uid), ('company_id', '=', self.company_id.id)],
@@ -216,21 +235,22 @@ class ProjectTask(models.Model):
                                   "warranty visit %(task)s: ask your administrator to create "
                                   "it.", company=self.company_id.name, task=self.name))
         result = super().action_timer_start()
-        if job and self.user_timer_id.timer_start:
-            job._warranty_start_visit(self)
+        if self.user_timer_id.timer_start:
+            for job in jobs:
+                job._warranty_start_visit(self)
         return result
 
     def _track_template(self, changes):
         """Approved customer-email fix (a): warranty tasks never send the stage email
         templates (e.g. "Intervention Scheduled") to the customer."""
         res = super()._track_template(changes)
-        if self[:1].warranty_service_job_id:
+        if self[:1].warranty_is_visit:
             res.pop('stage_id', None)
         return res
 
     def _send_task_rating_mail(self, force_send=False):
         """Approved customer-email fix (a): no stage rating requests for warranty tasks."""
-        return super(ProjectTask, self.filtered(lambda task: not task.warranty_service_job_id))\
+        return super(ProjectTask, self.filtered(lambda task: not task.warranty_is_visit))\
             ._send_task_rating_mail(force_send=force_send)
 
     def action_view_warranty_worksheets(self):
@@ -244,7 +264,8 @@ class ProjectTask(models.Model):
             'context': {'create': False},
         }
 
-    @api.constrains('warranty_service_job_id', 'helpdesk_ticket_id', 'project_id')
+    @api.constrains('warranty_service_job_id', 'warranty_shared_job_ids', 'helpdesk_ticket_id',
+                    'project_id')
     def _check_warranty_chain(self):
         """No standalone warranty Field Service task (SRS #27, approved D8): a Field Service
         task of a ticket with warranty cases needs its Service Job, and a visit of a Service
@@ -255,7 +276,13 @@ class ProjectTask(models.Model):
                 raise ValidationError(_("The Field Service task %(task)s must belong to the Helpdesk "
                                         "ticket of service job %(job)s.", task=task.name,
                                         job=job.name))
-            if not job and task.is_fsm and task.helpdesk_ticket_id.warranty_case_ids:
+            shared = task.warranty_shared_job_ids
+            # Shared visit (approved Q3): a ticket only when it is the ticket of every job.
+            if shared and task.helpdesk_ticket_id and any(
+                    other.helpdesk_ticket_id != task.helpdesk_ticket_id for other in shared):
+                raise ValidationError(_("The shared visit %s can only belong to a Helpdesk ticket "
+                                        "common to all its service jobs.", task.name))
+            if not job and not shared and task.is_fsm and task.helpdesk_ticket_id.warranty_case_ids:
                 raise ValidationError(_(
                     "Ticket %s has warranty cases: its Field Service tasks are created by "
                     "confirming a Service Job (Helpdesk Ticket -> Service Job -> Field Service "

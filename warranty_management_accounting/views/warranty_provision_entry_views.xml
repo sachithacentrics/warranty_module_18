@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Part 8.6: links between an invoice and its draft provision entries; no menu. -->
+    <record id="view_move_form_warranty_provision" model="ir.ui.view">
+        <field name="name">account.move.form.warranty.provision</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="warranty_provision_invoice_id" invisible="1"/>
+                <button name="action_open_warranty_provision_entries" type="object"
+                        class="oe_stat_button" icon="fa-shield"
+                        invisible="not warranty_provision_move_count"
+                        groups="account.group_account_readonly,account.group_account_invoice">
+                    <field name="warranty_provision_move_count" widget="statinfo"
+                           string="Warranty Provision"/>
+                </button>
+                <button name="action_open_warranty_provision_invoice" type="object"
+                        class="oe_stat_button" icon="fa-file-text-o" string="Source Invoice"
+                        invisible="not warranty_provision_invoice_id"
+                        groups="account.group_account_readonly,account.group_account_invoice"/>
+            </xpath>
+            <xpath expr="//group[@id='other_tab_entry_group']" position="inside">
+                <group string="Warranty Provision" name="warranty_provision"
+                       invisible="not warranty_provision_invoice_id">
+                    <field name="warranty_provision_method"/>
+                    <field name="warranty_provision_rate"
+                           invisible="warranty_provision_method != 'percentage'"/>
+                    <field name="warranty_provision_unit_amount"
+                           invisible="warranty_provision_method != 'fixed'"/>
+                    <field name="warranty_provision_level"/>
+                    <field name="warranty_provision_source"/>
+                    <field name="warranty_provision_card_ids" widget="many2many_tags"
+                           invisible="not warranty_provision_card_ids"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

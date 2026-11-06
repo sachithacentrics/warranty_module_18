@@ -11,7 +11,7 @@
                         <group>
                             <field name="warranty_applicable"/>
                             <field name="warranty_policy_applicable" readonly="1"
-                                   invisible="not warranty_applicable"/>
+                                   invisible="1"/>
                             <field name="warranty_policy_id" groups="base.group_system"
                                    options="{'no_create': True}"
                                    invisible="not warranty_applicable"/>
@@ -56,9 +56,8 @@
                             <field name="warranty_worksheet_template_id"/>
                         </group>
                     </group>
-                    <field name="warranty_free_services_enabled" invisible="1"/>
                     <group string="Free Services" name="warranty_free_services"
-                           invisible="not warranty_applicable or not warranty_free_services_enabled">
+                           invisible="not warranty_applicable">
                         <group>
                             <field name="default_free_service_count" invisible="warranty_policy_applicable"
                                    readonly="warranty_policy_applicable"/>

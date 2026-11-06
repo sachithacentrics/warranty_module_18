@@ -14,3 +14,8 @@ from . import sale_order
 from . import account_move
 from . import warranty_policy
 from . import warranty_draft_job
+from . import warranty_installation
+from . import warranty_service_origin
+from . import warranty_shared_visit
+
+from . import warranty_part9

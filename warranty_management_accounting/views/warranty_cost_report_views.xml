@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_cost_report_view_list" model="ir.ui.view">
+        <field name="name">warranty.cost.report.list</field>
+        <field name="model">warranty.cost.report</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false" import="false" action="action_open_case"
+                  type="object">
+                <header>
+                    <button name="action_open_warranty_cost_report" type="object" string="Refresh"
+                            display="always"/>
+                </header>
+                <field name="cost_date"/>
+                <field name="case_date" optional="hide"/>
+                <field name="case_id"/>
+                <field name="job_id" optional="show"/>
+                <field name="partner_id" optional="hide"/>
+                <field name="product_id"/>
+                <field name="technician_id" optional="show"/>
+                <field name="failure_category" optional="show"/>
+                <field name="case_state" optional="hide"/>
+                <field name="cost_type"/>
+                <field name="cost_source" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="estimated_amount" sum="Total"/>
+                <field name="approved_amount" sum="Total"/>
+                <field name="actual_amount" sum="Total"/>
+                <field name="unverified_amount" sum="Total" optional="show"/>
+                <field name="recovered_amount" sum="Total"/>
+                <field name="net_amount" sum="Total"/>
+                <field name="labour_missing_hours" sum="Total" optional="hide"/>
+                <field name="is_incomplete" widget="boolean" optional="show"/>
+                <field name="is_manual" widget="boolean" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_cost_report_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.cost.report.pivot</field>
+        <field name="model">warranty.cost.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Warranty Cost">
+                <field name="case_id" type="row"/>
+                <field name="cost_type" type="col"/>
+                <field name="actual_amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="warranty_cost_report_view_graph" model="ir.ui.view">
+        <field name="name">warranty.cost.report.graph</field>
+        <field name="model">warranty.cost.report</field>
+        <field name="arch" type="xml">
+            <graph string="Warranty Cost" type="bar">
+                <field name="cost_type"/>
+                <field name="actual_amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="warranty_cost_report_view_search" model="ir.ui.view">
+        <field name="name">warranty.cost.report.search</field>
+        <field name="model">warranty.cost.report</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="case_id"/>
+                <field name="job_id"/>
+                <field name="product_id"/>
+                <field name="technician_id"/>
+                <field name="failure_category"/>
+                <field name="partner_id"/>
+                <filter name="incomplete" string="Incomplete Labour" domain="[('is_incomplete', '=', True)]"/>
+                <filter name="manual" string="Manual Cost" domain="[('is_manual', '=', True)]"/>
+                <filter name="unverified" string="Unverified Cost" domain="[('unverified_amount', '!=', 0)]"/>
+                <separator/>
+                <filter name="period" string="Cost Incurred Date" date="cost_date"/>
+                <filter name="case_period" string="Case Creation Date" date="case_date"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_case" string="Warranty Case" context="{'group_by': 'case_id'}"/>
+                    <filter name="group_job" string="Service Job" context="{'group_by': 'job_id'}"/>
+                    <filter name="group_product" string="Product" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_technician" string="Main Technician" context="{'group_by': 'technician_id'}"/>
+                    <filter name="group_failure" string="Failure Category" context="{'group_by': 'failure_category'}"/>
+                    <filter name="group_type" string="Cost Type" context="{'group_by': 'cost_type'}"/>
+                    <filter name="group_source" string="Source" context="{'group_by': 'cost_source'}"/>
+                    <filter name="group_cost_month" string="Cost Incurred Month" context="{'group_by': 'cost_date:month'}"/>
+                    <filter name="group_case_month" string="Case Creation Month" context="{'group_by': 'case_date:month'}"/>
+                    <filter name="group_company" string="Company" context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_cost_report" model="ir.actions.act_window">
+        <field name="name">Warranty Cost</field>
+        <field name="res_model">warranty.cost.report</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No warranty cost yet</p>
+            <p>Estimated, approved and actual cost of warranty cases, by cost type. Reopen the
+               report to read the latest figures.</p>
+        </field>
+    </record>
+
+    <!-- The rows are rebuilt from the source records each time the report opens. -->
+    <record id="action_server_warranty_cost_report" model="ir.actions.server">
+        <field name="name">Warranty Cost</field>
+        <field name="model_id" ref="model_warranty_cost_report"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_warranty_cost_report()</field>
+        <field name="groups_id" eval="[(6, 0, [ref('helpdesk.group_helpdesk_user'), ref('material_purchase_requisitions.group_purchase_requisition_user'), ref('account.group_account_readonly'), ref('account.group_account_invoice'), ref('group_warranty_cost_report')])]"/>
+    </record>
+
+    <menuitem id="menu_warranty_cost_report" name="Warranty Cost"
+              parent="warranty_management_mrf.menu_warranty_reports"
+              action="action_server_warranty_cost_report" sequence="3"
+              groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice,group_warranty_cost_report"/>
+    <menuitem id="menu_warranty_cost_report_accounting" name="Warranty Cost"
+              parent="account.menu_finance_reports"
+              action="action_server_warranty_cost_report" sequence="89"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+
+    <!-- Brand and model are optional and used by this report. -->
+    <record id="product_template_form_view_warranty_brand" model="ir.ui.view">
+        <field name="name">product.template.form.warranty.brand</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="warranty_management.product_template_form_view_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='warranty_applicable']" position="after">
+                <field name="warranty_brand" invisible="1"/>
+                <field name="warranty_model" invisible="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

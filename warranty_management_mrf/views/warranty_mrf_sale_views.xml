@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Phase 5.4: commercial control of Not Covered lines (quotation, customer decision,
+         payment / exception release). Every rule is enforced on the server. -->
+    <record id="material_purchase_requisition_view_form_sale" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.warranty.sale</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='requisition_confirm']" position="after">
+                <field name="can_create_parts_quotation" invisible="1"/>
+                <field name="can_decline_chargeable" invisible="1"/>
+                <field name="can_approve_release_exception" invisible="1"/>
+                <button name="action_create_parts_quotation" type="object" string="Create Parts Quotation"
+                        class="btn-primary" invisible="not can_create_parts_quotation"/>
+                <button name="action_open_chargeable_decline" type="object" string="Customer Declined"
+                        invisible="not can_decline_chargeable"/>
+                <button name="action_open_release_exception" type="object" string="Approve Release Exception"
+                        invisible="not can_approve_release_exception"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button type="object" class="oe_stat_button" icon="fa-file-text-o"
+                        name="action_view_parts_quotations" invisible="not parts_quotation_count">
+                    <field name="parts_quotation_count" widget="statinfo" string="Parts Quotations"/>
+                </button>
+                <button type="object" class="oe_stat_button" icon="fa-truck"
+                        name="action_view_parts_deliveries" invisible="not parts_delivery_count">
+                    <field name="parts_delivery_count" widget="statinfo" string="Customer Deliveries"/>
+                </button>
+            </xpath>
+            <xpath expr="//field[@name='requisition_line_ids']/list/field[@name='coverage_type']" position="after">
+                <field name="chargeable_state" widget="badge" optional="show"
+                       column_invisible="not parent.is_warranty_mrf"
+                       decoration-warning="chargeable_state in ('to_quote', 'waiting_customer', 'waiting_payment')"
+                       decoration-success="chargeable_state in ('released', 'released_exception')"
+                       decoration-muted="chargeable_state == 'declined'"/>
+                <field name="chargeable_decline_reason" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="sale_order_view_form_warranty_mrf" model="ir.ui.view">
+        <field name="name">sale.order.form.warranty.mrf</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="payment_term_id" position="after">
+                <field name="warranty_mrf_id" invisible="not warranty_mrf_id"/>
+                <field name="warranty_release_trigger" invisible="not warranty_mrf_id"/>
+                <field name="warranty_parts_release_state" invisible="not warranty_mrf_id" widget="badge"/>
+                <field name="warranty_release_exception_by_id" invisible="not warranty_release_exception_by_id"/>
+                <field name="warranty_release_exception_reason" invisible="not warranty_release_exception_by_id"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_decline_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.decline.wizard.form</field>
+        <field name="model">warranty.mrf.decline.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Customer Declined">
+                <group>
+                    <field name="requisition_id"/>
+                    <field name="line_ids" options="{'no_create': True}">
+                        <list>
+                            <field name="product_id"/>
+                            <field name="qty"/>
+                            <field name="uom"/>
+                            <field name="chargeable_state"/>
+                        </list>
+                    </field>
+                    <field name="reason" placeholder="Why does the customer not buy these parts?"/>
+                </group>
+                <p class="text-muted">Declined lines are never issued; their open quotation lines are removed
+                    (the quotation is cancelled when nothing else remains). Covered lines continue.</p>
+                <footer>
+                    <button name="action_decline" type="object" string="Record Decline" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_mrf_release_exception_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.mrf.release.exception.wizard.form</field>
+        <field name="model">warranty.mrf.release.exception.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Approve Release Exception">
+                <group>
+                    <field name="requisition_id"/>
+                    <field name="order_id" options="{'no_create': True}"/>
+                    <field name="reason" placeholder="Why may the parts be released before payment?"/>
+                </group>
+                <footer>
+                    <button name="action_approve" type="object" string="Approve Exception" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="res_config_settings_view_form_warranty_mrf_sale" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.mrf.sale</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="res_config_settings_view_form_warranty_mrf"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_mrf_settings']" position="inside">
+                <setting id="warranty_mrf_release_trigger" string="Chargeable Parts Release"
+                         help="When customer-paid parts of a parts quotation can be delivered: as soon as the quotation is confirmed, or only after it is paid. Applies to new parts quotations.">
+                    <field name="warranty_mrf_release_trigger" widget="radio"/>
+                </setting>
+                <setting id="warranty_mrf_release_exception_users" string="Chargeable Release Exception Users"
+                         help="Users who can release customer-paid parts before payment, giving a reason. Used when parts are released on payment.">
+                    <field name="warranty_mrf_release_exception_user_ids" widget="many2many_tags"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -2,5 +2,5 @@
 <odoo>
     <menuitem id="menu_warranty_service_job" name="Service Jobs"
               parent="warranty_management.menu_warranty_root" action="action_warranty_service_job"
-              sequence="25"/>
+              sequence="40"/>
 </odoo>

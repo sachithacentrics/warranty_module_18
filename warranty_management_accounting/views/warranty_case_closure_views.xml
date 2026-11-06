@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_case_view_form_close_case" model="ir.ui.view">
+        <field name="name">warranty.case.form.close.case</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_case_view_form_fsm_chargeable"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_warranty_close_case" type="object" string="Close Case"
+                        groups="helpdesk.group_helpdesk_user" invisible="state != 'completed'"
+                        confirm="Close this warranty case? Open vendor claims can continue after closure."/>
+            </xpath>
+            <xpath expr="//field[@name='warranty_chargeable_outcome']" position="after">
+                <div class="text-muted" invisible="state != 'closed'">
+                    Closed by <field name="warranty_case_closed_by_id" class="oe_inline" readonly="1"
+                                     options="{'no_open': True}"/>
+                    on <field name="warranty_case_closed_date" class="oe_inline" readonly="1"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

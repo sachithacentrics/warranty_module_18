@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Part 8.4: one action and its status on the warranty case; the documents are standard. -->
+    <record id="warranty_case_view_form_inspection_adjustment" model="ir.ui.view">
+        <field name="name">warranty.case.form.inspection.adjustment</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_accounting.warranty_case_view_form_cost_lines"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="warranty_inspection_can_adjust" invisible="1"/>
+                <button name="action_apply_inspection_fee_adjustment" type="object"
+                        string="Apply Inspection Fee Adjustment"
+                        invisible="not warranty_inspection_can_adjust"
+                        confirm="Create the inspection fee adjustment for this case? Nothing is posted: Accounting handles any credit note."/>
+            </xpath>
+            <xpath expr="//page[@name='warranty_cost']/p" position="before">
+                <group string="Inspection Fee Adjustment" name="warranty_inspection_adjustment">
+                    <field name="warranty_inspection_adjustment_status"/>
+                    <label for="warranty_inspection_adjustment_ref"
+                           invisible="not warranty_inspection_adjustment_ref"/>
+                    <div invisible="not warranty_inspection_adjustment_ref">
+                        <field name="warranty_inspection_adjustment_ref" class="oe_inline"/>
+                        <button name="action_open_inspection_fee_adjustment" type="object"
+                                string="Open" class="btn-link"/>
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_card_action_view_list" model="ir.ui.view">
+        <field name="name">warranty.card.action.list</field>
+        <field name="model">warranty.card.action</field>
+        <field name="arch" type="xml">
+            <list string="Controlled Actions" create="false" edit="false" delete="false">
+                <field name="name"/>
+                <field name="card_id"/>
+                <field name="action_type"/>
+                <field name="requested_by_id"/>
+                <field name="request_date"/>
+                <field name="decided_by_id" optional="show"/>
+                <field name="decision_date" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="state" widget="badge" decoration-warning="state == 'pending'"
+                       decoration-success="state == 'done'" decoration-danger="state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_card_action_view_form" model="ir.ui.view">
+        <field name="name">warranty.card.action.form</field>
+        <field name="model">warranty.card.action</field>
+        <field name="arch" type="xml">
+            <form string="Controlled Action" create="false" edit="false" delete="false">
+                <header>
+                    <field name="can_decide" invisible="1"/>
+                    <button name="action_approve" type="object" string="Approve and Apply"
+                            class="btn-primary" invisible="not can_decide"
+                            confirm="Apply this controlled action to the warranty card now?"/>
+                    <button name="action_open_reject_wizard" type="object" string="Reject"
+                            invisible="not can_decide"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="action_type"/>
+                            <field name="card_id"/>
+                            <field name="unit_ids" widget="many2many_tags"/>
+                            <field name="reason_code" invisible="not reason_code"/>
+                            <field name="effective_date"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="requested_by_id"/>
+                            <field name="request_date"/>
+                            <field name="decided_by_id" invisible="not decided_by_id"/>
+                            <field name="decision_date" invisible="not decision_date"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="reason"/>
+                        <field name="rejection_reason" invisible="not rejection_reason"/>
+                        <field name="open_work_note" invisible="not open_work_note"/>
+                        <field name="old_value" invisible="state != 'done'"/>
+                        <field name="new_value" invisible="state != 'done'"/>
+                        <field name="old_partner_id" invisible="not old_partner_id"/>
+                        <field name="new_partner_id" invisible="not new_partner_id"/>
+                        <field name="new_site_id" invisible="not new_site_id"/>
+                        <field name="old_serial_id" invisible="not old_serial_id"/>
+                        <field name="new_serial_id" invisible="not new_serial_id"/>
+                        <field name="new_usage" invisible="action_type != 'correct_usage'"/>
+                        <field name="new_end_date" invisible="not new_end_date"/>
+                        <field name="extension_type" invisible="not extension_type"/>
+                        <field name="source_picking_id" invisible="not source_picking_id"/>
+                        <field name="source_move_id" invisible="not source_move_id"/>
+                        <field name="source_order_id" invisible="not source_order_id"/>
+                        <field name="attachment_ids" widget="many2many_binary"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_card_action_view_search" model="ir.ui.view">
+        <field name="name">warranty.card.action.search</field>
+        <field name="model">warranty.card.action</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="card_id"/>
+                <field name="requested_by_id"/>
+                <filter name="pending" string="Waiting for Approval" domain="[('state', '=', 'pending')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_type" string="Action" context="{'group_by': 'action_type'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_card_action" model="ir.actions.act_window">
+        <field name="name">Controlled Actions</field>
+        <field name="res_model">warranty.card.action</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_pending': 1}</field>
+    </record>
+
+    <record id="warranty_card_action_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.card.action.wizard.form</field>
+        <field name="model">warranty.card.action.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Warranty Change Request">
+                <div class="alert alert-info" role="alert">
+                    The request goes to the Warranty Exception Approvers. Nothing changes until another
+                    user approves it. Cases, jobs, stock and accounting documents are never changed by
+                    this action.
+                </div>
+                <div class="alert alert-warning" role="alert" invisible="not open_work">
+                    <strong>Open work on this card:</strong> <field name="open_work" nolabel="1"/>
+                </div>
+                <group>
+                    <group>
+                        <field name="card_id"/>
+                        <field name="action_type"/>
+                        <field name="available_unit_ids" invisible="1"/>
+                        <field name="unit_ids" widget="many2many_tags"
+                               invisible="action_type in ('correct_customer', 'transfer')"
+                               required="action_type in ('correct_serial', 'correct_usage')"/>
+                        <field name="effective_date"
+                               invisible="action_type not in ('relocate', 'transfer')"
+                               required="action_type == 'transfer'"/>
+                        <field name="reason_code" invisible="action_type != 'suspend'"
+                               required="action_type == 'suspend'"/>
+                    </group>
+                    <group>
+                        <field name="new_partner_id"
+                               invisible="action_type not in ('correct_customer', 'transfer')"
+                               required="action_type in ('correct_customer', 'transfer')"/>
+                        <field name="new_site_id"
+                               invisible="action_type not in ('correct_customer', 'transfer', 'relocate')"
+                               required="action_type == 'relocate'"/>
+                        <field name="old_serial_id" invisible="action_type != 'correct_serial'"
+                               required="action_type == 'correct_serial'"/>
+                        <field name="new_serial_id" invisible="action_type != 'correct_serial'"
+                               required="action_type == 'correct_serial'"/>
+                        <field name="new_usage" invisible="action_type != 'correct_usage'"/>
+                        <field name="new_end_date" invisible="action_type != 'extend'"
+                               required="action_type == 'extend'"/>
+                        <field name="extension_type" invisible="action_type != 'extend'"
+                               required="action_type == 'extend'"/>
+                        <field name="source_picking_id" invisible="action_type != 'cancel'"/>
+                        <field name="source_move_id" invisible="action_type not in ('cancel', 'extend')"/>
+                        <field name="source_order_id" invisible="action_type != 'extend'"/>
+                    </group>
+                </group>
+                <group>
+                    <field name="reason"/>
+                    <field name="attachment_ids" widget="many2many_binary"/>
+                </group>
+                <footer>
+                    <button name="action_submit" type="object" string="Request Approval" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="warranty_card_action_reject_wizard_view_form" model="ir.ui.view">
+        <field name="name">warranty.card.action.reject.wizard.form</field>
+        <field name="model">warranty.card.action.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject">
+                <group>
+                    <field name="action_id"/>
+                    <field name="reason"/>
+                </group>
+                <footer>
+                    <button name="action_reject" type="object" string="Reject" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Warranty History (SRS 2.13, 15). -->
+    <record id="warranty_history_view_list" model="ir.ui.view">
+        <field name="name">warranty.history.list</field>
+        <field name="model">warranty.history</field>
+        <field name="arch" type="xml">
+            <list string="Warranty History" create="false" edit="false" delete="false">
+                <field name="event_date"/>
+                <field name="card_id"/>
+                <field name="unit_id" optional="show"/>
+                <field name="entity"/>
+                <field name="event_type"/>
+                <field name="reference"/>
+                <field name="user_id"/>
+                <field name="summary" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="warranty_history_view_search" model="ir.ui.view">
+        <field name="name">warranty.history.search</field>
+        <field name="model">warranty.history</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="card_id"/>
+                <field name="unit_id"/>
+                <field name="reference"/>
+                <field name="event_type"/>
+                <field name="user_id"/>
+                <filter name="filter_date" string="Date" date="event_date"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_entity" string="Entity" context="{'group_by': 'entity'}"/>
+                    <filter name="group_user" string="User" context="{'group_by': 'user_id'}"/>
+                    <filter name="group_card" string="Warranty Card" context="{'group_by': 'card_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_history" model="ir.actions.act_window">
+        <field name="name">Warranty History</field>
+        <field name="res_model">warranty.history</field>
+        <field name="view_mode">list</field>
+    </record>
+</odoo>

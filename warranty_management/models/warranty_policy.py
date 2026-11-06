@@ -61,8 +61,8 @@ class WarrantyPolicy(models.Model):
     ], string='Warranty Duration Unit')
     start_date_basis = fields.Selection([
         ('installation', 'Installation Date'),
-        ('delivery', 'Delivery'),
-        ('invoice', 'Invoice')
+        ('delivery', 'Delivery Date'),
+        ('invoice', 'Invoice Date')
     ], string='Start Date Basis')
     free_service_count = fields.Integer(string='Free Service Count')
     free_service_period = fields.Integer(string='Free Service Period')

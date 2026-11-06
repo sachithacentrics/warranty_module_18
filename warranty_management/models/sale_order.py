@@ -33,6 +33,11 @@ class SaleOrder(models.Model):
             order.warranty_grouping_pending = (
                 order.state == 'sale' and bool(order._warranty_pending_lines()))
 
+    def action_view_warranty_history(self):
+        self.ensure_one()
+        cards = self.env['warranty.card'].search([('sale_order_id', '=', self.id)])
+        return self.env['warranty.history']._warranty_open([('card_id', 'in', cards.ids)])
+
     def _warranty_pending_lines(self):
         """Eligible warranty lines without Unit Warranty Numbers (no warranty card yet)."""
         self.ensure_one()
@@ -181,6 +186,41 @@ class SaleOrderLine(models.Model):
         self.ensure_one()
         qty = self.product_uom._compute_quantity(self.product_uom_qty, self.product_id.uom_id)
         return int(float_round(qty, precision_digits=0))
+
+    def _warranty_invoice_coverage(self):
+        """Start Date Automation (D3, Q2): net quantities of this line invoiced by posted
+        customer invoices, in posting order: [(invoice, quantity, posted_at, verification)].
+        Credit notes reduce the invoice they reverse first, then the latest posted invoices
+        (LIFO). Draft / cancelled moves and other lines (e.g. down payments) never count;
+        fully credited invoices are left out."""
+        self.ensure_one()
+        uom = self.product_id.uom_id
+        quantities = defaultdict(float)
+        credits = defaultdict(float)
+        for line in self.invoice_lines.filtered(
+                lambda aml: aml.display_type == 'product' and aml.move_id.state == 'posted'):
+            quantity = line.product_uom_id._compute_quantity(line.quantity, uom) \
+                if line.product_uom_id else line.quantity
+            if line.move_id.move_type == 'out_invoice':
+                quantities[line.move_id] += quantity
+            elif line.move_id.move_type == 'out_refund':
+                credits[line.move_id] += quantity
+        info = {invoice: invoice._warranty_posting_info() for invoice in quantities}
+        # Unverifiable postings last: they never decide the order of verified ones.
+        ordered = sorted(quantities, key=lambda invoice: (
+            not info[invoice][0], info[invoice][0] or fields.Datetime.now(), invoice.id))
+        for refund in sorted(credits, key=lambda move: move.id):
+            remaining = credits[refund]
+            targets = [refund.reversed_entry_id] if refund.reversed_entry_id in quantities else []
+            targets += [invoice for invoice in reversed(ordered) if invoice not in targets]
+            for invoice in targets:
+                if float_round(remaining, precision_digits=6) <= 0:
+                    break
+                taken = min(remaining, max(quantities[invoice], 0.0))
+                quantities[invoice] -= taken
+                remaining -= taken
+        return [(invoice, quantities[invoice], *info[invoice]) for invoice in ordered
+                if float_round(quantities[invoice], precision_digits=6) > 0]
 
     def _warranty_policy_levels(self):
         """The four Warranty Policy levels of this line, in the approved strict priority:

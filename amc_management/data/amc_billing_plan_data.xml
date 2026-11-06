@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Starting billing plans (shared by all companies; editable / archivable). -->
+    <record id="billing_plan_upfront" model="amc.billing.plan">
+        <field name="name">Annual Upfront</field>
+        <field name="sequence">10</field>
+        <field name="billing_frequency">upfront</field>
+        <field name="billing_timing">advance</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="billing_plan_quarterly" model="amc.billing.plan">
+        <field name="name">Quarterly in Advance</field>
+        <field name="sequence">20</field>
+        <field name="billing_frequency">quarterly</field>
+        <field name="billing_timing">advance</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="billing_plan_monthly" model="amc.billing.plan">
+        <field name="name">Monthly in Advance</field>
+        <field name="sequence">30</field>
+        <field name="billing_frequency">monthly</field>
+        <field name="billing_timing">advance</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="billing_plan_per_visit" model="amc.billing.plan">
+        <field name="name">Per Preventive Visit</field>
+        <field name="sequence">40</field>
+        <field name="billing_frequency">per_visit</field>
+        <field name="billing_timing">arrears</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

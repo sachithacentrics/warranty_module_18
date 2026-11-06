@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_warranty_cost" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.cost</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management_mrf.res_config_settings_view_form_warranty_mrf"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='warranty_mrf_settings']" position="after">
+                <block title="Warranty Cost" name="warranty_cost_settings">
+                    <setting id="warranty_cost_approvers" string="Cost Approvers"
+                             help="Cost approvers review every warranty cost line. Finance approvers must also approve when the total expected cost of the case reaches the threshold. 0 means no additional Finance approval; the Cost Approver approval stays required."
+                             title="Cost approvers review every warranty cost line. Finance approvers must also approve when the total expected cost of the case reaches the threshold. 0 means no additional Finance approval; the Cost Approver approval stays required.">
+                        <div class="content-group">
+                            <div class="row"><label for="warranty_cost_approver_ids" class="col-lg-4"/>
+                                <field name="warranty_cost_approver_ids" widget="many2many_tags"/></div>
+                            <div class="row"><label for="warranty_cost_finance_approver_ids" class="col-lg-4"/>
+                                <field name="warranty_cost_finance_approver_ids" widget="many2many_tags"/></div>
+                            <div class="row"><label for="warranty_cost_finance_threshold" class="col-lg-4"/>
+                                <field name="warranty_cost_finance_threshold"/></div>
+                        </div>
+                    </setting>
+                    <setting id="warranty_cost_gate" string="Expected Cost Approval Gate"
+                             help="If enabled, job confirmation, next visit planning and material release wait for pending approvals when the total expected cost is above the threshold. If disabled, they do not check the total expected cost."
+                             title="If enabled, job confirmation, next visit planning and material release wait for pending approvals when the total expected cost is above the threshold. If disabled, they do not check the total expected cost.">
+                        <field name="warranty_cost_gate_enabled"/>
+                        <div class="content-group" invisible="not warranty_cost_gate_enabled">
+                            <div class="row"><label for="warranty_cost_gate_threshold" class="col-lg-4"/>
+                                <field name="warranty_cost_gate_threshold"/></div>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

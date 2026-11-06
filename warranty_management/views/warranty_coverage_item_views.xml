@@ -5,7 +5,7 @@
         <field name="model">warranty.coverage.item</field>
         <field name="arch" type="xml">
             <list string="Coverage Items" editable="bottom">
-                <field name="name"/>
+                <field name="product_id"/>
                 <field name="active" widget="boolean_toggle"/>
             </list>
         </field>
