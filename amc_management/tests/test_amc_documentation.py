@@ -30,6 +30,23 @@ class TestAmcDocumentation(HttpCase):
         self.assertEqual(menu.parent_id, self.env.ref('amc_management.menu_amc_documents'))
         self.assertEqual(menu.action.url, url)
 
+    def test_tc112_technical_architecture_access(self):
+        """TC-112: Configuration > Documents > Technical Architecture (HTML page, AMC users only)."""
+        url = '/amc_management/technical_architecture'
+        response = self.url_open(url, allow_redirects=False)
+        self.assertIn(response.status_code, (302, 303))
+        self.authenticate('amc_doc_none', 'amc_doc_none')
+        self.assertEqual(self.url_open(url).status_code, 404)
+        self.authenticate('amc_doc_user', 'amc_doc_user')
+        response = self.url_open(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('AMC Management – Technical Architecture', response.text)
+        self.assertIn('id="toc"', response.text)
+        self.assertEqual(response.text.count('<figure class="diagram">'), 10)
+        menu = self.env.ref('amc_management.menu_amc_technical_architecture')
+        self.assertEqual(menu.parent_id, self.env.ref('amc_management.menu_amc_documents'))
+        self.assertEqual(menu.action.url, url)
+
     def test_tc111_process_video_access(self):
         """TC-111: Configuration > Documents > Process Recording: player page, seekable video
         stream (HTTP range) and poster for AMC users only."""

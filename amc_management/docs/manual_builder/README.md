@@ -13,7 +13,7 @@ One text source, two outputs:
 |---|---|
 | `manual_content.js` | **the manual text**: chapters, sections, steps, notes, tables and which screenshot goes where. Edit only this file for text changes. |
 | `build_manual.js` | Word renderer (npm `docx`) |
-| `build_manual_html.js` | HTML renderer: self-contained page, screenshots embedded, sidebar contents with active section, topic search, chapter pager, image zoom, responsive / print layout |
+| `build_manual_html.js` | HTML renderer (shared page `../html_shell.js`, also used by the technical architecture): self-contained page, screenshots embedded, sidebar contents with active section, topic search, chapter pager, image zoom, responsive / print layout |
 | `screenshots/*.png` | the 37 screenshots (1440×900) referenced by name in `manual_content.js` |
 | `shots.py` | captures the screenshots from the demo server with headless Chrome |
 | `convert_webp.py` | PNG → WebP for the HTML page |

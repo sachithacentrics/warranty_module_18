@@ -30,6 +30,11 @@ topic search, chapter pager, image zoom, responsive / print layout) through the 
 `/amc_management/user_manual` (`controllers/main.py`; kept out of `/static`, which is public); test
 TC-110.
 
+**In-app Technical Architecture:** menu *Configuration > Documents > Technical Architecture* opens
+the HTML version of `AMC_Technical_Architecture.docx` (`manual/amc_technical_architecture.html`,
+diagrams embedded, same navigation as the manual) through `/amc_management/technical_architecture`
+(AMC users only); test TC-112.
+
 **Process recording:** menu *Configuration > Documents > Process Recording (Video)* opens a player
 page (`manual/amc_process_video.html`) for the screen recording of the complete AMC process
 (`manual/amc_process.mp4`, H.264 1440x900, 4:28, 12 chapters: configuration, contract, quotation
