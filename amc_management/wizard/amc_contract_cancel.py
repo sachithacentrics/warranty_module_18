@@ -1,8 +1,8 @@
 from odoo import fields, models
 
 
-class AmcContractCancelWizard(models.TransientModel):
-    _name = 'amc.contract.cancel.wizard'
+class AmcContractCancel(models.TransientModel):
+    _name = 'amc.contract.cancel'
     _description = 'Cancel AMC Contract'
 
     contract_id = fields.Many2one('amc.contract', required=True, readonly=True)

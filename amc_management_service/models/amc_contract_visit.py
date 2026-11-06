@@ -2,7 +2,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 from odoo.addons.amc_management.models.amc_contract import _marked
-from odoo.addons.amc_management.models.amc_visit import PROTECTED_VISIT_FIELDS
+from odoo.addons.amc_management.models.amc_contract_visit import PROTECTED_VISIT_FIELDS
 
 # Service links are written by the service chain only (never by the UI, import or RPC).
 PROTECTED_VISIT_FIELDS.update({'warranty_case_id', 'service_job_id', 'task_id', 'worksheet_id'})
@@ -94,7 +94,7 @@ class AmcContractVisit(models.Model):
         return {
             'type': 'ir.actions.act_window',
             'name': _("Create Service Request"),
-            'res_model': 'amc.service.request.wizard',
+            'res_model': 'amc.service.request',
             'view_mode': 'form',
             'target': 'new',
             'context': {'default_visit_ids': [(6, 0, self.ids)]},

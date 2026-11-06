@@ -18,7 +18,7 @@ class AmcCommon(AccountTestInvoicingCommon):
                                        mail_create_nolog=True, mail_notrack=True))
         cls.company = cls.env.company
         # The accounting test user runs the commercial flow: AMC Manager + Sales roles.
-        cls.env.user.groups_id |= cls.env.ref('amc_management.group_amc_manager') \
+        cls.env.user.groups_id |= cls.env.ref('amc_management.amc_management_group_manager') \
             | cls.env.ref('sales_team.group_sale_salesman')
         cls.company.write({'amc_activation_trigger': 'sale_confirmation',
                            'amc_default_pricelist_id': False})
@@ -27,16 +27,16 @@ class AmcCommon(AccountTestInvoicingCommon):
         base_groups = [group('base.group_user'), group('sales_team.group_sale_salesman'),
                        group('account.group_account_invoice')]
         cls.user_amc = new_test_user(cls.env, login='amc_user', name='AMC User',
-                                     groups_id=base_groups + [group('amc_management.group_amc_user')],
+                                     groups_id=base_groups + [group('amc_management.amc_management_group_user')],
                                      company_id=cls.company.id, company_ids=cls.company.ids)
         cls.user_coordinator = new_test_user(
             cls.env, login='amc_coord', name='AMC Coordinator', company_id=cls.company.id,
             company_ids=cls.company.ids,
-            groups_id=base_groups + [group('amc_management.group_amc_coordinator')])
+            groups_id=base_groups + [group('amc_management.amc_management_group_coordinator')])
         cls.user_manager = new_test_user(
             cls.env, login='amc_mgr', name='AMC Manager', company_id=cls.company.id,
             company_ids=cls.company.ids,
-            groups_id=base_groups + [group('amc_management.group_amc_manager')])
+            groups_id=base_groups + [group('amc_management.amc_management_group_manager')])
         cls.user_employee = new_test_user(cls.env, login='amc_none', name='Employee',
                                           groups_id=[group('base.group_user')],
                                           company_id=cls.company.id,

@@ -34,16 +34,16 @@
 
 | Req. | Component | File | Method / XML ID | Change |
 |---|---|---|---|---|
-| E01–E10, B06, C03 | entitlements | `amc_management/models/amc_visit.py` | `amc.contract.visit`, `_amc_consume`, `_cron_amc_visits` | new model |
+| E01–E10, B06, C03 | entitlements | `amc_management/models/amc_contract_visit.py` | `amc.contract.visit`, `_amc_consume`, `_cron_amc_visits` | new model |
 | B09, G01–G04, A05 | billing | `models/amc_billing_line.py`, `models/account_move.py`, `models/amc_contract.py` | `amc.billing.line`, `_invoice_paid_hook`, `_amc_generate_billing`, `_amc_schedule_billing`, `action_create_invoice` | new |
 | C02, C04, C05, B08 | lifecycle | `models/amc_contract.py` | `_amc_activate`, `_amc_hold`, `action_resume`, `_amc_check_expiring`, `action_renew`, `_amc_close`, `_amc_mark_renewed`, `_cron_amc_daily` | new |
 | B07, D07, B02, D11 | defects | `models/amc_contract.py`, `models/amc_pricing_factor.py`, `models/amc_pricing_rounding.py`, `models/amc_pricing_formula.py` | `contract_months`, `expected_usage`, pricelist check, factor lock, `_` import, cleanup | fixed |
-| H01, F13 | report / views | `views/amc_visit_views.xml`, `report/amc_visit_schedule_report.xml` | `action_amc_visit_schedule_report`, `action_report_amc_visit_schedule` | new |
-| A09 | menus / actions | `views/amc_menus.xml`, `views/amc_contract_views.xml` | Quotations, Renewals, Services, Reporting; smart buttons | extended |
-| — | data / security | `data/amc_cron.xml`, `data/amc_contract_data.xml`, `security/*` | `ir_cron_amc_daily`, `seq_amc_contract_visit`, ACL, rules | new |
-| — | migration | `migrations/18.0.1.1.0/post-migrate.py` | `migrate` | new |
+| H01, F13 | report / views | `views/amc_contract_visit_views.xml`, `report/amc_contract_reports.xml` | `amc_contract_visit_action_schedule_report`, `amc_contract_action_report_visit_schedule` | new |
+| A09 | menus / actions | `views/amc_management_menus.xml`, `views/amc_contract_views.xml` | Quotations, Renewals, Services, Reporting; smart buttons | extended |
+| — | data / security | `data/ir_cron_data.xml`, `data/ir_sequence_data.xml`, `security/*` | `ir_cron_amc_daily`, `seq_amc_contract_visit`, ACL, rules | new |
+| — | migration | `migrations/18.0.1.1.0/post-migrate.py` (removed in 18.0.1.2.0) | `migrate` | removed |
 | A03, A04, A06, A07, C07, X01 | warranty bridge | `amc_management_warranty/models/*` | `_amc_auto_create`, `action_convert_to_amc`, `warranty_unit_id`, `_warranty_apply_expiry` | new module |
-| A08, F01–F07, F12, H02, H04 | service bridge | `amc_management_service/models/*`, `wizard/*` | `amc.service.request.wizard`, `_amc_run_checks`, job hooks, `amc_pending_visit_ids`, `helpdesk_tag_amc` | new module |
+| A08, F01–F07, F12, H02, H04 | service bridge | `amc_management_service/models/*`, `wizard/*` | `amc.service.request`, `_amc_run_checks`, job hooks, `amc_pending_visit_ids`, `helpdesk_tag_amc` | new module |
 | — | meta module | `warranty_meta_dependencies/__manifest__.py` | depends | both bridges added |
 
 ## D. Testing summary

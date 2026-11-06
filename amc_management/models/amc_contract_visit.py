@@ -294,7 +294,7 @@ class AmcContractVisit(models.Model):
         return {
             'type': 'ir.actions.act_window',
             'name': _("Complete AMC Visit") if action == 'complete' else _("Cancel AMC Visit"),
-            'res_model': 'amc.visit.action.wizard',
+            'res_model': 'amc.contract.visit.action',
             'view_mode': 'form',
             'target': 'new',
             'context': {'default_visit_ids': [(6, 0, self.ids)], 'default_action': action},
@@ -337,11 +337,11 @@ class AmcContractVisit(models.Model):
         return True
 
     def _amc_check_coordinator(self):
-        if not self.env.user.has_group('amc_management.group_amc_coordinator'):
+        if not self.env.user.has_group('amc_management.amc_management_group_coordinator'):
             raise AccessError(_("Only AMC Coordinators can plan or complete AMC visits."))
 
     def _amc_check_manager(self):
-        if not self.env.user.has_group('amc_management.group_amc_manager'):
+        if not self.env.user.has_group('amc_management.amc_management_group_manager'):
             raise AccessError(_("Only AMC Managers can cancel or reopen AMC visits."))
 
     def action_view_contract(self):

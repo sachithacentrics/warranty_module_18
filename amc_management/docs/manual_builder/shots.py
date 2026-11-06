@@ -126,45 +126,45 @@ def run(name, func):
 
 
 run('apps', lambda: (goto('/odoo'), shot('01_apps_menu')))
-run('settings', lambda: (goto(act(A + 'action_amc_config_settings')), shot('02_settings')))
-run('billing_plans', lambda: (goto(act(A + 'action_amc_billing_plan')), shot('03_billing_plans')))
+run('settings', lambda: (goto(act(A + 'res_config_settings_action')), shot('02_settings')))
+run('billing_plans', lambda: (goto(act(A + 'amc_billing_plan_action')), shot('03_billing_plans')))
 plan = first('amc.plan', [('name', '=', 'Retail AMC')])
-run('plan', lambda: (goto(act(A + 'action_amc_plan', plan)), shot('04_plan_form')))
-run('plans', lambda: (goto(act(A + 'action_amc_plan')), shot('05_plan_list')))
+run('plan', lambda: (goto(act(A + 'amc_plan_action', plan)), shot('04_plan_form')))
+run('plans', lambda: (goto(act(A + 'amc_plan_action')), shot('05_plan_list')))
 formula = first('amc.pricing.formula', [('plan_id', '=', plan), ('state', '=', 'active')])
-run('formula', lambda: (goto(act(A + 'action_amc_pricing_formula', formula)),
+run('formula', lambda: (goto(act(A + 'amc_pricing_formula_action', formula)),
                         shot('06_formula_form')))
-run('formulas', lambda: (goto(act(A + 'action_amc_pricing_formula')), shot('07_formula_list')))
+run('formulas', lambda: (goto(act(A + 'amc_pricing_formula_action')), shot('07_formula_list')))
 
 
 def preview():
-    goto(act(A + 'action_amc_plan', plan))
+    goto(act(A + 'amc_plan_action', plan))
     click('button[name="action_open_pricing_preview"]')
     shot('08_price_preview')
 run('preview', preview)
-run('opportunities', lambda: (goto(act(A + 'action_amc_opportunity')), shot('09_opportunities')))
+run('opportunities', lambda: (goto(act(A + 'amc_opportunity_action')), shot('09_opportunities')))
 opp = first('amc.opportunity', [])
-run('opportunity', lambda: (goto(act(A + 'action_amc_opportunity', opp)), shot('10_opportunity_form')))
-run('contracts', lambda: (goto(act(A + 'action_amc_contract')), shot('11_contract_list')))
+run('opportunity', lambda: (goto(act(A + 'amc_opportunity_action', opp)), shot('10_opportunity_form')))
+run('contracts', lambda: (goto(act(A + 'amc_contract_action')), shot('11_contract_list')))
 draft = first('amc.contract', [('state', '=', 'draft'), ('price_state', '=', 'calculated'),
                                ('override_ids', '=', False)])
 
 
 def draft_contract():
-    goto(act(A + 'action_amc_contract', draft))
+    goto(act(A + 'amc_contract_action', draft))
     shot('12_contract_draft')
     tab('pricing')
     shot('13_contract_pricing')
 run('draft', draft_contract)
 override = first('amc.price.override', [])
-run('override', lambda: (goto(act(A + 'action_amc_price_override', override)),
+run('override', lambda: (goto(act(A + 'amc_price_override_action', override)),
                          shot('14_override_request')))
 active = first('amc.contract', [('state', '=', 'active'), ('sale_order_ids', '!=', False),
                                 ('partner_id.name', 'ilike', 'Gemini')])
 
 
 def active_contract():
-    goto(act(A + 'action_amc_contract', active))
+    goto(act(A + 'amc_contract_action', active))
     shot('16_contract_active')
     tab('visits')
     shot('17_contract_visits')
@@ -174,11 +174,11 @@ run('active', active_contract)
 order = rpc('amc.contract', 'read', [[active], ['sale_order_id']])[0]['sale_order_id'][0]
 run('quotation', lambda: (goto('/odoo/action-sale.action_quotations_with_onboarding/%s' % order),
                           shot('15_sales_order')))
-run('visits', lambda: (goto(act(A + 'action_amc_contract_visit')), shot('19_visit_list')))
+run('visits', lambda: (goto(act(A + 'amc_contract_visit_action')), shot('19_visit_list')))
 
 
 def visit_views():
-    goto(act(A + 'action_amc_contract_visit'))
+    goto(act(A + 'amc_contract_visit_action'))
     click('.o_switch_view.o_kanban')
     shot('20_visit_kanban')
     click('.o_switch_view.o_calendar')
@@ -189,7 +189,7 @@ pending = first('amc.contract.visit', [('contract_id', '=', active), ('state', '
 
 
 def visit_form():
-    goto(act(A + 'action_amc_contract_visit', pending))
+    goto(act(A + 'amc_contract_visit_action', pending))
     shot('22_visit_form')
     click('button[name="action_open_service_request"]')
     shot('23_service_request_wizard')
@@ -227,30 +227,30 @@ def pending_ticket():
     tab('amc_pending')
     shot('29_ticket_pending_amc')
 run('pending', pending_ticket)
-run('renewals', lambda: (goto(act(A + 'action_amc_contract_renewals')), shot('30_renewals')))
+run('renewals', lambda: (goto(act(A + 'amc_contract_action_renewals')), shot('30_renewals')))
 expiring = first('amc.contract', [('state', '=', 'expiring')])
-run('expiring', lambda: (goto(act(A + 'action_amc_contract', expiring)), shot('31_contract_expiring')))
+run('expiring', lambda: (goto(act(A + 'amc_contract_action', expiring)), shot('31_contract_expiring')))
 hold = first('amc.contract', [('state', '=', 'on_hold')])
-run('hold', lambda: (goto(act(A + 'action_amc_contract', hold)), shot('32_contract_on_hold')))
+run('hold', lambda: (goto(act(A + 'amc_contract_action', hold)), shot('32_contract_on_hold')))
 
 
 def hold_wizard():
-    goto(act(A + 'action_amc_contract', active))
+    goto(act(A + 'amc_contract_action', active))
     click('button[name="action_open_reason_wizard"]', 'Put On Hold')
     shot('33_hold_wizard')
 run('hold_wizard', hold_wizard)
-run('report', lambda: (goto(act(A + 'action_amc_visit_schedule_report')), shot('34_visit_schedule_report')))
+run('report', lambda: (goto(act(A + 'amc_contract_visit_action_schedule_report')), shot('34_visit_schedule_report')))
 
 
 def report_graph():
-    goto(act(A + 'action_amc_visit_schedule_report'))
+    goto(act(A + 'amc_contract_visit_action_schedule_report'))
     click('.o_switch_view.o_graph')
     shot('35_visit_schedule_graph')
 run('graph', report_graph)
 card = first('warranty.card', [('state', '=', 'confirmed')], order='id desc')
 run('card', lambda: (goto('/odoo/action-warranty_management.action_warranty_card/%s' % card),
                      shot('36_warranty_card_convert')))
-run('quotations', lambda: (goto(act(A + 'action_amc_contract_quotations')), shot('37_quotations')))
+run('quotations', lambda: (goto(act(A + 'amc_contract_action_quotations')), shot('37_quotations')))
 
 ws.close()
 proc.terminate()

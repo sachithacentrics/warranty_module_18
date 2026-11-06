@@ -13,7 +13,7 @@ import urllib.request
 
 import websocket
 
-DIR = sys.argv[1]
+DIR = os.path.abspath(sys.argv[1])
 diagrams = json.load(open(os.path.join(DIR, 'diagrams.json'), encoding='utf-8'))
 blocks = '\n'.join('<div class="d" id="%s"><pre class="mermaid">%s</pre></div>' % (
     name, html.escape(src)) for name, src in diagrams.items())

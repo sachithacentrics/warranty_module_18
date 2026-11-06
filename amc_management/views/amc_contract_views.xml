@@ -31,41 +31,41 @@
                 <header>
                     <button name="action_compute_price" type="object" string="Calculate Price"
                             class="btn-primary" invisible="state != 'draft' or price_state != 'none'"
-                            groups="amc_management.group_amc_coordinator"/>
+                            groups="amc_management.amc_management_group_coordinator"/>
                     <button name="action_compute_price" type="object" string="Recalculate Price"
                             invisible="state != 'draft' or price_state == 'none'"
-                            groups="amc_management.group_amc_coordinator"/>
+                            groups="amc_management.amc_management_group_coordinator"/>
                     <button name="action_create_quotation" type="object" string="Create Quotation"
                             class="btn-primary" invisible="state != 'draft' or price_state == 'none'"
-                            groups="amc_management.group_amc_coordinator"/>
+                            groups="amc_management.amc_management_group_coordinator"/>
                     <button name="action_open_override" type="object" string="Request Override"
-                            invisible="state != 'draft'" groups="amc_management.group_amc_coordinator"/>
+                            invisible="state != 'draft'" groups="amc_management.amc_management_group_coordinator"/>
                     <button name="action_reissue_quotation" type="object" string="Reissue Quotation"
-                            invisible="state != 'quotation'" groups="amc_management.group_amc_coordinator"
+                            invisible="state != 'quotation'" groups="amc_management.amc_management_group_coordinator"
                             confirm="The open quotation is cancelled and the price calculated again for today. Continue?"/>
                     <button name="action_cancel_contract" type="object" string="Cancel Contract"
                             invisible="state not in ('draft', 'quotation', 'awaiting_payment')"
-                            groups="amc_management.group_amc_manager"/>
+                            groups="amc_management.amc_management_group_manager"/>
                     <button name="action_create_invoice" type="object" string="Create Invoice"
                             invisible="state not in ('awaiting_payment', 'active', 'expiring', 'on_hold', 'closed', 'renewed')"
-                            groups="amc_management.group_amc_coordinator"/>
+                            groups="amc_management.amc_management_group_coordinator"/>
                     <button name="action_renew" type="object" string="Renew" class="btn-primary"
                             invisible="state not in ('expiring', 'closed')"
-                            groups="amc_management.group_amc_coordinator"/>
+                            groups="amc_management.amc_management_group_coordinator"/>
                     <button name="action_renew" type="object" string="Renew"
                             invisible="state not in ('active', 'on_hold')"
-                            groups="amc_management.group_amc_coordinator"/>
+                            groups="amc_management.amc_management_group_coordinator"/>
                     <button name="action_open_reason_wizard" type="object" string="Put On Hold"
                             context="{'amc_reason_action': 'hold'}"
                             invisible="state not in ('active', 'expiring')"
-                            groups="amc_management.group_amc_manager"/>
+                            groups="amc_management.amc_management_group_manager"/>
                     <button name="action_resume" type="object" string="Resume"
-                            invisible="state != 'on_hold'" groups="amc_management.group_amc_manager"/>
+                            invisible="state != 'on_hold'" groups="amc_management.amc_management_group_manager"/>
                     <button name="action_open_reason_wizard" type="object" string="Close Contract"
                             context="{'amc_reason_action': 'close'}"
                             invisible="state not in ('active', 'expiring', 'on_hold')"
-                            groups="amc_management.group_amc_manager"/>
-                    <button name="%(amc_management.action_report_amc_visit_schedule)d" type="action"
+                            groups="amc_management.amc_management_group_manager"/>
+                    <button name="%(amc_management.amc_contract_action_report_visit_schedule)d" type="action"
                             string="Print Visit Schedule" invisible="not visit_count"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,quotation,awaiting_payment,active,expiring,closed"/>
@@ -292,7 +292,7 @@
         </field>
     </record>
 
-    <record id="action_amc_contract" model="ir.actions.act_window">
+    <record id="amc_contract_action" model="ir.actions.act_window">
         <field name="name">AMC Contracts</field>
         <field name="res_model">amc.contract</field>
         <field name="view_mode">list,form</field>
@@ -304,7 +304,7 @@
 
     <!-- AMC-A09: Quotations and Renewals (SRS 6 "AMC Plans, Quotations, Contracts, Services
          and Renewals"). -->
-    <record id="action_amc_contract_renewals" model="ir.actions.act_window">
+    <record id="amc_contract_action_renewals" model="ir.actions.act_window">
         <field name="name">Renewals</field>
         <field name="res_model">amc.contract</field>
         <field name="view_mode">list,form</field>
@@ -316,7 +316,7 @@
         </field>
     </record>
 
-    <record id="action_amc_contract_quotations" model="ir.actions.act_window">
+    <record id="amc_contract_action_quotations" model="ir.actions.act_window">
         <field name="name">Quotations</field>
         <field name="res_model">amc.contract</field>
         <field name="view_mode">list,form</field>
@@ -324,124 +324,11 @@
         <field name="context">{'create': False}</field>
     </record>
 
-    <record id="amc_contract_reason_wizard_view_form" model="ir.ui.view">
-        <field name="name">amc.contract.reason.wizard.form</field>
-        <field name="model">amc.contract.reason.wizard</field>
-        <field name="arch" type="xml">
-            <form string="AMC Contract">
-                <group>
-                    <field name="contract_id"/>
-                    <field name="action"/>
-                    <field name="reason"/>
-                </group>
-                <footer>
-                    <button name="action_confirm" type="object" string="Confirm" class="btn-primary"/>
-                    <button special="cancel" string="Discard"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <!-- Override request (opened from the contract) and its decision. -->
-    <record id="amc_price_override_view_form" model="ir.ui.view">
-        <field name="name">amc.price.override.form</field>
-        <field name="model">amc.price.override</field>
-        <field name="arch" type="xml">
-            <form string="Override Request">
-                <header>
-                    <field name="can_decide" invisible="1"/>
-                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
-                            invisible="not can_decide or not id"/>
-                    <button name="action_reject" type="object" string="Reject"
-                            invisible="not can_decide or not id"/>
-                    <button name="action_cancel" type="object" string="Cancel Request"
-                            invisible="state != 'requested' or not id"/>
-                    <field name="state" widget="statusbar" statusbar_visible="requested,approved"
-                           invisible="not id"/>
-                </header>
-                <sheet>
-                    <div class="oe_title" invisible="not id"><h1><field name="name"/></h1></div>
-                    <group>
-                        <group>
-                            <field name="contract_id" readonly="1"/>
-                            <field name="company_id" invisible="1"/>
-                            <field name="override_type" readonly="id"/>
-                            <field name="currency_id" invisible="1"/>
-                            <field name="original_price" invisible="override_type != 'price' or not id"/>
-                            <field name="requested_price" invisible="override_type != 'price'" readonly="id"/>
-                            <field name="original_pricelist_id" invisible="override_type != 'pricelist' or not id"/>
-                            <field name="requested_pricelist_id" invisible="override_type != 'pricelist'"
-                                   readonly="id" options="{'no_create': True}"/>
-                        </group>
-                        <group invisible="not id">
-                            <field name="requested_by_id"/>
-                            <field name="requested_on"/>
-                            <field name="decided_by_id" invisible="not decided_by_id"/>
-                            <field name="decided_on" invisible="not decided_on"/>
-                            <field name="decision_note" invisible="not decision_note"/>
-                        </group>
-                    </group>
-                    <field name="reason" placeholder="Why is this override needed?" readonly="id"/>
-                </sheet>
-                <chatter invisible="not id"/>
-            </form>
-        </field>
-    </record>
-
-    <record id="amc_price_override_view_list" model="ir.ui.view">
-        <field name="name">amc.price.override.list</field>
-        <field name="model">amc.price.override</field>
-        <field name="arch" type="xml">
-            <list string="Override Requests" create="0">
-                <field name="name"/>
-                <field name="contract_id"/>
-                <field name="override_type"/>
-                <field name="requested_by_id"/>
-                <field name="decided_by_id"/>
-                <field name="state" widget="badge" decoration-warning="state == 'requested'"
-                       decoration-success="state == 'approved'"/>
-            </list>
-        </field>
-    </record>
-
-    <record id="action_amc_price_override" model="ir.actions.act_window">
-        <field name="name">Override Requests</field>
-        <field name="res_model">amc.price.override</field>
-        <field name="view_mode">list,form</field>
-        <field name="context">{'create': False}</field>
-    </record>
-
-    <record id="amc_price_override_reject_wizard_view_form" model="ir.ui.view">
-        <field name="name">amc.price.override.reject.wizard.form</field>
-        <field name="model">amc.price.override.reject.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Reject Override">
-                <group>
-                    <field name="override_id"/>
-                    <field name="note"/>
-                </group>
-                <footer>
-                    <button name="action_confirm" type="object" string="Reject" class="btn-primary"/>
-                    <button special="cancel" string="Discard"/>
-                </footer>
-            </form>
-        </field>
-    </record>
-
-    <record id="amc_contract_cancel_wizard_view_form" model="ir.ui.view">
-        <field name="name">amc.contract.cancel.wizard.form</field>
-        <field name="model">amc.contract.cancel.wizard</field>
-        <field name="arch" type="xml">
-            <form string="Cancel AMC Contract">
-                <group>
-                    <field name="contract_id"/>
-                    <field name="reason"/>
-                </group>
-                <footer>
-                    <button name="action_confirm" type="object" string="Cancel Contract" class="btn-primary"/>
-                    <button special="cancel" string="Discard"/>
-                </footer>
-            </form>
-        </field>
-    </record>
+    <menuitem id="amc_contract_menu_quotations" name="Quotations"
+              parent="amc_management_menu_sales" action="amc_contract_action_quotations"
+              sequence="15"/>
+    <menuitem id="amc_contract_menu" name="Contracts" parent="amc_management_menu_sales"
+              action="amc_contract_action" sequence="20"/>
+    <menuitem id="amc_contract_menu_renewals" name="Renewals" parent="amc_management_menu_sales"
+              action="amc_contract_action_renewals" sequence="40"/>
 </odoo>

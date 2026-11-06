@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Approved B4a: AMC quotation lines are invoiced on delivered quantities (set by the AMC
+         billing schedule in phase A5). -->
+    <record id="product_amc_service" model="product.product">
+        <field name="name">AMC Contract Service</field>
+        <field name="type">service</field>
+        <field name="invoice_policy">delivery</field>
+        <field name="service_type">manual</field>
+        <field name="sale_ok" eval="True"/>
+        <field name="purchase_ok" eval="False"/>
+        <field name="list_price">0.0</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

@@ -63,7 +63,7 @@ class AmcPriceOverride(models.Model):
     # ------------------------------------------------------------------ request
     @api.model_create_multi
     def create(self, vals_list):
-        if not self.env.user.has_group('amc_management.group_amc_coordinator'):
+        if not self.env.user.has_group('amc_management.amc_management_group_coordinator'):
             raise AccessError(_("Only AMC Coordinators can request overrides."))
         for vals in vals_list:
             contract = self.env['amc.contract'].browse(vals.get('contract_id'))
@@ -143,7 +143,7 @@ class AmcPriceOverride(models.Model):
 
     def _amc_approvers(self):
         self.ensure_one()
-        group = self.env.ref('amc_management.group_amc_approver')
+        group = self.env.ref('amc_management.amc_management_group_approver')
         return self.env['res.users'].search([
             ('groups_id', 'in', group.ids), ('share', '=', False),
             ('company_ids', 'in', self.company_id.ids), ('id', '!=', self.requested_by_id.id)])
@@ -160,7 +160,7 @@ class AmcPriceOverride(models.Model):
     # ------------------------------------------------------------------ decisions
     def _amc_decider_problem(self, user):
         self.ensure_one()
-        if not user.has_group('amc_management.group_amc_approver') \
+        if not user.has_group('amc_management.amc_management_group_approver') \
                 or self.company_id not in user.company_ids:
             return _("Only AMC Approvers of %s can decide override requests.",
                      self.company_id.name)
@@ -201,7 +201,7 @@ class AmcPriceOverride(models.Model):
             return {
                 'type': 'ir.actions.act_window',
                 'name': _("Reject Override"),
-                'res_model': 'amc.price.override.reject.wizard',
+                'res_model': 'amc.price.override.reject',
                 'view_mode': 'form',
                 'target': 'new',
                 'context': {'default_override_id': self.id},
@@ -239,15 +239,3 @@ class AmcPriceOverride(models.Model):
         for record in (self, self.contract_id):
             # sudo: chatter note only (the approver may not write the contract).
             record.sudo()._message_log(body=body)
-
-
-class AmcPriceOverrideRejectWizard(models.TransientModel):
-    _name = 'amc.price.override.reject.wizard'
-    _description = 'Reject AMC Override'
-
-    override_id = fields.Many2one('amc.price.override', required=True, readonly=True)
-    note = fields.Text(string='Reason', required=True)
-
-    def action_confirm(self):
-        return self.override_id.action_reject(self.note)
-

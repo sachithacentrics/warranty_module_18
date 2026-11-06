@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Override request (opened from the contract) and its decision. -->
+    <record id="amc_price_override_view_form" model="ir.ui.view">
+        <field name="name">amc.price.override.form</field>
+        <field name="model">amc.price.override</field>
+        <field name="arch" type="xml">
+            <form string="Override Request">
+                <header>
+                    <field name="can_decide" invisible="1"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="not can_decide or not id"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="not can_decide or not id"/>
+                    <button name="action_cancel" type="object" string="Cancel Request"
+                            invisible="state != 'requested' or not id"/>
+                    <field name="state" widget="statusbar" statusbar_visible="requested,approved"
+                           invisible="not id"/>
+                </header>
+                <sheet>
+                    <div class="oe_title" invisible="not id"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="contract_id" readonly="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="override_type" readonly="id"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="original_price" invisible="override_type != 'price' or not id"/>
+                            <field name="requested_price" invisible="override_type != 'price'" readonly="id"/>
+                            <field name="original_pricelist_id" invisible="override_type != 'pricelist' or not id"/>
+                            <field name="requested_pricelist_id" invisible="override_type != 'pricelist'"
+                                   readonly="id" options="{'no_create': True}"/>
+                        </group>
+                        <group invisible="not id">
+                            <field name="requested_by_id"/>
+                            <field name="requested_on"/>
+                            <field name="decided_by_id" invisible="not decided_by_id"/>
+                            <field name="decided_on" invisible="not decided_on"/>
+                            <field name="decision_note" invisible="not decision_note"/>
+                        </group>
+                    </group>
+                    <field name="reason" placeholder="Why is this override needed?" readonly="id"/>
+                </sheet>
+                <chatter invisible="not id"/>
+            </form>
+        </field>
+    </record>
+
+    <record id="amc_price_override_view_list" model="ir.ui.view">
+        <field name="name">amc.price.override.list</field>
+        <field name="model">amc.price.override</field>
+        <field name="arch" type="xml">
+            <list string="Override Requests" create="0">
+                <field name="name"/>
+                <field name="contract_id"/>
+                <field name="override_type"/>
+                <field name="requested_by_id"/>
+                <field name="decided_by_id"/>
+                <field name="state" widget="badge" decoration-warning="state == 'requested'"
+                       decoration-success="state == 'approved'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="amc_price_override_action" model="ir.actions.act_window">
+        <field name="name">Override Requests</field>
+        <field name="res_model">amc.price.override</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'create': False}</field>
+    </record>
+
+    <menuitem id="amc_price_override_menu" name="Override Requests"
+              parent="amc_management_menu_sales" action="amc_price_override_action" sequence="30"/>
+</odoo>

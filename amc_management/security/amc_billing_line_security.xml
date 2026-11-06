@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Multi-company: records of the user's companies, or shared (no company). -->
+    <record id="amc_billing_line_rule_company" model="ir.rule">
+        <field name="name">AMC Billing Schedule: multi-company</field>
+        <field name="model_id" ref="model_amc_billing_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

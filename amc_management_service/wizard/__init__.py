@@ -1,1 +1,1 @@
-from . import amc_service_request_wizard
+from . import amc_service_request

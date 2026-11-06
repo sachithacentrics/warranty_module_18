@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_price_override_reject_view_form" model="ir.ui.view">
+        <field name="name">amc.price.override.reject.form</field>
+        <field name="model">amc.price.override.reject</field>
+        <field name="arch" type="xml">
+            <form string="Reject Override">
+                <group>
+                    <field name="override_id"/>
+                    <field name="note"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Reject" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

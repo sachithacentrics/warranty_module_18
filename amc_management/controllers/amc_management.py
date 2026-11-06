@@ -21,7 +21,7 @@ class AmcDocumentation(http.Controller):
     AMC users only."""
 
     def _amc_allowed(self):
-        return request.env.user.has_group('amc_management.group_amc_user')
+        return request.env.user.has_group('amc_management.amc_management_group_user')
 
     def _amc_page(self, path):
         if not self._amc_allowed():

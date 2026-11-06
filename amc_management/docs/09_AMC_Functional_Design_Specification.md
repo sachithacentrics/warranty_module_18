@@ -139,4 +139,4 @@ ribbons On Hold / Renewed). Validation messages name the record and the failing 
 `amc.contract.visit`. Filters: AMC type (plan), due date, customer, site, status, due indicator,
 contract On Hold / Renewed. Grouping: plan × due month × status. Output: pivot / graph / list /
 calendar (export via standard list export) and the per-contract PDF *AMC Visit Schedule*
-(`amc_management.action_report_amc_visit_schedule`). Permission: AMC User (read).
+(`amc_management.amc_contract_action_report_visit_schedule`). Permission: AMC User (read).

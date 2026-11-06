@@ -26,7 +26,7 @@ def step(name):
     return wrap
 
 
-admin.groups_id |= (env.ref('amc_management.group_amc_manager') | env.ref('amc_management.group_amc_approver')
+admin.groups_id |= (env.ref('amc_management.amc_management_group_manager') | env.ref('amc_management.amc_management_group_approver')
                     | env.ref('helpdesk.group_helpdesk_manager') | env.ref('industry_fsm.group_fsm_manager')
                     | env.ref('sales_team.group_sale_manager'))
 admin.tz = 'Asia/Colombo'
@@ -177,7 +177,7 @@ def _():
     company.warranty_draft_job_team_id = team
     visits = c.visit_ids.filtered(lambda v: v.visit_type == 'preventive' and v.sequence_no == 1
                                   and v.product_id == ac)
-    wizard = env['amc.service.request.wizard'].create({
+    wizard = env['amc.service.request'].create({
         'visit_ids': [Command.set(visits.ids)], 'team_id': team.id,
         'description': 'First preventive maintenance of the showroom units'})
     case = env['warranty.case'].browse(wizard.action_confirm()['res_id'])

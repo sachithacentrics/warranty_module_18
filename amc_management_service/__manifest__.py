@@ -1,6 +1,6 @@
 {
     'name': 'AMC Management - Service Execution',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.1.0',
     'category': 'Services/AMC',
     'summary': 'AMC visits through the mandatory Helpdesk Ticket -> Service Job -> Field '
                'Service chain of the warranty solution',
@@ -22,11 +22,13 @@ Optional bridge; neither amc_management nor the warranty modules depend on it.
     'data': [
         'security/ir.model.access.csv',
         'data/helpdesk_tag_data.xml',
-        'views/amc_visit_views.xml',
+        'views/amc_contract_visit_views.xml',
         'views/warranty_case_views.xml',
+        'views/warranty_service_job_views.xml',
         'views/helpdesk_ticket_views.xml',
+        'wizard/amc_service_request_views.xml',
     ],
     'auto_install': False,
     'installable': True,
-    'license': 'LGPL-3',
+    'license': 'OPL-1',
 }

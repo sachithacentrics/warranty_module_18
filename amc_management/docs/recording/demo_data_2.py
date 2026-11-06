@@ -20,7 +20,7 @@ try:
         if not case:
             visits = contract.visit_ids.filtered(lambda v: v.visit_type == 'preventive'
                                                  and v.sequence_no == 1 and v.product_id == ac)
-            wizard = env['amc.service.request.wizard'].create({
+            wizard = env['amc.service.request'].create({
                 'visit_ids': [Command.set(visits.ids)], 'team_id': team.id,
                 'description': 'First preventive maintenance of the showroom units'})
             case = env['warranty.case'].browse(wizard.action_confirm()['res_id'])

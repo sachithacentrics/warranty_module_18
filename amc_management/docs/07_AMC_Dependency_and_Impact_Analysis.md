@@ -51,4 +51,4 @@ graph TD
 | Duplicate entitlements / billing on repeated activation | generation idempotent + row lock (`_amc_lock`) | TC-011 |
 | Duplicate releases by the scheduler | release only `planned` lines; one savepoint per contract | TC-031, TC-024 |
 | Helpdesk users without AMC rights on AMC cases | read-only ACL for Helpdesk / FSM users in the service bridge; writes through sudo | TC-090 |
-| Migration of 1.0.0 data | post-migrate, re-runnable, no state / price changes | `21_AMC_Installation_and_Upgrade_Test_Report.md` |
+| Migration of 1.0.0 data | none since 18.0.1.2.0 (not in production; script removed) | `21_AMC_Installation_and_Upgrade_Test_Report.md` |

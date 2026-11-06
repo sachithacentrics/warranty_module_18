@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- AMC-H01: printable AMC Visit Schedule of a contract (SRS 15). -->
-    <record id="action_report_amc_visit_schedule" model="ir.actions.report">
-        <field name="name">AMC Visit Schedule</field>
-        <field name="model">amc.contract</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">amc_management.report_amc_visit_schedule</field>
-        <field name="report_file">amc_management.report_amc_visit_schedule</field>
-        <field name="print_report_name">'AMC Visit Schedule - %s' % object.name</field>
-        <field name="binding_model_id" ref="model_amc_contract"/>
-        <field name="binding_type">report</field>
-    </record>
-
     <template id="report_amc_visit_schedule">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="contract">

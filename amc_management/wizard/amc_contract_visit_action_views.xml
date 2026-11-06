@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_contract_visit_action_view_form" model="ir.ui.view">
+        <field name="name">amc.contract.visit.action.form</field>
+        <field name="model">amc.contract.visit.action</field>
+        <field name="arch" type="xml">
+            <form string="AMC Visit">
+                <group>
+                    <field name="visit_ids" widget="many2many_tags" readonly="1"/>
+                    <field name="action" invisible="1"/>
+                    <field name="usage_required" invisible="1"/>
+                    <field name="completion_date" invisible="action != 'complete'"
+                           required="action == 'complete'"/>
+                    <field name="usage_reading" invisible="action != 'complete' or not usage_required"
+                           required="action == 'complete' and usage_required"/>
+                    <field name="note" required="action == 'cancel'"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirm" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

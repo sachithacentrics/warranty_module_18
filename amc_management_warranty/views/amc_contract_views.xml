@@ -20,17 +20,6 @@
         </field>
     </record>
 
-    <record id="amc_opportunity_view_form" model="ir.ui.view">
-        <field name="name">amc.opportunity.view.form.inherit.amc_management_warranty</field>
-        <field name="model">amc.opportunity</field>
-        <field name="inherit_id" ref="amc_management.amc_opportunity_view_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//field[@name='site_id']" position="after">
-                <field name="warranty_card_id" invisible="not warranty_card_id"/>
-            </xpath>
-        </field>
-    </record>
-
     <record id="amc_contract_view_search" model="ir.ui.view">
         <field name="name">amc.contract.view.search.inherit.amc_management_warranty</field>
         <field name="model">amc.contract</field>

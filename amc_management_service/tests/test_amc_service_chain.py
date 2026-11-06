@@ -68,7 +68,7 @@ class TestAmcServiceChain(AmcCommon):
 
     # ------------------------------------------------------------------ helpers
     def _request(self, visits, **values):
-        wizard = self.env['amc.service.request.wizard'].with_user(self.user_coordinator).create(
+        wizard = self.env['amc.service.request'].with_user(self.user_coordinator).create(
             dict({'visit_ids': [Command.set(visits.ids)], 'team_id': self.team.id}, **values))
         return self.env['warranty.case'].browse(wizard.action_confirm()['res_id'])
 

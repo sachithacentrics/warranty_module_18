@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- AMC roles (Mapping 17 / SRS 15). Technicians (Field Service), accountants (Accounting)
+         and administrators (Settings) keep their standard Odoo groups. -->
+    <record id="module_category_amc" model="ir.module.category">
+        <field name="name">AMC Management</field>
+        <field name="description">Annual Maintenance Contracts</field>
+        <field name="sequence">60</field>
+    </record>
+
+    <record id="amc_management_group_user" model="res.groups">
+        <field name="name">User</field>
+        <field name="category_id" ref="module_category_amc"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Reads AMC plans, contracts and visits; prepares draft records.</field>
+    </record>
+
+    <record id="amc_management_group_coordinator" model="res.groups">
+        <field name="name">Coordinator</field>
+        <field name="category_id" ref="module_category_amc"/>
+        <field name="implied_ids" eval="[(4, ref('amc_management_group_user'))]"/>
+        <field name="comment">Manages AMC quotations, visit schedules and service requests.</field>
+    </record>
+
+    <record id="amc_management_group_manager" model="res.groups">
+        <field name="name">Manager</field>
+        <field name="category_id" ref="module_category_amc"/>
+        <field name="implied_ids" eval="[(4, ref('amc_management_group_coordinator'))]"/>
+        <field name="comment">Configures AMC plans and billing plans; holds, renews and closes contracts.</field>
+        <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- Approved B9: price overrides are approved by an AMC Approver (never the requester);
+         independent of the User / Coordinator / Manager levels. -->
+    <record id="module_category_amc_approval" model="ir.module.category">
+        <field name="name">AMC Approval</field>
+        <field name="sequence">61</field>
+    </record>
+
+    <record id="amc_management_group_approver" model="res.groups">
+        <field name="name">Approver</field>
+        <field name="category_id" ref="module_category_amc_approval"/>
+        <field name="implied_ids" eval="[(4, ref('amc_management_group_user'))]"/>
+        <field name="comment">Approves AMC price overrides (never their own requests).</field>
+    </record>
+</odoo>

@@ -47,9 +47,13 @@
         </field>
     </record>
 
-    <record id="action_amc_billing_plan" model="ir.actions.act_window">
+    <record id="amc_billing_plan_action" model="ir.actions.act_window">
         <field name="name">Billing Plans</field>
         <field name="res_model">amc.billing.plan</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <menuitem id="amc_billing_plan_menu" name="Billing Plans"
+              parent="amc_management_menu_configuration" action="amc_billing_plan_action"
+              sequence="30"/>
 </odoo>

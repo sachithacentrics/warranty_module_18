@@ -23,6 +23,10 @@
         <field name="model">amc.plan</field>
         <field name="arch" type="xml">
             <form string="AMC Plan">
+                <header>
+                    <button name="action_open_pricing_preview" type="object" string="Price Preview"
+                            invisible="not id"/>
+                </header>
                 <sheet>
                     <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger"
                             invisible="active"/>
@@ -58,6 +62,7 @@
                         </group>
                         <group string="Contract Rules" name="contract_rules">
                             <field name="pricing_method"/>
+                            <field name="current_formula_id"/>
                             <field name="billing_plan_id" options="{'no_create': True}"/>
                             <field name="start_rule"/>
                             <label for="duration_value"/>
@@ -72,6 +77,19 @@
                         </group>
                     </group>
                     <notebook>
+                        <page string="Pricing Formulas" name="pricing_formulas">
+                            <field name="formula_ids" context="{'default_plan_id': id}">
+                                <list decoration-muted="state == 'archived'"
+                                      decoration-info="state == 'draft'">
+                                    <field name="version"/>
+                                    <field name="method"/>
+                                    <field name="currency_id"/>
+                                    <field name="effective_from"/>
+                                    <field name="effective_to"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Applicability" name="applicability">
                             <group>
                                 <field name="pricelist_ids" widget="many2many_tags"
@@ -111,7 +129,7 @@
         </field>
     </record>
 
-    <record id="action_amc_plan" model="ir.actions.act_window">
+    <record id="amc_plan_action" model="ir.actions.act_window">
         <field name="name">AMC Plans</field>
         <field name="res_model">amc.plan</field>
         <field name="view_mode">list,form</field>
@@ -121,4 +139,7 @@
                 equipment, the pricing method, the billing plan and the contract rules.</p>
         </field>
     </record>
+
+    <menuitem id="amc_plan_menu" name="AMC Plans" parent="amc_management_menu_configuration"
+              action="amc_plan_action" sequence="20"/>
 </odoo>

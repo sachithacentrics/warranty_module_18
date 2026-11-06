@@ -41,7 +41,7 @@ class HelpdeskTicket(models.Model):
         return {
             'type': 'ir.actions.act_window',
             'name': _("Add AMC Services"),
-            'res_model': 'amc.service.request.wizard',
+            'res_model': 'amc.service.request',
             'view_mode': 'form',
             'target': 'new',
             'context': {'default_visit_ids': [(6, 0, self.amc_pending_visit_ids.ids)],

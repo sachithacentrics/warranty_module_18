@@ -1,5 +1,28 @@
 # 26 – AMC Change Log
 
+## 18.0.1.2.0 / bridges 18.0.1.1.0 (2026-11-06) – coding standards
+
+Structure only, no functional change (all AMC tests unchanged and passing):
+* License OPL-1 (all three modules); migration script removed (not in production).
+* One class per Python file, named after the model: `amc_contract_line.py`,
+  `amc_contract_visit.py` (was `amc_visit.py`), `amc_pricing_tier.py`, `sale_order_line.py`;
+  bridges `amc_contract_line.py`, `res_config_settings.py`, `warranty_unit.py`.
+* Transient models in `wizard/` without "wizard" in names: `amc.opportunity.lost`,
+  `amc.contract.cancel`, `amc.contract.reason`, `amc.contract.visit.action`,
+  `amc.price.override.reject`, `amc.service.request`; each with `<transient>_views.xml`.
+* Security: `amc_management_groups.xml` (groups `amc_management_group_user / _coordinator /
+  _manager / _approver`) and one `<model>_security.xml` per model (`<model>_rule_company`).
+* Views per model (`amc_price_override_views.xml`, `amc_contract_visit_views.xml`, bridge
+  `amc_opportunity_views.xml`, `warranty_service_job_views.xml`); model menus inside the model
+  views file, root / section / document menus in `amc_management_menus.xml`; price-formula page
+  of the plan form merged into `amc_plan_view_form`.
+* XML ids: actions `<model>_action[_detail]`, menus `<model>_menu[_detail]`, inheriting views use
+  the inherited id (`view_order_form`, `res_config_settings_view_form`,
+  `helpdesk_ticket_view_form_warranty`) with name `<model>.view.<type>.inherit.<module>`.
+* Data split: `ir_sequence_data.xml`, `product_product_data.xml`, `ir_cron_data.xml`; report
+  split: `report/amc_contract_reports.xml` + `amc_contract_templates.xml`; controller
+  `controllers/amc_management.py`.
+
 ## amc_management 18.0.1.1.0 (2026-11-06) – phases A4–A6
 
 **Added**
@@ -27,7 +50,7 @@
 **In-app User Manual:** menu *Configuration > Documents > User Manual* (AMC users) opens the HTML
 manual (`manual/amc_user_manual.html`, screenshots embedded, sidebar navigation with active section,
 topic search, chapter pager, image zoom, responsive / print layout) through the login-protected route
-`/amc_management/user_manual` (`controllers/main.py`; kept out of `/static`, which is public); test
+`/amc_management/user_manual` (`controllers/amc_management.py`; kept out of `/static`, which is public); test
 TC-110.
 
 **In-app Technical Architecture:** menu *Configuration > Documents > Technical Architecture* opens

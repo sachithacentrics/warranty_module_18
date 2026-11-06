@@ -3,7 +3,7 @@
 These scripts produce the screen recording shown in Odoo under
 **AMC Management > Configuration > Documents > Process Recording (Video)**:
 
-| Output (served by `controllers/main.py`) | Produced by |
+| Output (served by `controllers/amc_management.py`) | Produced by |
 |---|---|
 | `amc_management/manual/amc_process.mp4` | `record.py` → `encode.py` |
 | `amc_management/manual/amc_process_poster.jpg` | `encode.py` |

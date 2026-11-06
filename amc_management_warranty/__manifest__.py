@@ -1,6 +1,6 @@
 {
     'name': 'AMC Management - Warranty Link',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.1.0',
     'category': 'Services/AMC',
     'summary': 'Bridge between Warranty Management and the separate AMC module: draft AMC on '
                'warranty confirmation, Convert to AMC, warranty units on covered equipment',
@@ -18,10 +18,11 @@ Optional bridge; neither amc_management nor warranty_management depends on it.
     'depends': ['amc_management', 'warranty_management'],
     'data': [
         'views/amc_contract_views.xml',
+        'views/amc_opportunity_views.xml',
         'views/warranty_card_views.xml',
         'views/res_config_settings_views.xml',
     ],
     'auto_install': False,
     'installable': True,
-    'license': 'LGPL-3',
+    'license': 'OPL-1',
 }

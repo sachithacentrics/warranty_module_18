@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_opportunity_lost_view_form" model="ir.ui.view">
+        <field name="name">amc.opportunity.lost.form</field>
+        <field name="model">amc.opportunity.lost</field>
+        <field name="arch" type="xml">
+            <form string="Mark as Lost">
+                <field name="opportunity_ids" invisible="1"/>
+                <group>
+                    <field name="reason"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Mark Lost" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

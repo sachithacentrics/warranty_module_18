@@ -16,7 +16,7 @@ class TestAmcSecurity(AmcCommon):
         cls.user_both = new_test_user(
             cls.env, login='amc_both', name='AMC Manager Both', company_id=cls.company.id,
             company_ids=(cls.company | cls.company_2).ids,
-            groups_id=[cls.env.ref('amc_management.group_amc_manager').id,
+            groups_id=[cls.env.ref('amc_management.amc_management_group_manager').id,
                        cls.env.ref('sales_team.group_sale_salesman').id])
 
     # ------------------------------------------------------------------ roles

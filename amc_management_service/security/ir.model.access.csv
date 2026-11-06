@@ -1,5 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_amc_service_request_wizard_coordinator,amc.service.request.wizard coordinator,model_amc_service_request_wizard,amc_management.group_amc_coordinator,1,1,1,1
+access_amc_service_request_coordinator,amc.service.request coordinator,model_amc_service_request,amc_management.amc_management_group_coordinator,1,1,1,1
 access_amc_contract_visit_helpdesk,amc.contract.visit helpdesk read,amc_management.model_amc_contract_visit,helpdesk.group_helpdesk_user,1,0,0,0
 access_amc_contract_helpdesk,amc.contract helpdesk read,amc_management.model_amc_contract,helpdesk.group_helpdesk_user,1,0,0,0
 access_amc_contract_line_helpdesk,amc.contract.line helpdesk read,amc_management.model_amc_contract_line,helpdesk.group_helpdesk_user,1,0,0,0

@@ -9,7 +9,7 @@ class TestAmcDocumentation(HttpCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.amc_user = new_test_user(cls.env, login='amc_doc_user', password='amc_doc_user',
-                                     groups='base.group_user,amc_management.group_amc_user')
+                                     groups='base.group_user,amc_management.amc_management_group_user')
         cls.employee = new_test_user(cls.env, login='amc_doc_none', password='amc_doc_none',
                                      groups='base.group_user')
 
@@ -26,8 +26,8 @@ class TestAmcDocumentation(HttpCase):
         self.assertIn('text/html', response.headers['Content-Type'])
         self.assertIn('AMC Management – User Manual', response.text)
         self.assertIn('id="toc"', response.text)
-        menu = self.env.ref('amc_management.menu_amc_user_manual')
-        self.assertEqual(menu.parent_id, self.env.ref('amc_management.menu_amc_documents'))
+        menu = self.env.ref('amc_management.amc_management_menu_user_manual')
+        self.assertEqual(menu.parent_id, self.env.ref('amc_management.amc_management_menu_documents'))
         self.assertEqual(menu.action.url, url)
 
     def test_tc112_technical_architecture_access(self):
@@ -43,8 +43,8 @@ class TestAmcDocumentation(HttpCase):
         self.assertIn('AMC Management – Technical Architecture', response.text)
         self.assertIn('id="toc"', response.text)
         self.assertEqual(response.text.count('<figure class="diagram">'), 10)
-        menu = self.env.ref('amc_management.menu_amc_technical_architecture')
-        self.assertEqual(menu.parent_id, self.env.ref('amc_management.menu_amc_documents'))
+        menu = self.env.ref('amc_management.amc_management_menu_technical_architecture')
+        self.assertEqual(menu.parent_id, self.env.ref('amc_management.amc_management_menu_documents'))
         self.assertEqual(menu.action.url, url)
 
     def test_tc111_process_video_access(self):
@@ -68,6 +68,6 @@ class TestAmcDocumentation(HttpCase):
         self.assertEqual(response.headers['Content-Type'], 'video/mp4')
         self.assertEqual(len(response.content), 1024)
         self.assertEqual(self.url_open(poster).headers['Content-Type'], 'image/jpeg')
-        menu = self.env.ref('amc_management.menu_amc_process_video')
-        self.assertEqual(menu.parent_id, self.env.ref('amc_management.menu_amc_documents'))
+        menu = self.env.ref('amc_management.amc_management_menu_process_video')
+        self.assertEqual(menu.parent_id, self.env.ref('amc_management.amc_management_menu_documents'))
         self.assertEqual(menu.action.url, page)

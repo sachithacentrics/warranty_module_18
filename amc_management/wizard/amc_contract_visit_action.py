@@ -1,35 +1,15 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-REASON_ACTIONS = [
-    ('hold', 'Put On Hold'),
-    ('close', 'Close Contract'),
-]
 VISIT_ACTIONS = [
     ('complete', 'Complete'),
     ('cancel', 'Cancel'),
 ]
 
 
-class AmcContractReasonWizard(models.TransientModel):
-    """Reason of a contract Hold / Close (AMC Manager; audit in the chatter)."""
-    _name = 'amc.contract.reason.wizard'
-    _description = 'AMC Contract Hold / Close Reason'
-
-    contract_id = fields.Many2one('amc.contract', required=True, readonly=True)
-    action = fields.Selection(REASON_ACTIONS, required=True, readonly=True)
-    reason = fields.Text(string='Reason', required=True)
-
-    def action_confirm(self):
-        self.ensure_one()
-        if self.action == 'hold':
-            return self.contract_id._amc_hold(self.reason)
-        return self.contract_id._amc_close(self.reason)
-
-
-class AmcVisitActionWizard(models.TransientModel):
+class AmcContractVisitAction(models.TransientModel):
     """Manual completion (AMC Coordinator) or cancellation (AMC Manager) of AMC visits."""
-    _name = 'amc.visit.action.wizard'
+    _name = 'amc.contract.visit.action'
     _description = 'AMC Visit Completion / Cancellation'
 
     visit_ids = fields.Many2many('amc.contract.visit', string='AMC Visits', required=True)

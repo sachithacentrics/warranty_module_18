@@ -102,7 +102,7 @@ class AmcOpportunity(models.Model):
             return {
                 'type': 'ir.actions.act_window',
                 'name': _("Mark as Lost"),
-                'res_model': 'amc.opportunity.lost.wizard',
+                'res_model': 'amc.opportunity.lost',
                 'view_mode': 'form',
                 'target': 'new',
                 'context': {'default_opportunity_ids': [(6, 0, self.ids)]},
@@ -144,14 +144,3 @@ class AmcOpportunity(models.Model):
             'view_mode': 'list,form',
             'domain': [('opportunity_id', '=', self.id)],
         }
-
-
-class AmcOpportunityLostWizard(models.TransientModel):
-    _name = 'amc.opportunity.lost.wizard'
-    _description = 'AMC Opportunity Lost Reason'
-
-    opportunity_ids = fields.Many2many('amc.opportunity', string='Opportunities')
-    reason = fields.Text(string='Reason', required=True)
-
-    def action_confirm(self):
-        return self.opportunity_ids.action_mark_lost(self.reason)

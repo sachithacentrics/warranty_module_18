@@ -133,7 +133,7 @@ module.exports = {
     autonumber
     actor C as Coordinator
     participant V as amc.contract.visit
-    participant WZ as amc.service.request.wizard
+    participant WZ as amc.service.request
     participant T as helpdesk.ticket
     participant CA as warranty.case (AMC)
     participant J as warranty.service.job

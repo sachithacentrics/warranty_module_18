@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_contract_reason_view_form" model="ir.ui.view">
+        <field name="name">amc.contract.reason.form</field>
+        <field name="model">amc.contract.reason</field>
+        <field name="arch" type="xml">
+            <form string="AMC Contract">
+                <group>
+                    <field name="contract_id"/>
+                    <field name="action"/>
+                    <field name="reason"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirm" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

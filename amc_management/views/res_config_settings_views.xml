@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- AMC General Configuration (Mapping 3), per company. -->
-    <record id="res_config_settings_view_form_amc" model="ir.ui.view">
-        <field name="name">res.config.settings.view.form.inherit.amc</field>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.amc_management</field>
         <field name="model">res.config.settings</field>
         <field name="priority" eval="70"/>
         <field name="inherit_id" ref="base.res_config_settings_view_form"/>
@@ -57,11 +57,15 @@
         </field>
     </record>
 
-    <record id="action_amc_config_settings" model="ir.actions.act_window">
+    <record id="res_config_settings_action" model="ir.actions.act_window">
         <field name="name">Settings</field>
         <field name="res_model">res.config.settings</field>
         <field name="view_mode">form</field>
         <field name="target">inline</field>
         <field name="context">{'module': 'amc_management', 'bin_size': False}</field>
     </record>
+
+    <menuitem id="res_config_settings_menu" name="Settings"
+              parent="amc_management_menu_configuration" action="res_config_settings_action"
+              sequence="10" groups="base.group_system"/>
 </odoo>

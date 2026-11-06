@@ -9,12 +9,12 @@ TICKET_MODES = [
 ]
 
 
-class AmcServiceRequestWizard(models.TransientModel):
+class AmcServiceRequest(models.TransientModel):
     """Create Service Request (AMC-F01 / F02 / F03; SRS 2.6 "Service Job confirmed from one or
     more services: create or link a Helpdesk ticket first"): compatible pending AMC visits ->
     Helpdesk ticket (new or existing) -> warranty case of type AMC. The Service Job, Field
     Service task, worksheets and sign-off follow the standard warranty process."""
-    _name = 'amc.service.request.wizard'
+    _name = 'amc.service.request'
     _description = 'AMC Service Request'
 
     visit_ids = fields.Many2many('amc.contract.visit', string='AMC Visits', required=True)

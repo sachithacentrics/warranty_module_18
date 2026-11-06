@@ -16,15 +16,6 @@ _logger = logging.getLogger(__name__)
 CONVERTIBLE_CARD_STATES = ('confirmed', 'expired')
 
 
-class WarrantyUnit(models.Model):
-    _inherit = 'warranty.unit'
-
-    def _amc_serial(self):
-        """The unit serial of the unit's own product (kits: the main serial), else none."""
-        self.ensure_one()
-        return self.serial_ids.filtered(lambda lot: lot.product_id == self.product_id)[:1]
-
-
 class WarrantyCard(models.Model):
     _inherit = 'warranty.card'
 
@@ -126,7 +117,7 @@ class WarrantyCard(models.Model):
         units; AMC eligibility applies after the warranty (A08). An open AMC of the card is
         opened instead of creating a second one."""
         self.ensure_one()
-        if not self.env.user.has_group('amc_management.group_amc_user'):
+        if not self.env.user.has_group('amc_management.amc_management_group_user'):
             raise UserError(_("Only AMC users can convert warranty cards to AMC."))
         if self.state not in CONVERTIBLE_CARD_STATES:
             raise UserError(_("Only Confirmed or Expired warranty cards can be converted to AMC."))

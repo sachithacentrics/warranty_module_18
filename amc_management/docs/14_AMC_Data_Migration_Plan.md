@@ -1,5 +1,9 @@
 # 14 – AMC Data Migration Plan (18.0.1.0.0 → 18.0.1.1.0)
 
+> **Removed in 18.0.1.2.0 (2026-11-06):** the AMC modules are not used in production, so the
+> migration script was deleted with the coding-standards refactor (see 26). This plan is kept
+> for reference only.
+
 ## 1. Affected data
 
 | Model | Change | Mapping |

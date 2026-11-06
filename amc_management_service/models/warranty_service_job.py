@@ -106,7 +106,7 @@ class WarrantyServiceJob(models.Model):
     def action_view_amc_visits(self):
         self.ensure_one()
         action = self.env['ir.actions.act_window']._for_xml_id(
-            'amc_management.action_amc_contract_visit')
+            'amc_management.amc_contract_visit_action')
         action.update({'domain': [('warranty_case_id', '=', self.warranty_case_id.id)],
                        'context': {}})
         return action

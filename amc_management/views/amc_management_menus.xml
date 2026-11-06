@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Separate AMC application (SRS 2.12 / 6: AMC is accessed through a separate module).
+         The menus that open a model are declared in that model's *_views.xml file. -->
+    <menuitem id="amc_management_menu_root" name="AMC Management" sequence="46"
+              web_icon="amc_management,static/description/icon.png"
+              groups="amc_management_group_user"/>
+
+    <menuitem id="amc_management_menu_sales" name="Sales" parent="amc_management_menu_root"
+              sequence="10"/>
+    <!-- AMC-A09 / F13: Services (visits / entitlements) and AMC-H01 reporting. -->
+    <menuitem id="amc_management_menu_services" name="Services" parent="amc_management_menu_root"
+              sequence="20"/>
+    <menuitem id="amc_management_menu_reporting" name="Reporting"
+              parent="amc_management_menu_root" sequence="80"/>
+    <menuitem id="amc_management_menu_configuration" name="Configuration"
+              parent="amc_management_menu_root" sequence="90" groups="amc_management_group_user"/>
+
+    <!-- Configuration > Documents: pages served by controllers/amc_management.py
+         (login + AMC User). -->
+    <record id="amc_management_action_user_manual" model="ir.actions.act_url">
+        <field name="name">AMC User Manual</field>
+        <field name="url">/amc_management/user_manual</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="amc_management_action_technical_architecture" model="ir.actions.act_url">
+        <field name="name">AMC Technical Architecture</field>
+        <field name="url">/amc_management/technical_architecture</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="amc_management_action_process_video" model="ir.actions.act_url">
+        <field name="name">AMC Process Recording</field>
+        <field name="url">/amc_management/process_video</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="amc_management_menu_documents" name="Documents"
+              parent="amc_management_menu_configuration" sequence="90"
+              groups="amc_management_group_user"/>
+    <menuitem id="amc_management_menu_user_manual" name="User Manual"
+              parent="amc_management_menu_documents" action="amc_management_action_user_manual"
+              sequence="10" groups="amc_management_group_user"/>
+    <menuitem id="amc_management_menu_technical_architecture" name="Technical Architecture"
+              parent="amc_management_menu_documents"
+              action="amc_management_action_technical_architecture" sequence="15"
+              groups="amc_management_group_user"/>
+    <menuitem id="amc_management_menu_process_video" name="Process Recording (Video)"
+              parent="amc_management_menu_documents" action="amc_management_action_process_video"
+              sequence="20" groups="amc_management_group_user"/>
+</odoo>

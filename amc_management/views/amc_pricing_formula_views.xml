@@ -26,12 +26,12 @@
             <form string="Pricing Formula">
                 <header>
                     <button name="action_activate" type="object" string="Activate" class="btn-primary"
-                            invisible="state != 'draft'" groups="amc_management.group_amc_manager"
+                            invisible="state != 'draft'" groups="amc_management.amc_management_group_manager"
                             confirm="An Active version cannot be changed any more. Activate?"/>
                     <button name="action_new_version" type="object" string="New Version"
-                            invisible="state == 'draft'" groups="amc_management.group_amc_manager"/>
+                            invisible="state == 'draft'" groups="amc_management.amc_management_group_manager"/>
                     <button name="action_archive_version" type="object" string="Archive"
-                            invisible="state != 'active'" groups="amc_management.group_amc_manager"/>
+                            invisible="state != 'active'" groups="amc_management.amc_management_group_manager"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,active"/>
                 </header>
                 <sheet>
@@ -154,42 +154,14 @@
         </field>
     </record>
 
-    <record id="action_amc_pricing_formula" model="ir.actions.act_window">
+    <record id="amc_pricing_formula_action" model="ir.actions.act_window">
         <field name="name">Pricing Formulas</field>
         <field name="res_model">amc.pricing.formula</field>
         <field name="view_mode">list,form</field>
         <field name="context">{'search_default_group_plan': 1}</field>
     </record>
 
-    <!-- Plan form: formula versions and the price preview. -->
-    <record id="amc_plan_view_form_pricing" model="ir.ui.view">
-        <field name="name">amc.plan.form.pricing</field>
-        <field name="model">amc.plan</field>
-        <field name="inherit_id" ref="amc_plan_view_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//sheet" position="before">
-                <header>
-                    <button name="action_open_pricing_preview" type="object" string="Price Preview"
-                            invisible="not id"/>
-                </header>
-            </xpath>
-            <xpath expr="//field[@name='pricing_method']" position="after">
-                <field name="current_formula_id"/>
-            </xpath>
-            <xpath expr="//page[@name='applicability']" position="before">
-                <page string="Pricing Formulas" name="pricing_formulas">
-                    <field name="formula_ids" context="{'default_plan_id': id}">
-                        <list decoration-muted="state == 'archived'" decoration-info="state == 'draft'">
-                            <field name="version"/>
-                            <field name="method"/>
-                            <field name="currency_id"/>
-                            <field name="effective_from"/>
-                            <field name="effective_to"/>
-                            <field name="state" widget="badge"/>
-                        </list>
-                    </field>
-                </page>
-            </xpath>
-        </field>
-    </record>
+    <menuitem id="amc_pricing_formula_menu" name="Pricing Formulas"
+              parent="amc_management_menu_configuration" action="amc_pricing_formula_action"
+              sequence="25"/>
 </odoo>

@@ -134,7 +134,7 @@ class TestAmcLifecycle(AmcCommon):
         self._sell(contract)
         first = contract.visit_ids.filtered(lambda v: v.visit_type == 'preventive') \
             .sorted('sequence_no')[0]
-        wizard = self.env['amc.visit.action.wizard'].with_user(self.user_coordinator).create({
+        wizard = self.env['amc.contract.visit.action'].with_user(self.user_coordinator).create({
             'visit_ids': [Command.set(first.ids)], 'action': 'complete',
             'completion_date': self._today(), 'note': 'Filters cleaned'})
         wizard.action_confirm()
@@ -395,7 +395,7 @@ class TestAmcLifecycle(AmcCommon):
         contract = self._create_contract()
         self._sell(contract)
         html, __ = self.env['ir.actions.report']._render_qweb_html(
-            'amc_management.action_report_amc_visit_schedule', contract.ids)
+            'amc_management.amc_contract_action_report_visit_schedule', contract.ids)
         self.assertIn(contract.name.encode(), html)
         self.assertIn(contract.visit_ids[0].name.encode(), html)
 

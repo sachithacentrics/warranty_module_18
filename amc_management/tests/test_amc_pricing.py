@@ -131,7 +131,7 @@ class TestAmcPricing(AmcCommon):
         """TC-105 / AMC-D13 / H06: a Coordinator requests a price override with a reason; the
         requester cannot approve; an AMC Approver of the company can; the price is used."""
         approver = self.user_manager
-        approver.groups_id |= self.env.ref('amc_management.group_amc_approver')
+        approver.groups_id |= self.env.ref('amc_management.amc_management_group_approver')
         contract = self._create_contract()
         contract.action_compute_price()
         request = self.env['amc.price.override'].with_user(self.user_coordinator).create({

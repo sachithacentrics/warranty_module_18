@@ -12,7 +12,7 @@
             <xpath expr="//header" position="inside">
                 <button name="action_open_service_request" type="object" string="Create Service Request"
                         class="btn-primary" invisible="state != 'pending' or contract_state not in ('active', 'expiring')"
-                        groups="amc_management.group_amc_coordinator"/>
+                        groups="amc_management.amc_management_group_coordinator"/>
             </xpath>
             <xpath expr="//field[@name='consumption_source']" position="after">
                 <field name="warranty_case_id" invisible="not warranty_case_id"/>
@@ -33,7 +33,7 @@
                 <header>
                     <button name="action_open_service_request" type="object"
                             string="Create Service Request"
-                            groups="amc_management.group_amc_coordinator"/>
+                            groups="amc_management.amc_management_group_coordinator"/>
                 </header>
             </xpath>
             <xpath expr="//field[@name='completion_date']" position="after">
@@ -52,49 +52,6 @@
                 <field name="helpdesk_ticket_id"/>
                 <field name="service_job_id"/>
             </xpath>
-        </field>
-    </record>
-
-    <record id="amc_service_request_wizard_view_form" model="ir.ui.view">
-        <field name="name">amc.service.request.wizard.form</field>
-        <field name="model">amc.service.request.wizard</field>
-        <field name="arch" type="xml">
-            <form string="AMC Service Request">
-                <div class="alert alert-warning" role="alert" invisible="not problems">
-                    <field name="problems" nolabel="1"/>
-                </div>
-                <group>
-                    <group>
-                        <field name="contract_id"/>
-                        <field name="partner_id"/>
-                        <field name="site_id"/>
-                        <field name="company_id" invisible="1"/>
-                    </group>
-                    <group>
-                        <field name="ticket_mode" widget="radio"/>
-                        <field name="team_id" invisible="ticket_mode != 'new'"
-                               options="{'no_create': True}"/>
-                        <field name="ticket_id" invisible="ticket_mode != 'link'"
-                               required="ticket_mode == 'link'" options="{'no_create': True}"/>
-                    </group>
-                </group>
-                <field name="visit_ids">
-                    <list>
-                        <field name="name"/>
-                        <field name="label"/>
-                        <field name="product_id"/>
-                        <field name="serial_id"/>
-                        <field name="due_date"/>
-                        <field name="state"/>
-                    </list>
-                </field>
-                <field name="description" placeholder="Additional request / ad-hoc complaint"/>
-                <footer>
-                    <button name="action_confirm" type="object" string="Create Service Request"
-                            class="btn-primary"/>
-                    <button special="cancel" string="Discard"/>
-                </footer>
-            </form>
         </field>
     </record>
 </odoo>

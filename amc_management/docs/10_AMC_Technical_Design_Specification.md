@@ -60,5 +60,5 @@ every action, protected fields enforced in `write` (UI, import and RPC).
 
 ## 8.7 Migration (summary – details in 14)
 
-`migrations/18.0.1.1.0/post-migrate.py`: billing schedule for Awaiting Payment / Active contracts,
+Removed in 18.0.1.2.0 (no production data; see 26). Former `post-migrate.py`: billing schedule for Awaiting Payment / Active contracts,
 entitlements for Active contracts; re-runnable; no deletion, no state / price change.
