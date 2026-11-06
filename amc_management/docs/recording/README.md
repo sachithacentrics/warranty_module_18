@@ -24,6 +24,7 @@ Complete Visit) are executed server-side by `server_steps.py`; the video shows t
 | `encode.py` | frames → MP4 (H.264, 1440×900, 25 fps), still gaps capped at 3 s, chapter times remapped |
 | `build_player.py` | player page (chapter list, chapter progress bar, speed, keyboard shortcuts) |
 | `run_with_conf.py` | runs a script against a database with only the given `odoo.conf` |
+| `warm_assets.py` | builds the web asset bundles of a restored database before the take (otherwise the first page load is recorded as a blank screen and the first clicks miss) |
 | `demo_data_1.py`, `demo_data_2.py` | demonstration data (plans, formulas, contracts in every state, service request → confirmed job, warranty card) |
 | `restore_demo.sh` | restores the demo database and filestore from the snapshot before a new take |
 
@@ -34,7 +35,9 @@ Complete Visit) are executed server-side by `server_steps.py`; the video shows t
 * The Odoo Python (has `websocket-client`) for `record.py`, `build_player.py`, `run_with_conf.py`.
 * For `encode.py` only: a separate virtual environment with `imageio-ffmpeg==0.5.1` (bundles an
   ffmpeg binary with libx264):
-  `python -m venv venv_video && venv_video\Scripts\python -m pip install imageio-ffmpeg==0.5.1`
+  `python -m venv venv_video && venv_video\Scripts\python -m pip install imageio-ffmpeg==0.5.1`.
+  Pass Windows-style paths (`C:\...`) to `encode.py`: ffmpeg's concat list does not accept
+  `C:/...` paths from Git Bash.
 
 Environment overrides: `ODOO_ROOT` (default `E:\odoo-env\odoo-v18-03022026`), `ODOO_PY`,
 `ODOO_CONF`, `CHROME`, `AMC_DEMO_DB` (default `amc_demo`); `restore_demo.sh`: `PGBIN`, `FILESTORE`,
@@ -60,7 +63,9 @@ cp -r ../sessions/filestore/amc_demo ../sessions/filestore/amc_demo_base
 MSYS_NO_PATHCONV=1 ../python/python.exe odoo-bin -c odoo.conf -d amc_demo --db-filter=^amc_demo$ \
   --http-port=8199 --gevent-port=8299 --max-cron-threads=0
 
-# 4. Record (about 5 minutes; prints CONTRACT / CASE / JOB ids and FRAMES / DURATION)
+# 4. Warm the asset bundles (once per restore), then record (about 6 minutes; prints
+#    CONTRACT / CASE / JOB ids and FRAMES / DURATION; no NOT FOUND / JS EXCEPTION lines expected)
+../python/python.exe "$REC/warm_assets.py" http://localhost:8199 amc_demo admin admin
 ../python/python.exe "$REC/record.py" http://localhost:8199 "$WORK"
 
 # 5. Encode and build the player page (writes directly into amc_management/manual/)
@@ -74,6 +79,15 @@ bash "$REC/restore_demo.sh"
 Check the result before committing: open a few frames in `$WORK/frames/`, extract frames at the
 chapter times printed by `encode.py`, and play the page `/amc_management/process_video` (AMC user).
 
+## Chapters
+
+Introduction, Sign in, **1. Configuration – AMC settings** (every setting of *Configuration >
+Settings*, one caption each: `SETTINGS` in `record.py`; a setting that is not visible, such as
+Default Pricelist without Sales pricelists, is explained via `HIDDEN`), 1. AMC plans and pricing,
+2. Create and price a contract, 3. Quotation and activation, 4. Billing, 5. AMC visits and service
+request, 6. Helpdesk case and Service Job, 7. Field Service completion, 8. Hold, expiry and renewal,
+9. Warranty to AMC, 10. Reports and documentation.
+
 ## Changing the recording
 
 * Each step in `record.py` is a short block: `caption(step, text, chapter=…)` shows the banner (a
@@ -83,4 +97,4 @@ chapter times printed by `encode.py`, and play the page `/amc_management/process
 * `point()` retries for up to 10 seconds until the element is visible, so slow screens do not break
   the take; `NOT FOUND <selector>` in the output means a selector must be adapted to a changed view.
 * Records created during the take are looked up by RPC (`rpc(...)`), never by URL.
-* Keep a take below about 5 minutes; still screens longer than 3 s are shortened by `encode.py`.
+* Keep a take below about 6 minutes; still screens longer than 3 s are shortened by `encode.py`.

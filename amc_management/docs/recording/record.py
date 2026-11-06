@@ -241,6 +241,65 @@ caption('Start', 'Open the AMC Management application')
 point('.o_app[data-menu-xmlid="amc_management.amc_management_menu_root"], a.o_app', 'AMC Management', hold=1)
 pump(3)
 
+# ---------------------------------------------------------------- settings
+# One caption per setting (<setting id> of res_config_settings_views.xml, both AMC modules).
+SETTINGS = [
+    ('amc_enabled', 'AMC Enabled – marks that this company works with Annual Maintenance '
+     'Contracts. It is informational only: it does not hide or block the AMC menus'),
+    ('amc_default_plan', 'Default AMC Plan – proposed on every new AMC opportunity, and used for '
+     'the draft AMC created from a warranty card'),
+    ('amc_default_pricelist', 'Default Pricelist – a fallback only: AMC prices use the customer\'s '
+     'own pricelist, else the pricelist of its country group, else this one'),
+    ('amc_currency', 'AMC Currency – contracts take the currency of that pricelist; without any '
+     'pricelist this currency (read-only: fallback pricelist, else company) is used'),
+    ('amc_default_billing_plan', 'Default Billing Plan – proposed for new AMC Plans: Upfront, '
+     'Monthly, Quarterly, Half-yearly, Annual or Per Preventive Visit'),
+    ('amc_default_start_rule', 'Default Start Criteria – proposed for new plans: coverage starts '
+     'on the Activation Date, or on a Manual Start Date entered on the contract'),
+    ('amc_default_renewal_rule', 'Default Renewal Rule – proposed for new plans: Manual, or Auto '
+     'Offer (a renewal contract is prepared when the contract becomes Expiring)'),
+    ('amc_activation_trigger', 'Activation Trigger – a contract becomes Active on Sales Order '
+     'confirmation, or when the first invoice is paid. A plan can override it'),
+    ('amc_product', 'AMC Service Product – the product on AMC quotation lines, a service invoiced '
+     "on delivered quantities (empty: the module's AMC Contract Service)"),
+    ('amc_default_alert_days', 'Default Alert Days – proposed for new plans: the alert activity '
+     'is created this many days before a preventive visit is due'),
+    ('amc_auto_create_mode', 'Warranty Integration · AMC Auto-create Mode – after a warranty card '
+     'is confirmed: nothing, a draft AMC Opportunity or a draft AMC Contract (never active)'),
+    ('amc_offer_on_warranty_expiry', 'Offer AMC on Warranty Expiry – when a warranty card '
+     'expires, its warranty alert users get a to-do to offer an AMC'),
+]
+caption('1 · Configure', 'Configuration > Settings: the company-wide AMC settings (administrators)',
+        chapter='1. Configuration – AMC settings')
+if point('.o_menu_sections button, .o_menu_sections .dropdown-toggle', 'Configuration', hold=0.7):
+    pump(1.2)
+    point('.o-dropdown--menu .dropdown-item', 'Settings', hold=1.0)
+    pump(4)
+else:
+    goto(A + 'res_config_settings_action', 4)
+overlay()
+idle(2.5)
+# Shown instead when a setting is not visible (Default Pricelist needs Sales > Pricelists).
+HIDDEN = {
+    'amc_default_pricelist': ('amc_currency', 'Default Pricelist – appears here when Pricelists are '
+                              "enabled (Sales > Settings): a fallback after the customer's and "
+                              "its country group's pricelist"),
+}
+for setting_id, text in SETTINGS:
+    visible = js("(() => {const e = document.getElementById(%s); return !!(e && e.offsetParent);})()"
+                 % json.dumps(setting_id))
+    if not visible:
+        if setting_id not in HIDDEN:
+            print('SETTING NOT VISIBLE', setting_id)
+            continue
+        setting_id, text = HIDDEN[setting_id]
+    caption('1 · Configure', text)
+    point('#%s' % setting_id, click=False, hold=1.2)
+    idle(4.8)
+caption('1 · Configure', 'The defaults are proposed for records created afterwards – existing plans '
+        'and contracts keep their own values')
+idle(3.5)
+
 # ---------------------------------------------------------------- configuration
 goto(A + 'amc_plan_action', 3)
 caption('1 · Configure', 'AMC Plans define visits per year, free services, billing, duration and renewal rules',
