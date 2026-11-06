@@ -30,6 +30,14 @@ topic search, chapter pager, image zoom, responsive / print layout) through the 
 `/amc_management/user_manual` (`controllers/main.py`; kept out of `/static`, which is public); test
 TC-110.
 
+**Process recording:** menu *Configuration > Documents > Process Recording (Video)* opens a player
+page (`manual/amc_process_video.html`) for the screen recording of the complete AMC process
+(`manual/amc_process.mp4`, H.264 1440x900, 4:28, 12 chapters: configuration, contract, quotation
+and activation, billing, AMC visits and service request, Helpdesk case and Service Job, Field
+Service completion, hold / expiry / renewal, warranty to AMC, reports). Routes
+`/amc_management/process_video`, `/file` (private, seekable HTTP range stream) and `/poster`, AMC
+users only; test TC-111.
+
 **UI fixes after the screenshot review:** readable name of covered equipment lines (was
 `amc.contract.line,<id>`); user manual `docs/AMC_User_Manual.docx`.
 

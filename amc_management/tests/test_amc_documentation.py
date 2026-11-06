@@ -29,3 +29,28 @@ class TestAmcDocumentation(HttpCase):
         menu = self.env.ref('amc_management.menu_amc_user_manual')
         self.assertEqual(menu.parent_id, self.env.ref('amc_management.menu_amc_documents'))
         self.assertEqual(menu.action.url, url)
+
+    def test_tc111_process_video_access(self):
+        """TC-111: Configuration > Documents > Process Recording: player page, seekable video
+        stream (HTTP range) and poster for AMC users only."""
+        page, video, poster = ('/amc_management/process_video', '/amc_management/process_video/file',
+                               '/amc_management/process_video/poster')
+        for url in (page, video, poster):
+            response = self.url_open(url, allow_redirects=False)
+            self.assertIn(response.status_code, (302, 303), url)
+        self.authenticate('amc_doc_none', 'amc_doc_none')
+        for url in (page, video, poster):
+            self.assertEqual(self.url_open(url).status_code, 404, url)
+        self.authenticate('amc_doc_user', 'amc_doc_user')
+        response = self.url_open(page)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="chapters"', response.text)
+        self.assertIn(video, response.text)
+        response = self.url_open(video, headers={'Range': 'bytes=0-1023'})
+        self.assertEqual(response.status_code, 206)
+        self.assertEqual(response.headers['Content-Type'], 'video/mp4')
+        self.assertEqual(len(response.content), 1024)
+        self.assertEqual(self.url_open(poster).headers['Content-Type'], 'image/jpeg')
+        menu = self.env.ref('amc_management.menu_amc_process_video')
+        self.assertEqual(menu.parent_id, self.env.ref('amc_management.menu_amc_documents'))
+        self.assertEqual(menu.action.url, page)

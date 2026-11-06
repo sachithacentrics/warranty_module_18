@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMC Management – Process Recording</title>
+<style>
+:root{--bg:#f5f7fb;--panel:#fff;--ink:#1d2433;--muted:#5b6475;--line:#e3e7ef;--accent:#714b67;--soft:#f3eef2;--shadow:0 10px 30px rgba(20,30,60,.08)}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--panel:#1a1f29;--ink:#e6e9ef;--muted:#a3abba;--line:#2b3342;--accent:#c79bbb;--soft:#2a2130;--shadow:0 10px 30px rgba(0,0,0,.35)}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:12px 24px;background:linear-gradient(90deg,#714b67,#8a5e80);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+header .logo{width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-weight:700}
+header h1{font-size:18px;margin:0;font-weight:600}header a{margin-left:auto;color:#fff;opacity:.9;font-size:14px;text-decoration:none;border:1px solid rgba(255,255,255,.45);border-radius:8px;padding:5px 12px}
+.wrap{max-width:1500px;margin:0 auto;padding:24px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px}
+.player{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+video{width:100%;border-radius:12px;background:#000;display:block;aspect-ratio:1440/900}
+.now{display:flex;align-items:center;gap:10px;margin:14px 4px 4px;flex-wrap:wrap}
+.now .label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.now .title{font-size:18px;font-weight:600;color:var(--accent)}
+.speed{margin-left:auto;display:flex;gap:6px}.speed button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer;font:inherit;font-size:13px}
+.speed button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.progress{display:flex;height:6px;border-radius:6px;overflow:hidden;margin:10px 4px 0;background:var(--line)}
+.progress span{border-right:2px solid var(--panel);background:var(--soft);cursor:pointer}.progress span.done{background:var(--accent)}
+aside{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);align-self:start;position:sticky;top:20px}
+aside h2{font-size:15px;margin:0 0 4px}aside p{margin:0 0 12px;color:var(--muted);font-size:13px}
+ol{list-style:none;margin:0;padding:0}li{margin:4px 0}
+li button{width:100%;display:flex;gap:12px;align-items:flex-start;text-align:left;border:1px solid transparent;background:none;color:var(--ink);font:inherit;padding:8px 10px;border-radius:10px;cursor:pointer}
+li button:hover{background:var(--bg)}li button.active{background:var(--soft);border-color:var(--accent)}
+li .t{flex:none;font-variant-numeric:tabular-nums;font-size:12.5px;color:#fff;background:var(--accent);border-radius:6px;padding:1px 7px;margin-top:2px}
+li .n{font-size:14px}li button.active .n{font-weight:600;color:var(--accent)}
+.hint{margin-top:14px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;font-size:11.5px}
+@media (max-width:1000px){.wrap{grid-template-columns:1fr;padding:14px}aside{position:static}}
+</style></head><body>
+<header><div class="logo">AMC</div><h1>AMC Management – Complete Process Recording</h1><a href="/amc_management/user_manual" target="_blank">Open the User Manual</a></header>
+<div class="wrap">
+  <section class="player">
+    <video id="v" controls preload="metadata" poster="/amc_management/process_video/poster">
+      <source src="/amc_management/process_video/file" type="video/mp4">
+      Your browser cannot play this video.
+    </video>
+    <div class="progress" id="bar"></div>
+    <div class="now"><span class="label">Now playing</span><span class="title" id="now"></span>
+      <div class="speed" id="speed"><button data-r="1" class="on">1×</button><button data-r="1.25">1.25×</button><button data-r="1.5">1.5×</button><button data-r="2">2×</button></div></div>
+  </section>
+  <aside><h2>Chapters</h2><p>12 chapters · 4:28 · click a chapter to jump to it</p>
+    <ol id="chapters"><li><button type="button" data-start="0.0"><span class="t">0:00</span><span class="n">Introduction</span></button></li><li><button type="button" data-start="5.1"><span class="t">0:05</span><span class="n">Sign in</span></button></li><li><button type="button" data-start="22.5"><span class="t">0:22</span><span class="n">1. Configuration – AMC plans and pricing</span></button></li><li><button type="button" data-start="42.1"><span class="t">0:42</span><span class="n">2. Create and price a contract</span></button></li><li><button type="button" data-start="74.8"><span class="t">1:14</span><span class="n">3. Quotation, confirmation and activation</span></button></li><li><button type="button" data-start="95.7"><span class="t">1:35</span><span class="n">4. Billing</span></button></li><li><button type="button" data-start="108.2"><span class="t">1:48</span><span class="n">5. Plan the service – AMC visits and service request</span></button></li><li><button type="button" data-start="140.4"><span class="t">2:20</span><span class="n">6. Helpdesk case, approval and Service Job</span></button></li><li><button type="button" data-start="184.1"><span class="t">3:04</span><span class="n">7. Field Service completion and consumption</span></button></li><li><button type="button" data-start="199.7"><span class="t">3:19</span><span class="n">8. Hold, expiry and renewal</span></button></li><li><button type="button" data-start="234.7"><span class="t">3:54</span><span class="n">9. Warranty to AMC</span></button></li><li><button type="button" data-start="248.0"><span class="t">4:08</span><span class="n">10. Reports and documentation</span></button></li></ol>
+    <div class="hint"><kbd>Space</kbd> play / pause · <kbd>←</kbd> <kbd>→</kbd> 5 s · <kbd>N</kbd> / <kbd>P</kbd> next / previous chapter</div>
+  </aside>
+</div>
+<script>
+(function(){
+  const v=document.getElementById('v'), total=268.7;
+  const btns=[...document.querySelectorAll('#chapters button')];
+  const starts=btns.map(b=>parseFloat(b.dataset.start));
+  const bar=document.getElementById('bar');
+  starts.forEach((s,i)=>{const e=(starts[i+1]||total)-s;const span=document.createElement('span');
+    span.style.flex=e;span.title=btns[i].querySelector('.n').textContent;span.onclick=()=>seek(s);bar.appendChild(span);});
+  const segs=[...bar.children];
+  function seek(s){v.currentTime=s+0.05;const p=v.play();if(p)p.catch(()=>{});}
+  btns.forEach((b,i)=>b.onclick=()=>seek(starts[i]));
+  function current(){let i=0;starts.forEach((s,k)=>{if(v.currentTime>=s)i=k;});return i;}
+  function update(){const i=current();btns.forEach((b,k)=>b.classList.toggle('active',k===i));
+    segs.forEach((s,k)=>s.classList.toggle('done',k<=i));
+    document.getElementById('now').textContent=btns[i].querySelector('.n').textContent;}
+  v.addEventListener('timeupdate',update);update();
+  document.querySelectorAll('#speed button').forEach(b=>b.onclick=()=>{v.playbackRate=parseFloat(b.dataset.r);
+    document.querySelectorAll('#speed button').forEach(x=>x.classList.toggle('on',x===b));});
+  document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;
+    if(e.key===' '){e.preventDefault();if(v.paused){const p=v.play();if(p)p.catch(()=>{});}else{v.pause();}}
+    else if(e.key==='ArrowRight'){v.currentTime+=5;}else if(e.key==='ArrowLeft'){v.currentTime-=5;}
+    else if(e.key==='n'||e.key==='N'){const i=current();if(starts[i+1]!==undefined)seek(starts[i+1]);}
+    else if(e.key==='p'||e.key==='P'){const i=current();seek(starts[Math.max(i-(v.currentTime-starts[i]<3?1:0),0)]);}});
+})();
+</script></body></html>

@@ -35,4 +35,5 @@ Modules: `amc_management` 18.0.1.1.0, `amc_management_warranty` 18.0.1.0.0,
 | 27 | [Known Issues and Limitations](27_AMC_Known_Issues_and_Limitations.md) | open items |
 | 28 | [Final Delivery Report](28_AMC_Final_Delivery_Report.md) | summary and readiness decision |
 | — | **AMC_User_Manual.docx** | end-user manual (Word, 30 pages, 37 screenshots) |
+| — | **In Odoo: Configuration > Documents** | User Manual (HTML) and Process Recording (video, 4:28, 12 chapters) |
 | — | **AMC_Technical_Architecture.docx** | technical architecture of the AMC process (Word, 23 pages, 10 diagrams) |
