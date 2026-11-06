@@ -1,0 +1,8 @@
+{
+  "name": "amc-management-docs",
+  "private": true,
+  "description": "Builders of the AMC Word / HTML documentation (see manual_builder/ and architecture_builder/)",
+  "dependencies": {
+    "docx": "9.5.1"
+  }
+}

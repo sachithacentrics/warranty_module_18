@@ -1,0 +1,5 @@
+node_modules/
+package-lock.json
+architecture_builder/diagrams/diagrams.json
+architecture_builder/diagrams/diagrams.html
+manual_builder/screenshots_web/
