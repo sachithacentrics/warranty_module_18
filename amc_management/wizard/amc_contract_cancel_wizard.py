@@ -1,5 +1,5 @@
+from odoo import fields, models
 
-from odoo import _, api, fields, models
 
 class AmcContractCancelWizard(models.TransientModel):
     _name = 'amc.contract.cancel.wizard'

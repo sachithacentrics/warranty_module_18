@@ -44,6 +44,13 @@ USAGE_UNITS = [
     ('units', 'Units Produced'),
     ('other', 'Other'),
 ]
+# AMC-E04 / E05 (SRS 2.5, 7 "Job Creation Mode", 19): how the preventive visits are planned.
+# Alert: an activity is created Alert Days before the due date (recommended for high volume);
+# Manual: no alert, the coordinator plans from the AMC Visit Schedule.
+VISIT_PLANNING_MODES = [
+    ('alert', 'Alert-Driven'),
+    ('manual', 'Manual'),
+]
 
 
 class AmcPlan(models.Model):
@@ -131,6 +138,27 @@ class AmcPlan(models.Model):
         string='Visit Alert Days', tracking=True,
         default=lambda self: self._default_company_value('amc_default_alert_days'),
         help="Days before a preventive visit's due date when the alert is created.")
+    # Phase A4 (AMC-E04 / E05 / E08; SRS 10.3 Grace Period End Date, 12 #6 / #23).
+    visit_planning_mode = fields.Selection(
+        VISIT_PLANNING_MODES, string='Visit Planning', required=True, default='alert',
+        tracking=True,
+        help="Alert-Driven: a to-do is created for the contract responsible Alert Days before "
+             "each preventive visit is due. Manual: no alert; visits are planned from the AMC "
+             "Visit Schedule.")
+    grace_days = fields.Integer(
+        string='Grace Period (Days)', tracking=True,
+        help="Days after the due date during which a preventive visit is still Overdue (not "
+             "Missed).")
+    auto_mark_missed = fields.Boolean(
+        string='Mark Missed After Grace Period', tracking=True,
+        help="When set, the daily scheduler marks preventive visits Missed once the grace "
+             "period has passed. A Missed visit is not consumed; an AMC Manager can reopen it "
+             "(carry-forward) while the contract is running.")
+    renewal_notice_days = fields.Integer(
+        string='Renewal Notice (Days)', default=30, tracking=True,
+        help="The contract becomes Expiring this many days before its end date (renewal "
+             "reminder). Auto Offer renewal rule: the renewal contract is prepared at that "
+             "moment.")
 
     _sql_constraints = [
         ('name_company_uniq', 'unique(name, company_id)',
@@ -183,17 +211,29 @@ class AmcPlan(models.Model):
         self.ensure_one()
         return self.duration_value * (12 if self.duration_unit == 'years' else 1)
 
+    def _amc_visit_interval_months(self):
+        """Months between two preventive visits of a period-based plan (AMC-B04 / E02), e.g.
+        3 visits per Year -> every 4 months, 1 visit per Month -> every month."""
+        self.ensure_one()
+        if self.service_basis != 'period' or self.frequency_value <= 0:
+            return 0
+        unit_months = 12 if self.frequency_unit == 'year' else 1
+        return unit_months / self.frequency_value
+
     @api.constrains('visit_count', 'included_free_services', 'frequency_value',
                     'frequency_unit', 'duration_value', 'duration_unit', 'service_basis',
-                    'usage_interval', 'usage_unit', 'alert_days')
+                    'usage_interval', 'usage_unit', 'alert_days', 'grace_days',
+                    'renewal_notice_days')
     def _check_entitlements(self):
         """Approved B5: both counts configurable, never negative, at least one service; the
         preventive visits must fit into the contract duration at the visit frequency."""
         for plan in self:
             if min(plan.visit_count, plan.included_free_services, plan.frequency_value,
-                   plan.alert_days, plan.duration_value) < 0 or plan.usage_interval < 0:
-                raise ValidationError(_("AMC Plan %s: counts, frequency, duration, usage interval "
-                                        "and alert days cannot be negative.", plan.name))
+                   plan.alert_days, plan.duration_value, plan.grace_days,
+                   plan.renewal_notice_days) < 0 or plan.usage_interval < 0:
+                raise ValidationError(_("AMC Plan %s: counts, frequency, duration, usage interval, "
+                                        "alert, grace and renewal notice days cannot be "
+                                        "negative.", plan.name))
             if plan.duration_value <= 0:
                 raise ValidationError(_("AMC Plan %s: the contract duration must be greater "
                                         "than zero.", plan.name))

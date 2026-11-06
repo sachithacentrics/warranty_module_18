@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- AMC-H01: printable AMC Visit Schedule of a contract (SRS 15). -->
+    <record id="action_report_amc_visit_schedule" model="ir.actions.report">
+        <field name="name">AMC Visit Schedule</field>
+        <field name="model">amc.contract</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">amc_management.report_amc_visit_schedule</field>
+        <field name="report_file">amc_management.report_amc_visit_schedule</field>
+        <field name="print_report_name">'AMC Visit Schedule - %s' % object.name</field>
+        <field name="binding_model_id" ref="model_amc_contract"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_amc_visit_schedule">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="contract">
+                <t t-call="web.external_layout">
+                    <t t-set="o" t-value="contract"/>
+                    <div class="page">
+                        <h2>AMC Visit Schedule - <span t-field="contract.name"/></h2>
+                        <div class="row mt-3 mb-3">
+                            <div class="col-6">
+                                <strong>Customer:</strong> <span t-field="contract.partner_id"/><br/>
+                                <t t-if="contract.site_id">
+                                    <strong>Site:</strong> <span t-field="contract.site_id"/><br/>
+                                </t>
+                                <strong>AMC Plan:</strong> <span t-field="contract.plan_id"/>
+                            </div>
+                            <div class="col-6">
+                                <strong>Status:</strong> <span t-field="contract.state"/><br/>
+                                <strong>Period:</strong> <span t-field="contract.start_date"/>
+                                - <span t-field="contract.end_date"/><br/>
+                                <strong>Preventive:</strong>
+                                <span t-out="contract.preventive_done"/> / <span t-out="contract.preventive_total"/>
+                                completed; <strong>Free services:</strong>
+                                <span t-out="contract.free_used"/> / <span t-out="contract.free_total"/> used
+                            </div>
+                        </div>
+                        <table class="table table-sm o_main_table">
+                            <thead>
+                                <tr>
+                                    <th>Reference</th>
+                                    <th>Service</th>
+                                    <th>Equipment</th>
+                                    <th>Serial</th>
+                                    <th>Due</th>
+                                    <th>Planned</th>
+                                    <th>Completed</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="contract.visit_ids" t-as="visit">
+                                    <td><span t-field="visit.name"/></td>
+                                    <td><span t-field="visit.label"/></td>
+                                    <td><span t-field="visit.product_id"/></td>
+                                    <td><span t-field="visit.serial_id"/></td>
+                                    <td>
+                                        <span t-if="visit.due_date" t-field="visit.due_date"/>
+                                        <t t-if="visit.usage_unit">
+                                            <span t-field="visit.usage_due"/> <span t-field="visit.usage_unit"/>
+                                        </t>
+                                    </td>
+                                    <td><span t-field="visit.scheduled_date"/></td>
+                                    <td><span t-field="visit.completion_date"/></td>
+                                    <td>
+                                        <span t-field="visit.state"/>
+                                        <t t-if="visit.due_status == 'overdue'"> (overdue)</t>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

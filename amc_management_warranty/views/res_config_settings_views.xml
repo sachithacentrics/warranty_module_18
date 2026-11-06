@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.amc_management_warranty</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="amc_management.res_config_settings_view_form_amc"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='amc_general_settings']" position="after">
+                <block title="Warranty Integration" name="amc_warranty_settings">
+                    <setting id="amc_auto_create_mode" string="AMC Auto-create Mode"
+                             help="After warranty confirmation, optionally create a draft AMC opportunity or a draft AMC contract (never active: the AMC needs its own quotation / payment)">
+                        <field name="amc_auto_create_mode"/>
+                    </setting>
+                    <setting id="amc_offer_on_warranty_expiry" string="Offer AMC on Warranty Expiry"
+                             help="A to-do reminds the warranty alert users to offer an AMC when a warranty card expires">
+                        <field name="amc_offer_on_warranty_expiry"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

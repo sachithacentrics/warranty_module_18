@@ -13,6 +13,8 @@
     "website": "http://www.centrics.cloud/",
     "depends": [
         "amc_management",
+        "amc_management_service",
+        "amc_management_warranty",
         "material_purchase_requisitions",
         "warranty_management",
         "warranty_management_accounting",

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="amc_contract_view_form" model="ir.ui.view">
+        <field name="name">amc.contract.view.form.inherit.amc_management_warranty</field>
+        <field name="model">amc.contract</field>
+        <field name="inherit_id" ref="amc_management.amc_contract_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_cards" type="object" class="oe_stat_button"
+                        icon="fa-shield" invisible="not warranty_card_count">
+                    <field name="warranty_card_count" widget="statinfo" string="Warranty Cards"/>
+                </button>
+            </xpath>
+            <xpath expr="//field[@name='renewal_of_id']" position="after">
+                <field name="source_warranty_card_id" invisible="not source_warranty_card_id"/>
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/list/field[@name='product_id']" position="before">
+                <field name="warranty_unit_id" optional="show" options="{'no_create': True}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="amc_opportunity_view_form" model="ir.ui.view">
+        <field name="name">amc.opportunity.view.form.inherit.amc_management_warranty</field>
+        <field name="model">amc.opportunity</field>
+        <field name="inherit_id" ref="amc_management.amc_opportunity_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='site_id']" position="after">
+                <field name="warranty_card_id" invisible="not warranty_card_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="amc_contract_view_search" model="ir.ui.view">
+        <field name="name">amc.contract.view.search.inherit.amc_management_warranty</field>
+        <field name="model">amc.contract</field>
+        <field name="inherit_id" ref="amc_management.amc_contract_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='plan_id']" position="after">
+                <field name="warranty_card_ids" string="Warranty Card"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -104,4 +104,16 @@
         <field name="model_id" ref="model_amc_price_override"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+
+    <record id="amc_contract_visit_company_rule" model="ir.rule">
+        <field name="name">AMC Visit: multi-company</field>
+        <field name="model_id" ref="model_amc_contract_visit"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="amc_billing_line_company_rule" model="ir.rule">
+        <field name="name">AMC Billing Schedule: multi-company</field>
+        <field name="model_id" ref="model_amc_billing_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

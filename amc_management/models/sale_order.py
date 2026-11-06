@@ -1,7 +1,7 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
-from .amc_contract import _CANCELLING_MARKER, _CONTRACT_MARKER
+from .amc_contract import RUNNING_STATES, _CANCELLING_MARKER, _CONTRACT_MARKER
 
 # AMC quotation values set only by the AMC contract (approved B4a safeguards / C2).
 LOCKED_ORDER_FIELDS = {'partner_id', 'pricelist_id', 'currency_id', 'company_id',
@@ -59,7 +59,9 @@ class SaleOrder(models.Model):
                                   order.name))
         result = super().action_confirm()
         for order in self.filtered('amc_contract_id'):
-            order.amc_contract_id._amc_on_order_confirmed(order)
+            # sudo: the confirmation by an authorized sales user drives the contract (billing
+            # schedule, activation, entitlements) whatever the user's AMC role.
+            order.amc_contract_id.sudo()._amc_on_order_confirmed(order.sudo())
         return result
 
     def _action_cancel(self):
@@ -68,10 +70,11 @@ class SaleOrder(models.Model):
             return result
         for order in self.filtered('amc_contract_id'):
             contract = order.amc_contract_id
-            if contract.state == 'active':
-                raise UserError(_("The Sales Order of Active AMC contract %s cannot be cancelled "
-                                  "(contract end: phase A6).", contract.name))
-            contract._amc_on_order_cancelled(order)
+            if contract.state in RUNNING_STATES + ('closed', 'renewed'):
+                raise UserError(_("The Sales Order of activated AMC contract %s cannot be "
+                                  "cancelled: close the contract instead (Close Contract).",
+                                  contract.name))
+            contract.sudo()._amc_on_order_cancelled(order.sudo())
         return result
 
 

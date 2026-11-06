@@ -31,8 +31,8 @@ class ResCompany(models.Model):
         'product.product', string='AMC Service Product',
         default=lambda self: self.env.ref('amc_management.product_amc_service',
                                           raise_if_not_found=False),
-        help="Service product of the AMC quotation lines (invoiced on delivered quantities, "
-             "phase A5).")
+        help="Service product of the AMC quotation lines (invoiced on delivered quantities: "
+             "one per released billing period).")
 
     @api.constrains('amc_product_id')
     def _check_amc_product(self):

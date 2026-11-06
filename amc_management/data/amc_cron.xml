@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- AMC daily scheduler (docs/10 §8.5): billing release, Expiring, end of period
+         (Renewed / Closed), visit due indicator, alerts and Missed. Idempotent. -->
+    <record id="ir_cron_amc_daily" model="ir.cron">
+        <field name="name">AMC: Daily Contract and Visit Scheduler</field>
+        <field name="model_id" ref="model_amc_contract"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_amc_daily()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

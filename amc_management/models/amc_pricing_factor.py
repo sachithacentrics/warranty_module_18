@@ -1,7 +1,10 @@
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import ValidationError
+
 
 class AmcPricingFactor(models.Model):
+    """Product / category pricing factor of a formula version (approved P3). Like the tiers and
+    rounding rules, the factors of an Active / Archived version are locked (New Version)."""
     _name = 'amc.pricing.factor'
     _description = 'AMC Pricing Factor'
 
@@ -26,3 +29,20 @@ class AmcPricingFactor(models.Model):
             if duplicates:
                 raise ValidationError(_("The factor of %s is defined twice.",
                                         (line.product_id or line.category_id).display_name))
+
+    # AMC-D11 (formula governance): factors change the price of the version, so they follow
+    # the version lock exactly like the tiers and target-currency rounding rules.
+    @api.model_create_multi
+    def create(self, vals_list):
+        self.env['amc.pricing.formula'].browse(
+            [vals['formula_id'] for vals in vals_list if vals.get('formula_id')]
+        )._amc_check_draft_children()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        self.formula_id._amc_check_draft_children()
+        return super().write(vals)
+
+    def unlink(self):
+        self.formula_id._amc_check_draft_children()
+        return super().unlink()

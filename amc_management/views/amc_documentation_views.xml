@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Configuration > Documents > User Manual: HTML manual served by
+         /amc_management/user_manual (login + AMC User). -->
+    <record id="action_amc_user_manual" model="ir.actions.act_url">
+        <field name="name">AMC User Manual</field>
+        <field name="url">/amc_management/user_manual</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_amc_documents" name="Documents" parent="menu_amc_configuration"
+              sequence="90" groups="group_amc_user"/>
+    <menuitem id="menu_amc_user_manual" name="User Manual" parent="menu_amc_documents"
+              action="action_amc_user_manual" sequence="10" groups="group_amc_user"/>
+</odoo>

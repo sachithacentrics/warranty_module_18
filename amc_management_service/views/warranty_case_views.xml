@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- AMC-H02 / H04: AMC contract and visits on the warranty case and service job. -->
+    <record id="warranty_case_view_form" model="ir.ui.view">
+        <field name="name">warranty.case.view.form.inherit.amc_management_service</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="AMC" name="amc" invisible="not amc_contract_id">
+                    <group>
+                        <field name="amc_contract_id"/>
+                    </group>
+                    <field name="amc_visit_ids">
+                        <list>
+                            <field name="name"/>
+                            <field name="label"/>
+                            <field name="product_id"/>
+                            <field name="serial_id"/>
+                            <field name="due_date"/>
+                            <field name="service_job_id"/>
+                            <field name="state" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="warranty_service_job_view_form" model="ir.ui.view">
+        <field name="name">warranty.service.job.view.form.inherit.amc_management_service</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="AMC Visits" name="amc_visits" invisible="not amc_contract_id">
+                    <group>
+                        <field name="amc_contract_id"/>
+                    </group>
+                    <field name="amc_visit_ids">
+                        <list>
+                            <field name="name"/>
+                            <field name="label"/>
+                            <field name="product_id"/>
+                            <field name="serial_id"/>
+                            <field name="worksheet_id"/>
+                            <field name="state" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

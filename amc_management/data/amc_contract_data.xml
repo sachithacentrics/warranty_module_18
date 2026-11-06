@@ -14,6 +14,13 @@
         <field name="padding">5</field>
         <field name="company_id" eval="False"/>
     </record>
+    <record id="seq_amc_contract_visit" model="ir.sequence">
+        <field name="name">AMC Visit / Entitlement</field>
+        <field name="code">amc.contract.visit</field>
+        <field name="prefix">AMCV/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
     <record id="seq_amc_price_override" model="ir.sequence">
         <field name="name">AMC Override Request</field>
         <field name="code">amc.price.override</field>

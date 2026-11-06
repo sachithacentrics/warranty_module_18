@@ -24,3 +24,8 @@ access_amc_price_override_user,amc.price.override user,model_amc_price_override,
 access_amc_price_override_coordinator,amc.price.override coordinator,model_amc_price_override,group_amc_coordinator,1,1,1,0
 access_amc_price_override_approver,amc.price.override approver,model_amc_price_override,group_amc_approver,1,1,0,0
 access_amc_price_override_reject_wizard_approver,amc.price.override.reject.wizard approver,model_amc_price_override_reject_wizard,group_amc_approver,1,1,1,1
+access_amc_contract_visit_user,amc.contract.visit user,model_amc_contract_visit,group_amc_user,1,0,0,0
+access_amc_contract_visit_coordinator,amc.contract.visit coordinator,model_amc_contract_visit,group_amc_coordinator,1,1,0,0
+access_amc_billing_line_user,amc.billing.line user,model_amc_billing_line,group_amc_user,1,0,0,0
+access_amc_contract_reason_wizard_manager,amc.contract.reason.wizard manager,model_amc_contract_reason_wizard,group_amc_manager,1,1,1,1
+access_amc_visit_action_wizard_coordinator,amc.visit.action.wizard coordinator,model_amc_visit_action_wizard,group_amc_coordinator,1,1,1,1

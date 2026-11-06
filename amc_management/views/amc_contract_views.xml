@@ -13,9 +13,11 @@
                 <field name="currency_id" optional="show"/>
                 <field name="start_date" optional="show"/>
                 <field name="end_date" optional="show"/>
+                <field name="next_visit_date" optional="show"/>
                 <field name="state" widget="badge" decoration-success="state == 'active'"
                        decoration-info="state in ('quotation', 'awaiting_payment')"
-                       decoration-muted="state == 'cancelled'"/>
+                       decoration-warning="state in ('expiring', 'on_hold')"
+                       decoration-muted="state in ('cancelled', 'closed', 'renewed')"/>
                 <field name="company_id" groups="base.group_multi_company" optional="hide"/>
             </list>
         </field>
@@ -44,8 +46,29 @@
                     <button name="action_cancel_contract" type="object" string="Cancel Contract"
                             invisible="state not in ('draft', 'quotation', 'awaiting_payment')"
                             groups="amc_management.group_amc_manager"/>
+                    <button name="action_create_invoice" type="object" string="Create Invoice"
+                            invisible="state not in ('awaiting_payment', 'active', 'expiring', 'on_hold', 'closed', 'renewed')"
+                            groups="amc_management.group_amc_coordinator"/>
+                    <button name="action_renew" type="object" string="Renew" class="btn-primary"
+                            invisible="state not in ('expiring', 'closed')"
+                            groups="amc_management.group_amc_coordinator"/>
+                    <button name="action_renew" type="object" string="Renew"
+                            invisible="state not in ('active', 'on_hold')"
+                            groups="amc_management.group_amc_coordinator"/>
+                    <button name="action_open_reason_wizard" type="object" string="Put On Hold"
+                            context="{'amc_reason_action': 'hold'}"
+                            invisible="state not in ('active', 'expiring')"
+                            groups="amc_management.group_amc_manager"/>
+                    <button name="action_resume" type="object" string="Resume"
+                            invisible="state != 'on_hold'" groups="amc_management.group_amc_manager"/>
+                    <button name="action_open_reason_wizard" type="object" string="Close Contract"
+                            context="{'amc_reason_action': 'close'}"
+                            invisible="state not in ('active', 'expiring', 'on_hold')"
+                            groups="amc_management.group_amc_manager"/>
+                    <button name="%(amc_management.action_report_amc_visit_schedule)d" type="action"
+                            string="Print Visit Schedule" invisible="not visit_count"/>
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,quotation,awaiting_payment,active"/>
+                           statusbar_visible="draft,quotation,awaiting_payment,active,expiring,closed"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -53,7 +76,23 @@
                                 icon="fa-pencil-square-o" invisible="not sale_order_count">
                             <field name="sale_order_count" widget="statinfo" string="Quotations"/>
                         </button>
+                        <button name="action_view_invoices" type="object" class="oe_stat_button"
+                                icon="fa-file-text-o" invisible="not invoice_count">
+                            <field name="invoice_count" widget="statinfo" string="Invoices"/>
+                        </button>
+                        <button name="action_view_visits" type="object" class="oe_stat_button"
+                                icon="fa-calendar-check-o" invisible="not visit_count">
+                            <field name="visit_count" widget="statinfo" string="AMC Visits"/>
+                        </button>
+                        <button name="action_view_renewals" type="object" class="oe_stat_button"
+                                icon="fa-refresh" invisible="not renewal_count">
+                            <field name="renewal_count" widget="statinfo" string="Renewals"/>
+                        </button>
                     </div>
+                    <widget name="web_ribbon" title="Renewed" bg_color="text-bg-info"
+                            invisible="state != 'renewed'"/>
+                    <widget name="web_ribbon" title="On Hold" bg_color="text-bg-warning"
+                            invisible="state != 'on_hold'"/>
                     <div class="oe_title">
                         <h1><field name="name"/></h1>
                     </div>
@@ -68,6 +107,8 @@
                                    options="{'no_create': True}"/>
                             <field name="billing_plan_id"/>
                             <field name="opportunity_id" invisible="not opportunity_id"/>
+                            <field name="renewal_of_id" invisible="not renewal_of_id"/>
+                            <field name="expected_usage" readonly="state != 'draft'"/>
                         </group>
                         <group>
                             <field name="pricelist_id"/>
@@ -75,6 +116,8 @@
                             <field name="currency_id"/>
                             <field name="start_date" readonly="state != 'draft'"/>
                             <field name="end_date"/>
+                            <field name="contract_months" invisible="not contract_months"/>
+                            <field name="next_visit_date" invisible="not next_visit_date"/>
                             <field name="activation_trigger" invisible="not activation_trigger"/>
                             <field name="activation_date" invisible="not activation_date"/>
                             <field name="user_id"/>
@@ -131,6 +174,57 @@
                             </group>
                             <field name="price_breakdown" nolabel="1"/>
                         </page>
+                        <page string="AMC Visits" name="visits" invisible="not visit_ids">
+                            <group>
+                                <group string="Preventive Visits">
+                                    <field name="preventive_total" string="Allowed"/>
+                                    <field name="preventive_done" string="Completed"/>
+                                    <field name="preventive_balance" string="Balance"/>
+                                </group>
+                                <group string="Included Free Services">
+                                    <field name="free_total" string="Allowed"/>
+                                    <field name="free_used" string="Used"/>
+                                    <field name="free_balance" string="Balance"/>
+                                </group>
+                            </group>
+                            <field name="visit_ids">
+                                <list decoration-muted="state in ('cancelled', 'expired')"
+                                      decoration-danger="due_status == 'overdue'"
+                                      decoration-success="state == 'completed'">
+                                    <field name="name"/>
+                                    <field name="label"/>
+                                    <field name="product_id"/>
+                                    <field name="serial_id" optional="show"/>
+                                    <field name="unit_no" optional="hide"/>
+                                    <field name="site_id" optional="hide"/>
+                                    <field name="due_date"/>
+                                    <field name="usage_due" optional="hide"/>
+                                    <field name="scheduled_date" optional="show"/>
+                                    <field name="completion_date" optional="show"/>
+                                    <field name="due_status" widget="badge" optional="show"
+                                           decoration-danger="due_status == 'overdue'"
+                                           decoration-warning="due_status == 'due'"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Billing Schedule" name="billing" invisible="not billing_line_ids">
+                            <field name="billing_line_ids">
+                                <list decoration-muted="state == 'cancelled'"
+                                      decoration-info="state == 'released' and not invoiced">
+                                    <field name="sequence"/>
+                                    <field name="period_start"/>
+                                    <field name="period_end"/>
+                                    <field name="date"/>
+                                    <field name="visit_id" optional="show"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="released_date" optional="show"/>
+                                    <field name="invoiced"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Overrides" name="overrides" invisible="not override_ids">
                             <field name="override_ids">
                                 <list>
@@ -150,6 +244,13 @@
                             <field name="note"/>
                             <group invisible="not cancel_reason">
                                 <field name="cancel_reason"/>
+                            </group>
+                            <group invisible="not hold_reason and not close_reason and not expiring_date">
+                                <field name="hold_reason" invisible="not hold_reason"/>
+                                <field name="hold_date" invisible="not hold_date"/>
+                                <field name="expiring_date" invisible="not expiring_date"/>
+                                <field name="close_reason" invisible="not close_reason"/>
+                                <field name="close_date" invisible="not close_date"/>
                             </group>
                         </page>
                     </notebook>
@@ -173,9 +274,19 @@
                 <filter name="filter_quotation" string="Quotation / Awaiting Payment"
                         domain="[('state', 'in', ('quotation', 'awaiting_payment'))]"/>
                 <filter name="filter_active" string="Active" domain="[('state', '=', 'active')]"/>
+                <filter name="filter_expiring" string="Expiring" domain="[('state', '=', 'expiring')]"/>
+                <filter name="filter_on_hold" string="On Hold" domain="[('state', '=', 'on_hold')]"/>
+                <filter name="filter_ended" string="Closed / Renewed"
+                        domain="[('state', 'in', ('closed', 'renewed'))]"/>
+                <separator/>
+                <filter name="filter_renewal" string="Renewal Contracts"
+                        domain="[('renewal_of_id', '!=', False)]"/>
+                <filter name="filter_end_date" string="End Date" date="end_date"/>
                 <group>
                     <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
                     <filter name="group_currency" string="Currency" context="{'group_by': 'currency_id'}"/>
+                    <filter name="group_plan" string="AMC Plan" context="{'group_by': 'plan_id'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'partner_id'}"/>
                 </group>
             </search>
         </field>
@@ -188,6 +299,46 @@
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Create an AMC contract</p>
             <p>Customer, AMC plan and covered equipment; calculate the price and create the quotation.</p>
+        </field>
+    </record>
+
+    <!-- AMC-A09: Quotations and Renewals (SRS 6 "AMC Plans, Quotations, Contracts, Services
+         and Renewals"). -->
+    <record id="action_amc_contract_renewals" model="ir.actions.act_window">
+        <field name="name">Renewals</field>
+        <field name="res_model">amc.contract</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">['|', ('state', '=', 'expiring'), ('renewal_of_id', '!=', False)]</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No contract to renew</p>
+            <p>Expiring contracts and the renewal contracts prepared for them.</p>
+        </field>
+    </record>
+
+    <record id="action_amc_contract_quotations" model="ir.actions.act_window">
+        <field name="name">Quotations</field>
+        <field name="res_model">amc.contract</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', 'in', ('quotation', 'awaiting_payment'))]</field>
+        <field name="context">{'create': False}</field>
+    </record>
+
+    <record id="amc_contract_reason_wizard_view_form" model="ir.ui.view">
+        <field name="name">amc.contract.reason.wizard.form</field>
+        <field name="model">amc.contract.reason.wizard</field>
+        <field name="arch" type="xml">
+            <form string="AMC Contract">
+                <group>
+                    <field name="contract_id"/>
+                    <field name="action"/>
+                    <field name="reason"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirm" class="btn-primary"/>
+                    <button special="cancel" string="Discard"/>
+                </footer>
+            </form>
         </field>
     </record>
 

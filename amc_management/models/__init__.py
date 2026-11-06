@@ -5,7 +5,10 @@ from . import res_config_settings
 from . import amc_pricing_formula
 from . import amc_opportunity
 from . import amc_contract
+from . import amc_visit
+from . import amc_billing_line
 from . import amc_price_override
 from . import sale_order
+from . import account_move
 from . import amc_pricing_factor
 from . import amc_pricing_rounding

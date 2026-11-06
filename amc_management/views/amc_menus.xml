@@ -10,8 +10,20 @@
               action="action_amc_opportunity" sequence="10"/>
     <menuitem id="menu_amc_contract" name="Contracts" parent="menu_amc_sales"
               action="action_amc_contract" sequence="20"/>
+    <menuitem id="menu_amc_quotations" name="Quotations" parent="menu_amc_sales"
+              action="action_amc_contract_quotations" sequence="15"/>
     <menuitem id="menu_amc_price_override" name="Override Requests" parent="menu_amc_sales"
               action="action_amc_price_override" sequence="30"/>
+    <menuitem id="menu_amc_renewals" name="Renewals" parent="menu_amc_sales"
+              action="action_amc_contract_renewals" sequence="40"/>
+
+    <!-- AMC-A09 / F13: Services (visits / entitlements) and AMC-H01 reporting. -->
+    <menuitem id="menu_amc_services" name="Services" parent="menu_amc_root" sequence="20"/>
+    <menuitem id="menu_amc_visits" name="AMC Visits" parent="menu_amc_services"
+              action="action_amc_contract_visit" sequence="10"/>
+    <menuitem id="menu_amc_reporting" name="Reporting" parent="menu_amc_root" sequence="80"/>
+    <menuitem id="menu_amc_visit_schedule_report" name="AMC Visit Schedule"
+              parent="menu_amc_reporting" action="action_amc_visit_schedule_report" sequence="10"/>
 
     <menuitem id="menu_amc_configuration" name="Configuration" parent="menu_amc_root"
               sequence="90" groups="group_amc_user"/>

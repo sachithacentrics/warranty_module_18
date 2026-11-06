@@ -40,11 +40,11 @@
                             <field name="amc_default_renewal_rule"/>
                         </setting>
                         <setting id="amc_activation_trigger" string="Activation Trigger"
-                                 help="When an AMC contract becomes Active: on Sales Order confirmation, or when the first scheduled invoice is fully paid (billing: phase A5). A plan can override it">
+                                 help="When an AMC contract becomes Active: on Sales Order confirmation, or when the invoice of the first billing period is paid. A plan can override it">
                             <field name="amc_activation_trigger"/>
                         </setting>
                         <setting id="amc_product" string="AMC Service Product"
-                                 help="Service product of AMC quotation lines (invoiced on delivered quantities)">
+                                 help="Service product of AMC quotation lines (invoiced on delivered quantities: one per released billing period)">
                             <field name="amc_product_id" options="{'no_create': True}"/>
                         </setting>
                         <setting id="amc_default_alert_days" string="Default Alert Days"

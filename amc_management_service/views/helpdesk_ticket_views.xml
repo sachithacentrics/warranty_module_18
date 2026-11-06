@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- AMC-F02: pending AMC services of the customer on the Helpdesk ticket. -->
+    <record id="helpdesk_ticket_view_form" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.view.form.inherit.amc_management_service</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="warranty_management_helpdesk.helpdesk_ticket_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='warranty']" position="after">
+                <page string="Pending AMC Services" name="amc_pending"
+                      invisible="not amc_pending_visit_count"
+                      groups="amc_management.group_amc_user">
+                    <button name="action_open_amc_service_request" type="object"
+                            string="Add AMC Services to this Ticket" class="btn-secondary"
+                            groups="amc_management.group_amc_coordinator"/>
+                    <field name="amc_pending_visit_count" invisible="1"/>
+                    <field name="amc_pending_visit_ids" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="contract_id"/>
+                            <field name="label"/>
+                            <field name="product_id"/>
+                            <field name="serial_id"/>
+                            <field name="site_id"/>
+                            <field name="due_date"/>
+                            <field name="due_status" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

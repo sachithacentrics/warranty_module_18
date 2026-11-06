@@ -1,5 +1,5 @@
-from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 ROUNDING_METHODS = [
     ('half_up', 'Half-up'),

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- AMC-F12: tickets of AMC service requests carry this tag, so that standard Helpdesk SLA
+         policies can target AMC (response / resolution SLA by AMC). -->
+    <record id="helpdesk_tag_amc" model="helpdesk.tag">
+        <field name="name">AMC</field>
+    </record>
+</odoo>

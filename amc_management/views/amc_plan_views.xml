@@ -51,7 +51,10 @@
                                 <field name="usage_unit"/>
                             </div>
                             <field name="included_free_services"/>
-                            <field name="alert_days"/>
+                            <field name="visit_planning_mode"/>
+                            <field name="alert_days" invisible="visit_planning_mode != 'alert'"/>
+                            <field name="grace_days"/>
+                            <field name="auto_mark_missed"/>
                         </group>
                         <group string="Contract Rules" name="contract_rules">
                             <field name="pricing_method"/>
@@ -63,6 +66,7 @@
                                 <field name="duration_unit"/>
                             </div>
                             <field name="renewal_rule"/>
+                            <field name="renewal_notice_days"/>
                             <field name="activation_trigger" placeholder="Company default"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
