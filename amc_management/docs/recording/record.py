@@ -270,7 +270,7 @@ SETTINGS = [
      'expires, its warranty alert users get a to-do to offer an AMC'),
 ]
 caption('1 · Configure', 'Configuration > Settings: the company-wide AMC settings (administrators)',
-        chapter='1. Configuration – AMC settings')
+        chapter='1.1 Configuration – AMC settings')
 if point('.o_menu_sections button, .o_menu_sections .dropdown-toggle', 'Configuration', hold=0.7):
     pump(1.2)
     point('.o-dropdown--menu .dropdown-item', 'Settings', hold=1.0)
@@ -337,7 +337,7 @@ idle(3)
 # ---------------------------------------------------------------- configuration
 goto(A + 'amc_plan_action', 3)
 caption('1 · Configure', 'AMC Plans define visits per year, free services, billing, duration and renewal rules',
-        chapter='1. Configuration – AMC plans and pricing')
+        chapter='1.2 Configuration – AMC plans and pricing')
 idle(2.5)
 point('.o_data_row td.o_data_cell', 'Retail AMC', hold=0.8)
 pump(3)

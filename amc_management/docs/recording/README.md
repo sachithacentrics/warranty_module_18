@@ -81,10 +81,10 @@ chapter times printed by `encode.py`, and play the page `/amc_management/process
 
 ## Chapters
 
-Introduction, Sign in, **1. Configuration – AMC settings** (every setting of *Configuration >
+Introduction, Sign in, **1.1 Configuration – AMC settings** (every setting of *Configuration >
 Settings*, one caption each: `SETTINGS` in `record.py`; a setting that is not visible, such as
 Default Pricelist without Sales pricelists, is explained via `HIDDEN`; then AMC Enabled is switched
-off and saved – the AMC app disappears from the home screen – and switched on again), 1. AMC plans and pricing,
+off and saved – the AMC app disappears from the home screen – and switched on again), 1.2 Configuration – AMC plans and pricing,
 2. Create and price a contract, 3. Quotation and activation, 4. Billing, 5. AMC visits and service
 request, 6. Helpdesk case and Service Job, 7. Field Service completion, 8. Hold, expiry and renewal,
 9. Warranty to AMC, 10. Reports and documentation.
