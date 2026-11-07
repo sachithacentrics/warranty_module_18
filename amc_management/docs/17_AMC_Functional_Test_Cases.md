@@ -38,6 +38,7 @@ Automated (A) test methods are named `test_tc<nnn>_…`. Results: `18_AMC_Automa
 | TC-060 | NFR-01 | Company-2 contract seen by company-1 user / both-companies user | hidden / visible | A |
 | TC-061 | NFR-01 | Plan of another company on a contract | refused | A |
 | TC-062 | E03 | Visit references | AMCV/ sequence | A |
+| TC-063 | Settings | AMC Enabled off: menus, new contract / opportunity, renewal of an existing contract | app hidden in that company only; refused; allowed | A |
 | TC-070 | REG-01 | Regular SO edit / copy / confirm / deliver / invoice / pay / cancel | standard behaviour | A |
 | TC-071 | — | AMC quotation edit / add line / copy / create with contract | refused | A |
 | TC-072 | REG-02 | Pay a non-AMC invoice | AMC contract unchanged | A |
@@ -50,6 +51,7 @@ Automated (A) test methods are named `test_tc<nnn>_…`. Results: `18_AMC_Automa
 | TC-086 | E09 | Same warranty unit on two open contracts | refused | A |
 | TC-087 | X01 | Card expires with offer setting | one offer activity per recipient, no duplicate | A |
 | TC-088 | NFR-03 | Write source warranty card | refused | A |
+| TC-089 | Settings | AMC Enabled off: warranty confirmation (auto-create), Convert to AMC, warranty expiry (offer) | no AMC; refused; no offer to-do | A |
 | TC-090 | F01–F05, H02, H04, E2E-01 | Two visits → request → ticket (AMC tag) → eligible → approved → job → 2 worksheets → visit → sign-off → complete | visits consumed once, links kept; re-request refused | A |
 | TC-091 | F06 | Complete without sign-off | refused, not consumed | A |
 | TC-092 | F07 | Cancel job; reject case | Scheduled; Pending | A |

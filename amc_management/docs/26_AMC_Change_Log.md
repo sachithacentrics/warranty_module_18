@@ -1,5 +1,17 @@
 # 26 – AMC Change Log
 
+## 18.0.1.3.0 / amc_management_warranty 18.0.1.2.0 (2026-11-07) – AMC Enabled switch
+
+The company setting **AMC Enabled** (until now stored only, K-08) works as an on / off switch:
+* Off: the AMC Management application (all its menus) is hidden in that company
+  (`ir.ui.menu.load_menus`, active company of the company switcher).
+* Off: no new AMC opportunity or contract can be created in that company
+  (`res.company._amc_check_enabled`); renewals of existing contracts are still allowed.
+* Off (warranty bridge): no AMC auto-create after warranty confirmation, no "offer an AMC"
+  to-do on warranty expiry, **Convert to AMC** hidden on the warranty card and refused.
+* Existing contracts are not touched: visits, billing, renewals, service requests and the
+  scheduler continue. Tests TC-063, TC-089.
+
 ## 18.0.1.2.0 / bridges 18.0.1.1.0 (2026-11-06) – coding standards
 
 Structure only, no functional change (all AMC tests unchanged and passing):

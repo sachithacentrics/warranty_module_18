@@ -35,7 +35,7 @@ add(h1('2. Configuration (AMC Manager)'),
   h2('2.1 AMC settings'),
   p([t('Open '), b('AMC Management > Configuration > Settings'), t(' (administrators only). The settings apply to the current company. The "Default …" values are only proposed for records created afterwards: existing plans and contracts keep their own values.')]),
   ...table(['Setting', 'What it does'], [
-    ['AMC Enabled', 'Marks that the company works with AMC. Informational only: it does not hide or block the AMC menus or features.'],
+    ['AMC Enabled', 'On / off switch of AMC for the company. Off: the AMC Management app is hidden while working in that company, no new AMC opportunity or contract can be created, and the warranty integration creates no AMC (no auto-create, no expiry offer, no Convert to AMC). Existing contracts are not touched: their visits, billing and renewals continue. Switch it back on to show the app again.'],
     ['Default AMC Plan', 'Proposed on every new AMC opportunity; also the plan of the draft AMC created from a warranty card (Convert to AMC / AMC Auto-create Mode). Must be an active plan of the company (or shared).'],
     ['Default Pricelist (fallback)', 'Visible when pricelists are enabled. The AMC pricelist of a contract is the customer\'s own pricelist, else a pricelist of the customer\'s country group, else this fallback. It does not restrict the currency.'],
     ['AMC Currency (read-only)', 'Contracts use the currency of their pricelist. Without any applicable pricelist: the currency of the Default Pricelist, else the company currency. Exchange rates come from the standard currency rates.'],

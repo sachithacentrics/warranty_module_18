@@ -294,9 +294,10 @@ class AmcContract(models.Model):
                     and self.env.context.get('amc_contract_marker') is not _CONTRACT_MARKER:
                 raise UserError(_("AMC contracts are created as Draft; status and price are set "
                                   "by the contract actions."))
+            company = self.env['res.company'].browse(vals.get('company_id')) or self.env.company
+            if not vals.get('renewal_of_id'):  # renewals of existing contracts continue
+                company._amc_check_enabled()
             if vals.get('name', 'New') == 'New':
-                company = self.env['res.company'].browse(vals.get('company_id')) \
-                    or self.env.company
                 vals['name'] = self.env['ir.sequence'].with_company(company).next_by_code(
                     'amc.contract') or 'New'
         return super().create(vals_list)

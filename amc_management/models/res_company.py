@@ -1,5 +1,5 @@
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 from .amc_plan import ACTIVATION_TRIGGERS, RENEWAL_RULES, START_RULES
 
@@ -9,7 +9,11 @@ class ResCompany(models.Model):
     plan, start criteria, renewal rule and alert days, per company."""
     _inherit = 'res.company'
 
-    amc_enabled = fields.Boolean(string='AMC Enabled', default=True)
+    amc_enabled = fields.Boolean(
+        string='AMC Enabled', default=True,
+        help="Off: the AMC application is hidden in this company, no new AMC opportunity or "
+             "contract can be created and the warranty integration creates / offers no AMC. "
+             "Existing contracts (visits, billing, renewals) continue.")
     amc_default_plan_id = fields.Many2one('amc.plan', string='Default AMC Plan')
     # Fallback only (approved multi-currency A1): used when the customer has no pricelist of
     # its own or of its country; it never restricts the AMC currency.
@@ -62,6 +66,14 @@ class ResCompany(models.Model):
             plan = company.amc_default_plan_id
             if plan and not plan.active:
                 raise ValidationError(_("The Default AMC Plan %s is archived.", plan.name))
+
+    def _amc_check_enabled(self):
+        """AMC Enabled switch: new AMC business needs AMC enabled in the company."""
+        for company in self:
+            if not company.amc_enabled:
+                raise UserError(_(
+                    "AMC is disabled for %s. Enable it in AMC Management > Configuration > "
+                    "Settings.", company.name))
 
     # ------------------------------------------------------------------ multi-currency (A1)
     def _amc_pricelist_usable(self, pricelist):

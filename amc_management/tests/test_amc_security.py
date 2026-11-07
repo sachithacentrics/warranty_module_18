@@ -97,6 +97,31 @@ class TestAmcSecurity(AmcCommon):
         self._sell(contract)
         self.assertTrue(all(name.startswith('AMCV/') for name in contract.visit_ids.mapped('name')))
 
+    def test_tc063_amc_disabled_company(self):
+        """TC-063 / AMC Enabled: off hides the AMC app in that company and blocks new AMC
+        opportunities / contracts; existing contracts continue and can still be renewed."""
+        contract = self._create_contract()
+        self._sell(contract)
+        root = self.env.ref('amc_management.amc_management_menu_root')
+        Menu = self.env['ir.ui.menu']
+        self.assertIn(root.id, Menu.with_context(
+            allowed_company_ids=self.company.ids).load_menus(False)['root']['children'])
+        self.company.amc_enabled = False
+        menus = Menu.with_context(allowed_company_ids=self.company.ids).load_menus(False)
+        self.assertNotIn(root.id, menus['root']['children'])
+        self.assertNotIn(self.env.ref('amc_management.amc_contract_menu').id, menus)
+        self.assertIn(root.id, Menu.with_context(
+            allowed_company_ids=self.company_2.ids).load_menus(False)['root']['children'])
+        with self.assertRaises(UserError):
+            self._create_contract()
+        with self.assertRaises(UserError):
+            self.env['amc.opportunity'].create({'partner_id': self.customer.id,
+                                                'company_id': self.company.id})
+        renewal = contract._amc_create_renewal()
+        self.assertEqual(renewal.renewal_of_id, contract)
+        self.company.amc_enabled = True
+        self.assertTrue(self._create_contract())
+
     # ------------------------------------------------------------------ non-AMC regression
     def test_tc070_regular_sale_order_unchanged(self):
         """TC-070 / REG-01: a regular Sales Order (no AMC contract) is created, edited,

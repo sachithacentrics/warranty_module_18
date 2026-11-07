@@ -11,14 +11,14 @@ MSYS_NO_PATHCONV=1 ../python/python.exe odoo-bin -c odoo.conf -d amc_test \
   --stop-after-init --no-http --log-level=warn --log-handler=odoo.tests.result:INFO
 ```
 
-**Final result:** `0 failed, 0 error(s) of 63 tests` (log `test_final_2.log`).
+**Final result:** `0 failed, 0 error(s) of 63 tests` (log `test_final_2.log`). Re-run on 2026-11-07 (18.0.1.3.0, AMC Enabled switch): `0 failed, 0 error(s) of 68 tests` (65 functional + 3 documentation tests).
 
 | Suite | File | Tests | Result |
 |---|---|---|---|
 | Lifecycle (functional, negative, scheduler) | `amc_management/tests/test_amc_lifecycle.py` | 28 | PASS |
 | Pricing, governance, override (D01–D13) | `amc_management/tests/test_amc_pricing.py` | 9 | PASS |
-| Security, multi-company, non-AMC regression | `amc_management/tests/test_amc_security.py` | 9 | PASS |
-| Warranty link | `amc_management_warranty/tests/test_amc_warranty.py` | 9 | PASS |
+| Security, multi-company, non-AMC regression | `amc_management/tests/test_amc_security.py` | 10 | PASS |
+| Warranty link | `amc_management_warranty/tests/test_amc_warranty.py` | 10 | PASS |
 | Service chain end-to-end | `amc_management_service/tests/test_amc_service_chain.py` | 8 | PASS |
 | **Total** | | **63** | **63 PASS** |
 
@@ -30,9 +30,9 @@ MSYS_NO_PATHCONV=1 ../python/python.exe odoo-bin -c odoo.conf -d amc_test \
 | TC-030 … TC-034 | B09, G01–G04, A05 | billing, payment activation | as specified | as expected | PASS |
 | TC-040 … TC-048 | C02, C04, C05, B07, B08, H01, H05 | lifecycle, report | as specified | as expected | PASS |
 | TC-050 … TC-052 | H03, H05 | roles, RPC protection | refused outside role | as expected | PASS |
-| TC-060 … TC-062 | NFR-01, E03 | multi-company | isolated | as expected | PASS |
+| TC-060 … TC-063 | NFR-01, E03, AMC Enabled | multi-company, AMC Enabled switch | isolated | as expected | PASS |
 | TC-070 … TC-072 | REG-01, REG-02 | regular SO / invoice | standard | as expected | PASS |
-| TC-080 … TC-088 | A03, A04, A06–A08, C07, E09, X01, NFR-03 | warranty link | as specified | as expected | PASS |
+| TC-080 … TC-089 | A03, A04, A06–A08, C07, E09, X01, NFR-03, AMC Enabled | warranty link | as specified | as expected | PASS |
 | TC-090 … TC-097 | F01–F07, A08, C04, H02, H04, REG-04 | service chain | as specified | as expected | PASS |
 | TC-100 … TC-108 | D01–D13, B03, C02, G06 | pricing, governance | as specified | as expected | PASS |
 | TC-M01 … TC-M04 | A09, F08–F10, F12, F13, H01 | manual UAT | — | — | NOT RUN (UAT) |

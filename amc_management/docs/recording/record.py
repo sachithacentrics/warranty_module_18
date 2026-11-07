@@ -244,8 +244,8 @@ pump(3)
 # ---------------------------------------------------------------- settings
 # One caption per setting (<setting id> of res_config_settings_views.xml, both AMC modules).
 SETTINGS = [
-    ('amc_enabled', 'AMC Enabled – marks that this company works with Annual Maintenance '
-     'Contracts. It is informational only: it does not hide or block the AMC menus'),
+    ('amc_enabled', 'AMC Enabled – the on / off switch of AMC for this company. Off: the AMC '
+     'app is hidden, no new AMC can be created; existing contracts continue'),
     ('amc_default_plan', 'Default AMC Plan – proposed on every new AMC opportunity, and used for '
      'the draft AMC created from a warranty card'),
     ('amc_default_pricelist', 'Default Pricelist – a fallback only: AMC prices use the customer\'s '

@@ -11,7 +11,7 @@
                 <app data-string="AMC" string="AMC" name="amc_management" groups="base.group_system">
                     <block title="General AMC Settings" name="amc_general_settings">
                         <setting id="amc_enabled" string="AMC Enabled"
-                                 help="Annual Maintenance Contracts are used by this company">
+                                 help="Off: the AMC app is hidden in this company, no new AMC opportunity or contract can be created and the warranty integration creates / offers no AMC. Existing contracts continue">
                             <field name="amc_enabled"/>
                         </setting>
                         <setting id="amc_default_plan" string="Default AMC Plan"

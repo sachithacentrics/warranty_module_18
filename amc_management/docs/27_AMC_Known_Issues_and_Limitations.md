@@ -9,7 +9,7 @@
 | K-05 | AMC visits and an ad-hoc warranty complaint on the same ticket become two cases / jobs (one case type per case) | Limitation | Two jobs | Shared Field Service visit |
 | K-06 | No proration, no automatic price carry-forward on renewal, no Subscriptions | By decision (G-07, AS-04) | Renewal is priced with the formula in force | — |
 | K-07 | Closing a contract early does not credit already released / invoiced periods | By design (AS-05) | Accounting handles refunds | Credit note in Accounting |
-| K-08 | `res.company.amc_enabled` (1.0.0) is not used by any logic | Obsolete field | None | Kept for data compatibility |
+| K-08 | ~~`res.company.amc_enabled` (1.0.0) is not used by any logic~~ | Resolved in 18.0.1.3.0 | — | AMC Enabled now hides the AMC app and blocks new AMC business in the company (see 26) |
 | K-09 | The PDF through wkhtmltopdf was not executed (HTML rendering is tested); the new screens were rendered in headless Chrome for the manual, but clicking through every filter / button in a browser remains UAT | Test gap | Low | UAT TC-M01 / TC-M04 |
 | K-10 | MRF, excluded-item billing, cost lines and batch completion were not executed on an AMC job (reused unchanged) | Test gap | Low–Medium | UAT TC-M02 |
 | K-11 | Helpdesk SLA "by AMC" relies on an SLA policy configured for the *AMC* ticket tag | Configuration | — | Create the SLA policy (UAT TC-M03) |

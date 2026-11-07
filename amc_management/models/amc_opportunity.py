@@ -68,9 +68,9 @@ class AmcOpportunity(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            company = self.env['res.company'].browse(vals.get('company_id')) or self.env.company
+            company._amc_check_enabled()
             if vals.get('name', 'New') == 'New':
-                company = self.env['res.company'].browse(vals.get('company_id')) \
-                    or self.env.company
                 vals['name'] = self.env['ir.sequence'].with_company(company).next_by_code(
                     'amc.opportunity') or 'New'
         return super().create(vals_list)

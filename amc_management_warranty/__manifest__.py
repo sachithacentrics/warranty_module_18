@@ -1,6 +1,6 @@
 {
     'name': 'AMC Management - Warranty Link',
-    'version': '18.0.1.1.0',
+    'version': '18.0.1.2.0',
     'category': 'Services/AMC',
     'summary': 'Bridge between Warranty Management and the separate AMC module: draft AMC on '
                'warranty confirmation, Convert to AMC, warranty units on covered equipment',

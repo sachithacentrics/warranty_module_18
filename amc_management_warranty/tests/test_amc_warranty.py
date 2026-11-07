@@ -149,3 +149,20 @@ class TestAmcWarrantyLink(TransactionCase):
         other = self._card()
         with self.assertRaises(UserError):
             contract.write({'source_warranty_card_id': other.id})
+
+    def test_tc089_amc_disabled_company(self):
+        """TC-089 / AMC Enabled: off, the warranty integration creates and offers no AMC and
+        Convert to AMC is refused."""
+        self.company.write({'amc_enabled': False, 'amc_auto_create_mode': 'contract',
+                            'amc_offer_on_warranty_expiry': True})
+        card = self._card()
+        self.assertEqual(card.state, 'confirmed')
+        self.assertFalse(card.amc_contract_ids)
+        self.assertFalse(card.amc_enabled)
+        with self.assertRaises(UserError):
+            card.action_convert_to_amc()
+        expired = self._card(start=date.today() - timedelta(days=400))
+        expired._warranty_apply_expiry(date.today())
+        self.assertEqual(expired.state, 'expired')
+        self.assertFalse(expired.activity_ids.filtered(
+            lambda activity: activity.summary and activity.summary.startswith('Offer an AMC')))

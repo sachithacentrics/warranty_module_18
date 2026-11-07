@@ -24,6 +24,7 @@ class WarrantyCard(models.Model):
     amc_opportunity_ids = fields.One2many('amc.opportunity', 'warranty_card_id',
                                           string='AMC Opportunities', readonly=True)
     amc_count = fields.Integer(string='AMC', compute='_compute_amc_count')
+    amc_enabled = fields.Boolean(related='company_id.amc_enabled')
 
     def _compute_amc_count(self):
         contracts = self.env['amc.contract'].sudo()
@@ -44,7 +45,7 @@ class WarrantyCard(models.Model):
         here, never twice for a card, and never blocking the warranty confirmation."""
         self.ensure_one()
         mode = self.company_id.amc_auto_create_mode
-        if mode == 'none' or self.sudo().amc_contract_ids or self.sudo().amc_opportunity_ids:
+        if not self.company_id.amc_enabled or mode == 'none' or self.sudo().amc_contract_ids or self.sudo().amc_opportunity_ids:
             return False
         try:
             with self.env.cr.savepoint():
@@ -121,6 +122,7 @@ class WarrantyCard(models.Model):
             raise UserError(_("Only AMC users can convert warranty cards to AMC."))
         if self.state not in CONVERTIBLE_CARD_STATES:
             raise UserError(_("Only Confirmed or Expired warranty cards can be converted to AMC."))
+        self.company_id._amc_check_enabled()
         open_contracts = self.amc_contract_ids.filtered(
             lambda c: c.state not in ('cancelled', 'closed', 'renewed'))
         if open_contracts:
@@ -151,9 +153,9 @@ class WarrantyCard(models.Model):
     def _warranty_apply_expiry(self, today):
         was_expired = self.state == 'expired'
         result = super()._warranty_apply_expiry(today)
-        if not was_expired and self.state == 'expired' \
-                and self.company_id.amc_offer_on_warranty_expiry \
-                and not self.sudo().amc_contract_ids:
+        company = self.company_id
+        if not was_expired and self.state == 'expired' and company.amc_enabled \
+                and company.amc_offer_on_warranty_expiry and not self.sudo().amc_contract_ids:
             # Same recipients as the other warranty review activities of the card.
             for user in self._get_service_alert_users() or self.env.user:
                 self.sudo().activity_schedule(

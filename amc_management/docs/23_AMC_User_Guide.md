@@ -2,7 +2,8 @@
 
 ## 1. Set up (AMC Manager / Administrator)
 
-1. **Settings > AMC**: Default Plan, Default Billing Plan, Default Start Criteria, Renewal Rule,
+1. **Settings > AMC**: **AMC Enabled** (off: the AMC app is hidden in that company and no new AMC
+   opportunity / contract / warranty conversion is possible; existing contracts continue), Default Plan, Default Billing Plan, Default Start Criteria, Renewal Rule,
    Alert Days, **Activation Trigger** (Sales Order confirmation or payment of the first invoice), AMC
    Service Product. *Warranty Integration* (with `amc_management_warranty`): **AMC Auto-create
    Mode** (None / Draft AMC Opportunity / Draft AMC Contract) and **Offer AMC on Warranty Expiry**.

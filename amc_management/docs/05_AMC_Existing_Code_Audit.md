@@ -18,7 +18,7 @@ differs in line endings).
 | `amc.contract` / line | customer, site, plan, equipment (product, serial, qty, site, value + currency), pricing snapshot, override, quotation, activation trigger; protected fields via Python marker | Complete for A3; DEF-02, DEF-03, DEF-05, DEF-07, DEF-08; states On Hold / Expiring / Renewed / Closed unreachable |
 | `amc.price.override` | price / pricelist override, approver ≠ requester, audit-protected | Complete |
 | `sale.order` / line | AMC quotation lock (no edit / copy / extra lines), confirm / cancel hooks | Correct and scoped by `amc_contract_id` |
-| `res.company` / settings | AMC defaults, activation trigger, AMC product | Valid; `amc_enabled` not used anywhere |
+| `res.company` / settings | AMC defaults, activation trigger, AMC product | Valid; `amc_enabled` not used anywhere (made functional in 18.0.1.3.0, see 26) |
 | Wizards | price preview, cancel reason | Valid |
 | Security | groups User → Coordinator → Manager, Approver; ACL; multi-company record rules for all models | Valid |
 | Views / menus | plans, formulas, billing plans, opportunities, contracts, overrides, settings | Valid Odoo 18 syntax (`<list>`, `invisible=`, `<chatter/>`) |
@@ -41,7 +41,7 @@ differs in line endings).
 | Visit Schedule report | Missing |
 | Warranty / service-chain integration | Missing (planned bridges) |
 | Duplicate tier create/write/unlink | Duplicate |
-| `amc_enabled` | Obsolete / unused (kept, documented) |
+| `amc_enabled` | Unused in 1.0.0; on / off switch since 18.0.1.3.0 |
 
 ## 3. Security / quality observations
 

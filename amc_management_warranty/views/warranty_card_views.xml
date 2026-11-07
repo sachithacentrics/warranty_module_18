@@ -7,10 +7,11 @@
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
                 <button name="action_convert_to_amc" type="object" string="Convert to AMC"
-                        invisible="state not in ('confirmed', 'expired')"
+                        invisible="not amc_enabled or state not in ('confirmed', 'expired')"
                         groups="amc_management.amc_management_group_user"/>
             </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="amc_enabled" invisible="1"/>
                 <button name="action_view_amc" type="object" class="oe_stat_button"
                         icon="fa-wrench" invisible="not amc_count"
                         groups="amc_management.amc_management_group_user">
