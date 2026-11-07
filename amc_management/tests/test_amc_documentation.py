@@ -47,6 +47,24 @@ class TestAmcDocumentation(HttpCase):
         self.assertEqual(menu.parent_id, self.env.ref('amc_management.amc_management_menu_documents'))
         self.assertEqual(menu.action.url, url)
 
+    def test_tc113_practical_scenario_access(self):
+        """TC-113: Configuration > Documents > Practical Scenario (HTML page, AMC users only)."""
+        url = '/amc_management/practical_scenario'
+        response = self.url_open(url, allow_redirects=False)
+        self.assertIn(response.status_code, (302, 303))
+        self.assertIn('/web/login', response.headers.get('Location', ''))
+        self.authenticate('amc_doc_none', 'amc_doc_none')
+        self.assertEqual(self.url_open(url).status_code, 404)
+        self.authenticate('amc_doc_user', 'amc_doc_user')
+        response = self.url_open(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/html', response.headers['Content-Type'])
+        self.assertIn('<title>AMC Practical Scenario</title>', response.text)
+        self.assertIn('id="toc"', response.text)
+        menu = self.env.ref('amc_management.amc_management_menu_practical_scenario')
+        self.assertEqual(menu.parent_id, self.env.ref('amc_management.amc_management_menu_documents'))
+        self.assertEqual(menu.action.url, url)
+
     def test_tc111_process_video_access(self):
         """TC-111: Configuration > Documents > Process Recording: player page, seekable video
         stream (HTTP range) and poster for AMC users only."""

@@ -6,6 +6,7 @@ from odoo.tools.misc import file_path
 MANUAL_DIR = 'amc_management/manual/'
 USER_MANUAL = MANUAL_DIR + 'amc_user_manual.html'
 TECHNICAL_ARCHITECTURE = MANUAL_DIR + 'amc_technical_architecture.html'
+PRACTICAL_SCENARIO = MANUAL_DIR + 'amc_practical_scenario.html'
 VIDEO_PAGE = MANUAL_DIR + 'amc_process_video.html'
 VIDEO_FILE = MANUAL_DIR + 'amc_process.mp4'
 VIDEO_POSTER = MANUAL_DIR + 'amc_process_poster.jpg'
@@ -17,8 +18,8 @@ PAGE_HEADERS = [
 
 
 class AmcDocumentation(http.Controller):
-    """Configuration > Documents: User Manual, Technical Architecture and Process Recording, for
-    AMC users only."""
+    """Configuration > Documents: User Manual, Technical Architecture, Practical Scenario and
+    Process Recording, for AMC users only."""
 
     def _amc_allowed(self):
         return request.env.user.has_group('amc_management.amc_management_group_user')
@@ -47,6 +48,11 @@ class AmcDocumentation(http.Controller):
     def technical_architecture(self, **kwargs):
         """Self-contained HTML version of AMC_Technical_Architecture.docx (diagrams embedded)."""
         return self._amc_page(TECHNICAL_ARCHITECTURE)
+
+    @http.route('/amc_management/practical_scenario', type='http', auth='user', methods=['GET'])
+    def practical_scenario(self, **kwargs):
+        """Self-contained HTML practical AMC scenario based on the SRS."""
+        return self._amc_page(PRACTICAL_SCENARIO)
 
     @http.route('/amc_management/process_video', type='http', auth='user', methods=['GET'])
     def process_video(self, **kwargs):

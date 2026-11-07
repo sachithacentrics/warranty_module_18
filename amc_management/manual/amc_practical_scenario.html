@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMC Practical Scenario</title>
+<style>
+:root{
+  --bg:#f6f5f2; --paper:#ffffff; --ink:#1f2328; --muted:#5d636b; --line:#dedbd4;
+  --accent:#7a3e6c; --accent-soft:#f3e8f0; --ok:#1f7a4d; --ok-soft:#e5f4ec;
+  --warn:#9a5b00; --warn-soft:#fbf0dc; --bad:#a3322b; --bad-soft:#f9e6e4;
+  --info:#24598f; --info-soft:#e4eef8; --code:#f1efea;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171a; --paper:#1e2024; --ink:#e6e6e3; --muted:#a2a6ad; --line:#34373d;
+    --accent:#d9a0c9; --accent-soft:#3a2735; --ok:#6fd0a0; --ok-soft:#1d3329;
+    --warn:#e9b25d; --warn-soft:#3a2f1c; --bad:#ef8f86; --bad-soft:#3d2422;
+    --info:#8db9e6; --info-soft:#1f2c3a; --code:#2a2c31;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171a; --paper:#1e2024; --ink:#e6e6e3; --muted:#a2a6ad; --line:#34373d;
+  --accent:#d9a0c9; --accent-soft:#3a2735; --ok:#6fd0a0; --ok-soft:#1d3329;
+  --warn:#e9b25d; --warn-soft:#3a2f1c; --bad:#ef8f86; --bad-soft:#3d2422;
+  --info:#8db9e6; --info-soft:#1f2c3a; --code:#2a2c31;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 16px 80px}
+header.hero{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:28px 28px 22px;margin-bottom:22px}
+.kicker{color:var(--accent);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:12px}
+h1{font-size:30px;line-height:1.2;margin:6px 0 10px}
+h2{font-size:22px;margin:40px 0 12px;padding-top:8px;border-top:2px solid var(--line)}
+h3{font-size:17px;margin:26px 0 8px}
+p{margin:8px 0}
+.lead{color:var(--muted);font-size:16px;max-width:780px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;color:var(--muted);font-size:13px}
+nav.toc{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 22px;margin-bottom:10px}
+nav.toc ol{margin:6px 0 0;padding-left:20px;columns:2;column-gap:36px}
+nav.toc li{margin:2px 0;break-inside:avoid}
+a{color:var(--accent)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:760px){.g2,.g3{grid-template-columns:1fr} nav.toc ol{columns:1}}
+.tablewrap{overflow-x:auto;margin:10px 0;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{background:var(--accent-soft);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;white-space:nowrap}
+code,.mono{font-family:Consolas,"Cascadia Mono",monospace;font-size:13px;background:var(--code);padding:1px 5px;border-radius:4px}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.s-draft{background:var(--code);color:var(--muted);border-color:var(--line)}
+.s-quote{background:var(--info-soft);color:var(--info)}
+.s-await{background:var(--warn-soft);color:var(--warn)}
+.s-active{background:var(--ok-soft);color:var(--ok)}
+.s-hold{background:var(--warn-soft);color:var(--warn)}
+.s-exp{background:var(--accent-soft);color:var(--accent)}
+.s-end{background:var(--bad-soft);color:var(--bad)}
+.ref{display:inline-block;font-size:11.5px;font-weight:600;color:var(--info);background:var(--info-soft);border-radius:4px;padding:0 6px;margin:1px 2px 1px 0;white-space:nowrap}
+.step{display:grid;grid-template-columns:96px 1fr;gap:0 16px;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:14px 16px;margin:10px 0}
+.step .when{font-weight:700;font-size:13px;color:var(--accent)}
+.step .when small{display:block;font-weight:500;color:var(--muted)}
+.step h4{margin:0 0 4px;font-size:15.5px}
+.step dl{display:grid;grid-template-columns:110px 1fr;gap:3px 10px;margin:6px 0 0;font-size:14px}
+.step dt{color:var(--muted);font-weight:600}
+.step dd{margin:0}
+@media (max-width:640px){.step{grid-template-columns:1fr}.step dl{grid-template-columns:1fr}.step dt{margin-top:4px}}
+.note{border-radius:10px;padding:10px 14px;margin:12px 0;font-size:14px}
+.note.info{background:var(--info-soft)} .note.warn{background:var(--warn-soft)} .note.ok{background:var(--ok-soft)}
+.note b:first-child{margin-right:4px}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0}
+.flow .arrow{color:var(--muted)}
+.timeline{position:relative;margin:14px 0;padding-left:22px;border-left:3px solid var(--line)}
+.timeline .ev{position:relative;margin:0 0 10px}
+.timeline .ev::before{content:"";position:absolute;left:-30px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--paper);border:3px solid var(--accent)}
+.timeline .ev.b::before{border-color:var(--info)}
+.timeline .ev.c::before{border-color:var(--ok)}
+.timeline .d{font-weight:700;font-size:13px;min-width:96px;display:inline-block}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.who{font-weight:600}
+.big{font-size:22px;font-weight:700}
+.muted{color:var(--muted)}
+ul.tight{margin:6px 0;padding-left:20px} ul.tight li{margin:2px 0}
+footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:12px}
+@media print{
+  body{background:#fff} .wrap{max-width:none;padding:0} nav.toc{display:none}
+  .card,.step,.tablewrap,header.hero{break-inside:avoid;border-color:#ccc}
+  h2{break-before:auto}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="kicker">AMC Management · Odoo 18 · Practical scenario</div>
+  <h1>One year of Annual Maintenance Contracts at CoolTech Lanka</h1>
+  <p class="lead">A complete, realistic business case built from the Warranty Module SRS (AMC sections 1.2, 2.12, 2.15, 7, 9.9, 9.13, 12 #12, 14, 15, 16, 16.2, 18). It follows three customers through sales, activation, billing, preventive visits, on-demand services, exceptions, renewal and closure, and shows at every step which AMC feature handles it, who does it and where it is in Odoo.</p>
+  <div class="meta">
+    <span>Modules: <code>amc_management</code> 18.0.1.3.0 · <code>amc_management_warranty</code> · <code>amc_management_service</code></span>
+    <span>Scenario period: Nov 2026 – Jan 2028</span>
+    <span>Currency: LKR</span>
+  </div>
+</header>
+
+<nav class="toc" id="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#business">The business and the people</a></li>
+    <li><a href="#overview">Scenario at a glance</a></li>
+    <li><a href="#setup">Stage 0 – Set up AMC</a></li>
+    <li><a href="#storyA">Story A – Lakeside Café: warranty to AMC</a></li>
+    <li><a href="#storyB">Story B – Harbour View Hotel: project AMC</a></li>
+    <li><a href="#storyC">Story C – Sunrise Pharmacy: draft AMC from a new sale</a></li>
+    <li><a href="#exceptions">Exceptions and what the system does</a></li>
+    <li><a href="#controls">Controls the system enforces</a></li>
+    <li><a href="#monitor">Daily management and reports</a></li>
+    <li><a href="#lifecycle">Contract lifecycle reference</a></li>
+    <li><a href="#trace">SRS coverage of the scenario</a></li>
+    <li><a href="#uat">Using this scenario for UAT and training</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ 1 -->
+<h2 id="business">1. The business and the people</h2>
+<p><b>CoolTech Lanka (Pvt) Ltd</b> sells and installs air conditioners (GREE wall-mounted and cassette units) in Colombo. Every unit is sold with a 12-month warranty managed by the Warranty module. When a warranty ends – or when a customer with older equipment asks – CoolTech sells an <b>Annual Maintenance Contract (AMC)</b>: preventive visits per unit, a number of included on-demand services and a fixed yearly or quarterly fee. The SRS sample data (section 18) defines exactly the two AMC types CoolTech uses: <b>Retail – 3 visits a year</b> and <b>Project – 2 visits a year</b>.</p>
+
+<div class="tablewrap"><table>
+<tr><th>Person</th><th>Job at CoolTech</th><th>Odoo access</th><th>Does in this scenario</th></tr>
+<tr><td class="who">Sachini</td><td>Service Manager</td><td>AMC Manager, Settings</td><td>Settings, plans, price formulas, hold / resume, close</td></tr>
+<tr><td class="who">Dilan</td><td>AMC Sales &amp; Planning Coordinator</td><td>AMC Coordinator, Sales user</td><td>Opportunities, contracts, prices, quotations, service requests, renewals</td></tr>
+<tr><td class="who">Ruwan</td><td>Commercial Head</td><td>AMC Approver</td><td>Approves or rejects price overrides</td></tr>
+<tr><td class="who">Tharushi</td><td>Helpdesk Agent</td><td>Helpdesk user, Warranty user</td><td>Tickets, eligibility check, case approval, Service Job</td></tr>
+<tr><td class="who">Nimal, Kasun</td><td>Field Technicians</td><td>Field Service user</td><td>Worksheets, customer sign-off, Complete Visit</td></tr>
+<tr><td class="who">Priya</td><td>Accountant</td><td>Accounting / Invoicing</td><td>Posts invoices, registers payments</td></tr>
+</table></div>
+<p class="muted">SRS 16 asks for AMC User and AMC Manager roles. The development adds AMC Coordinator and AMC Approver so that the person who asks for a discount can never approve it (SRS 2.12 “approval for manual price override”).</p>
+
+<div class="grid g3">
+  <div class="card"><div class="kicker">Customer A · Retail</div><h3 style="margin-top:4px">Lakeside Café</h3>
+    <p>One site in Nugegoda. 3 × GREE 9000 BTU wall units + 1 × GREE 24000 BTU cassette, bought 15 Nov 2025 with a 12-month warranty that ends 14 Nov 2026.</p>
+    <p class="muted">Path: warranty expiry → Convert to AMC (SRS 12 #12)</p></div>
+  <div class="card"><div class="kicker">Customer B · Project</div><h3 style="margin-top:4px">Harbour View Hotel</h3>
+    <p>Two sites: Main Building (20 units) and Annex (8 units), installed years ago by another supplier. Asks CoolTech for a maintenance offer.</p>
+    <p class="muted">Path: manual opportunity → contract, activation on payment (SRS 2.12, 7)</p></div>
+  <div class="card"><div class="kicker">Customer C · Retail</div><h3 style="margin-top:4px">Sunrise Pharmacy</h3>
+    <p>Buys 2 new wall units in December 2026. The warranty is confirmed and the system prepares an AMC opportunity for later.</p>
+    <p class="muted">Path: warranty confirmation → draft AMC opportunity (SRS 14)</p></div>
+</div>
+
+<!-- ============================================================ 2 -->
+<h2 id="overview">2. Scenario at a glance</h2>
+<div class="legend"><span><span class="dot" style="background:var(--accent)"></span>Lakeside Café (A)</span><span><span class="dot" style="background:var(--info)"></span>Harbour View Hotel (B)</span><span><span class="dot" style="background:var(--ok)"></span>Sunrise Pharmacy (C) / set-up</span></div>
+<div class="timeline">
+  <div class="ev c"><span class="d">01 Nov 2026</span> Sachini configures AMC: settings, billing plans, Retail and Project plans, price formulas.</div>
+  <div class="ev"><span class="d">15 Nov 2026</span> Lakeside warranty expires → to-do “Offer an AMC” → Dilan converts the card to a Draft AMC.</div>
+  <div class="ev"><span class="d">16–18 Nov</span> Price 57,500 → override to 51,800 approved by Ruwan → quotation confirmed → <span class="pill s-active">Active</span>, 12 visits + 4 free services created.</div>
+  <div class="ev b"><span class="d">01–10 Dec</span> Hotel opportunity: New → Offer Sent → Won → Draft contract for 28 units at two sites.</div>
+  <div class="ev c"><span class="d">05 Dec</span> Sunrise Pharmacy warranty confirmed → Draft AMC opportunity created automatically.</div>
+  <div class="ev b"><span class="d">15–22 Dec</span> Hotel quotation (4 quarterly periods × 28,000) confirmed → <span class="pill s-await">Awaiting Payment</span> → Q1 invoice paid → <span class="pill s-active">Active</span> from 1 Jan 2027.</div>
+  <div class="ev c"><span class="d">20 Dec</span> Sachini activates price formula version 2 for Retail (13,500 per unit from 1 Jan 2027).</div>
+  <div class="ev"><span class="d">01–12 Mar 2027</span> Alert → service request → Helpdesk ticket → AMC case → Service Job → Field Service visit → 4 visits consumed.</div>
+  <div class="ev"><span class="d">20 May</span> Cassette unit not cooling → included free service used through the Helpdesk ticket.</div>
+  <div class="ev b"><span class="d">10 Jun – 1 Jul</span> Hotel first round: two service requests (one per site), two Service Jobs.</div>
+  <div class="ev"><span class="d">14–20 Jul</span> Lakeside second round: café closed on the planned day → job rescheduled, nothing consumed until 20 Jul.</div>
+  <div class="ev b"><span class="d">05–25 Aug</span> Hotel Q3 invoice overdue → <span class="pill s-hold">On Hold</span> → paid → Resume.</div>
+  <div class="ev"><span class="d">15 Oct</span> Lakeside <span class="pill s-exp">Expiring</span> → renewal draft offered automatically → priced 62,100 → confirmed.</div>
+  <div class="ev b"><span class="d">16 Nov</span> Hotel <span class="pill s-exp">Expiring</span>; the hotel does not renew.</div>
+  <div class="ev"><span class="d">15 Nov</span> Lakeside renewal starts; old contract <span class="pill s-end">Renewed</span>.</div>
+  <div class="ev b"><span class="d">01 Jan 2028</span> Hotel contract <span class="pill s-end">Closed</span> by the scheduler; the unfinished Annex visits expire.</div>
+</div>
+
+<!-- ============================================================ 3 -->
+<h2 id="setup">3. Stage 0 – Set up AMC <span class="muted" style="font-size:14px;font-weight:400">(Sachini, AMC Manager)</span></h2>
+<p>Everything the SRS says must be <i>configurable, not hard-coded</i> (visit counts, pricing method, billing, renewal, triggers) is entered once here. Nothing in the later stories needs a developer.</p>
+
+<h3>3.1 Settings – <span class="mono">AMC Management › Configuration › Settings</span></h3>
+<div class="tablewrap"><table>
+<tr><th>Setting</th><th>CoolTech value</th><th>Why / effect</th><th>SRS</th></tr>
+<tr><td>AMC Enabled</td><td>On</td><td>The AMC app, new contracts and the warranty link work in this company. A second company (e.g. a Maldives branch that does not sell AMCs) keeps it off: the app is hidden there and no AMC can be created.</td><td><span class="ref">2.1</span><span class="ref">NFR multi-company</span></td></tr>
+<tr><td>Default AMC Plan</td><td>Retail AMC</td><td>Proposed on new contracts and opportunities.</td><td><span class="ref">7</span></td></tr>
+<tr><td>Default Billing Plan</td><td>Annual Upfront</td><td>Used when the plan has none.</td><td><span class="ref">2.15</span></td></tr>
+<tr><td>Activation Trigger</td><td>Sales Order confirmation</td><td>Company default; the Project plan overrides it with <i>payment</i>.</td><td><span class="ref">2.12</span><span class="ref">9.9 step 2</span></td></tr>
+<tr><td>Default Alert Days</td><td>14</td><td>To-do to the coordinator before each due visit.</td><td><span class="ref">9.9</span><span class="ref">14</span></td></tr>
+<tr><td>AMC Service Product</td><td>“AMC Service”</td><td>Product on the AMC quotation lines.</td><td><span class="ref">2.16</span></td></tr>
+<tr><td>AMC Auto-create Mode</td><td>Draft AMC Opportunity</td><td>A confirmed warranty card prepares a pre-sales opportunity – never an active contract (Story C).</td><td><span class="ref">7</span><span class="ref">14</span></td></tr>
+<tr><td>Offer AMC on Warranty Expiry</td><td>On</td><td>When a card expires, its alert users get “Offer an AMC” (Story A).</td><td><span class="ref">14</span><span class="ref">12 #12</span></td></tr>
+</table></div>
+
+<h3>3.2 Billing plans – <span class="mono">Configuration › Billing Plans</span></h3>
+<p>Delivered with the module: <b>Annual Upfront</b>, <b>Quarterly in Advance</b>, <b>Monthly in Advance</b>, <b>Per Preventive Visit</b>. CoolTech uses the first two. Billing is done on the standard Sales Order (no Subscriptions app needed – SRS 2.16 / 19 allows this).</p>
+
+<h3>3.3 AMC plans – <span class="mono">Configuration › AMC Plans</span></h3>
+<div class="tablewrap"><table>
+<tr><th>Field</th><th>Retail AMC</th><th>Project AMC</th></tr>
+<tr><td>Service basis / visit count</td><td>Period · 3 visits per year</td><td>Period · 2 visits per year</td></tr>
+<tr><td>Included free services (per unit)</td><td>1</td><td>0</td></tr>
+<tr><td>Visit planning · Alert days</td><td>Alert-Driven · 14 days</td><td>Alert-Driven · 21 days</td></tr>
+<tr><td>Grace period · Mark Missed</td><td>15 days · Yes</td><td>— · No</td></tr>
+<tr><td>Duration · Start criteria</td><td>12 months · Activation date</td><td>12 months · Manual start date</td></tr>
+<tr><td>Billing plan</td><td>Annual Upfront</td><td>Quarterly in Advance</td></tr>
+<tr><td>Activation trigger</td><td>(company: SO confirmation)</td><td>Payment of the first invoice</td></tr>
+<tr><td>Renewal rule · Notice</td><td>Auto Offer · 30 days</td><td>Manual · 45 days</td></tr>
+<tr><td>Applicability</td><td>Category “Air Conditioners”</td><td>All products</td></tr>
+</table></div>
+<p class="muted">The plan refuses impossible combinations, e.g. more visits than fit into the duration, or Per-Visit billing with activation on payment.</p>
+
+<h3>3.4 Price formulas – <span class="mono">Configuration › Pricing Formulas</span></h3>
+<div class="grid g2">
+  <div class="card"><b>Retail AMC · v1 · Per Unit</b> <span class="pill s-active">Active</span>
+    <ul class="tight"><li>12,500 per unit, from 1 Jan 2026</li><li>Factor 1.6 for the 24000 BTU cassette (bigger unit, more work)</li><li>Minimum 25,000 · rounding to 100</li></ul>
+    <p class="muted">Sample: 3 units → 37,500. Checked in the Sample section, then <b>Activate</b>.</p></div>
+  <div class="card"><b>Project AMC · v1 · Tiered quantity</b> <span class="pill s-active">Active</span>
+    <ul class="tight"><li>1–10 units: 5,000 each</li><li>11–25 units: 4,500 each</li><li>26+ units: 4,000 each (whole quantity at the tier rate)</li></ul>
+    <p class="muted">Sample: 12 units → 54,000.</p></div>
+</div>
+<p>The other SRS 16.2 methods are available for other plans: Fixed, Per Visit, Percentage of equipment value, Site-Based, Usage-Based and Hybrid. A Hybrid formula is an expression restricted to approved variables (<code>equipment_value</code>, <code>quantity</code>, <code>visit_count</code>, <code>contract_months</code>, <code>usage</code>, <code>site_count</code>, <code>factor</code>…) and functions (<code>min</code>, <code>max</code>, <code>round</code>, <code>abs</code>), never free Python (SRS 13). An Active version cannot be edited; a price change is a <b>New Version</b> with a later effective date (used on 20 Dec 2026).</p>
+
+<!-- ============================================================ 4 -->
+<h2 id="storyA">4. Story A – Lakeside Café: from expired warranty to AMC</h2>
+<div class="flow"><span class="pill s-draft">Warranty expired</span><span class="arrow">→</span><span class="pill s-draft">Draft</span><span class="arrow">→</span><span class="pill s-quote">Quotation</span><span class="arrow">→</span><span class="pill s-active">Active</span><span class="arrow">→</span><span class="pill s-exp">Expiring</span><span class="arrow">→</span><span class="pill s-end">Renewed</span></div>
+
+<div class="step"><div class="when">15 Nov 2026<small>System</small></div><div>
+  <h4>A1 · Warranty expires, the system offers an AMC</h4>
+  <p>The daily warranty scheduler sets card <b>WC/2025/0418</b> to <i>Expired</i>. Because <i>Offer AMC on Warranty Expiry</i> is on and the card has no AMC yet, Dilan (alert user of the card) gets a to-do <b>“Offer an AMC: warranty WC/2025/0418 expired”</b>.</p>
+  <dl><dt>Module</dt><dd><code>amc_management_warranty</code></dd><dt>SRS</dt><dd><span class="ref">14 trigger</span><span class="ref">AMC-X01</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">15 Nov 2026<small>Dilan</small></div><div>
+  <h4>A2 · Convert to AMC</h4>
+  <p>Dilan calls the café; the owner agrees. On the warranty card Dilan clicks <b>Convert to AMC</b>. A <span class="pill s-draft">Draft</span> contract <b>AMC/2026/0007</b> is created with the customer, the default plan Retail AMC and one line per warranty unit (product, serial, site). The start date is proposed as 15 Nov 2026 – the day after the warranty – so cover continues without a gap. The card's <b>AMC</b> smart button now opens the contract.</p>
+  <dl><dt>Where</dt><dd>Warranty › Warranty Cards › card › <b>Convert to AMC</b></dd><dt>Rules</dt><dd>Only Confirmed / Expired cards; a second click opens the open AMC instead of creating another; a serial can be on one open AMC only.</dd><dt>SRS</dt><dd><span class="ref">12 #12</span><span class="ref">AMC-A07</span><span class="ref">AMC-C07</span><span class="ref">AMC-A06</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">15 Nov 2026<small>Dilan</small></div><div>
+  <h4>A3 · Calculate the price</h4>
+  <p><b>Calculate Price</b> uses the formula version in force today (Retail v1) and stores the breakdown in the <i>Pricing</i> tab:</p>
+  <div class="tablewrap"><table>
+  <tr><th>Equipment</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Factor</th><th class="num">Amount</th></tr>
+  <tr><td>GREE 9000 BTU Wall Mounted</td><td class="num">3</td><td class="num">12,500</td><td class="num">1.0</td><td class="num">37,500</td></tr>
+  <tr><td>GREE 24000 BTU Cassette</td><td class="num">1</td><td class="num">12,500</td><td class="num">1.6</td><td class="num">20,000</td></tr>
+  <tr><td colspan="4"><b>Contract price</b> (above minimum 25,000, rounded to 100)</td><td class="num"><b>57,500</b></td></tr>
+  </table></div>
+  <dl><dt>SRS</dt><dd><span class="ref">16.2 Per Unit</span><span class="ref">AMC-D01–D11</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">15–16 Nov<small>Dilan → Ruwan</small></div><div>
+  <h4>A4 · Loyalty discount through a controlled override</h4>
+  <p>The café is a long-standing customer. Dilan clicks <b>Request Override</b>: price 51,800, reason “Loyal customer – 10 % discount”. The contract cannot be quoted while the request is open. Ruwan opens <span class="mono">Sales › Override Requests</span> and <b>Approves</b>. Dilan cannot approve this request – the approver must be another person. The request, the approver and the time stay in the chatter.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">2.12 override approval</span><span class="ref">AMC-D13</span><span class="ref">AMC-H06</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">16–18 Nov<small>Dilan · customer</small></div><div>
+  <h4>A5 · Quotation, confirmation and activation</h4>
+  <p><b>Create Quotation</b> → standard Sales quotation S00231, one locked AMC line: 1 annual period × 51,800. The café signs it online on 18 Nov. Because the trigger is <i>Sales Order confirmation</i>, the contract becomes <span class="pill s-active">Active</span> immediately: the price is frozen, the billing schedule is created and the entitlements are generated – before this moment none exist.</p>
+  <div class="tablewrap"><table>
+  <tr><th>Generated on activation</th><th>Per unit</th><th>Total (4 units)</th><th>Due dates</th></tr>
+  <tr><td>Preventive visits</td><td class="num">3</td><td class="num">12</td><td>15 Mar 2027 · 15 Jul 2027 · 14 Nov 2027 (last capped at the end date)</td></tr>
+  <tr><td>Included free services</td><td class="num">1</td><td class="num">4</td><td>On demand, no due date</td></tr>
+  </table></div>
+  <dl><dt>SRS</dt><dd><span class="ref">AMC-A05</span><span class="ref">AMC-C01–C03</span><span class="ref">AMC-E01–E03</span><span class="ref">9.9 steps 2–4</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">18 Nov 2026<small>Dilan · Priya</small></div><div>
+  <h4>A6 · Bill the year in advance</h4>
+  <p>The Annual Upfront period is released when the contract is activated. Dilan clicks <b>Create Invoice</b> on the contract → draft invoice for 51,800. Priya posts it and registers the payment. Nothing is posted automatically.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">AMC-B09</span><span class="ref">AMC-G01–G04</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">01–12 Mar 2027<small>System · Dilan · Tharushi · Nimal</small></div><div>
+  <h4>A7 · First preventive round – through the mandatory service chain</h4>
+  <ol class="tight">
+    <li><b>1 Mar</b> – 14 days before the due date the scheduler gives Dilan a to-do for each of the 4 visits; they show as <i>Due</i> in <span class="mono">Services › AMC Visits</span>.</li>
+    <li>Dilan selects the 4 pending visits (same contract, same site) and clicks <b>Create Service Request</b>. Result: Helpdesk ticket tagged <i>AMC</i> (a Helpdesk SLA policy on that tag, e.g. “AMC – 2 working days”, applies) and a warranty case of type <i>AMC</i>; visits become <i>Scheduled</i>.</li>
+    <li>Tharushi runs <b>Check Eligibility</b> (contract Active, date within coverage, visits still open) → <b>Approve Case</b> → <b>Prepare Service Job</b>: planned 12 Mar, main technician Nimal, support Kasun → <b>Confirm</b>. A Field Service visit is created with one worksheet per AMC visit (the A/C Preventive Maintenance Checklist); visits become <i>In Progress</i>.</li>
+    <li><b>12 Mar</b> – Nimal fills the 4 checklists, the café manager signs on the tablet, Nimal clicks <b>Complete Visit</b>. The job and case close; the 4 AMC visits are <i>Completed</i> – consumed once – and the contract shows the next visit: 15 Jul 2027.</li>
+  </ol>
+  <p class="muted">Nimal also finds a worn fan motor on one wall unit. Parts are not covered by this plan: the existing Material Request and chargeable-quotation process of the Service Job is used, and the café is invoiced separately.</p>
+  <dl><dt>Modules</dt><dd><code>amc_management_service</code> + Warranty Helpdesk / Service Job / Field Service</dd><dt>SRS</dt><dd><span class="ref">9.9 steps 5–8</span><span class="ref">AMC-E04–E07</span><span class="ref">AMC-F01–F09</span><span class="ref">AMC-F12</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">20 May 2027<small>Tharushi · Kasun</small></div><div>
+  <h4>A8 · On-demand service from the included free service</h4>
+  <p>The café calls: the cassette unit does not cool. Tharushi creates a Helpdesk ticket for Lakeside Café. The ticket's <b>Pending AMC Services</b> tab lists the open free service of that unit; <b>Add AMC Services to this Ticket</b> links it. Same chain: case → job → Kasun cleans the coil and recharges gas → customer sign-off → the free service is consumed. The unit has no free service left this year: a second breakdown in August is handled as a chargeable job.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">AMC-B06</span><span class="ref">AMC-F02</span><span class="ref">AMC-G05</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">14–20 Jul 2027<small>Nimal</small></div><div>
+  <h4>A9 · Second round – a visit that cannot be completed</h4>
+  <p>The job is planned for 14 Jul, but the café is closed for a private event. Nimal does not complete the visit; the job is rescheduled to 20 Jul through the standard follow-up. The 4 visits stay open and are <b>not consumed</b>. On 20 Jul they are completed – still inside the 15-day grace period, so nothing is marked <i>Missed</i>.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">AMC-E07</span><span class="ref">AMC-E08</span><span class="ref">AMC-F07</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">15 Oct – 15 Nov 2027<small>System · Dilan</small></div><div>
+  <h4>A10 · Renewal</h4>
+  <p><b>15 Oct</b> – 30 days before the end the scheduler sets the contract to <span class="pill s-exp">Expiring</span> and, because the Retail rule is <i>Auto Offer</i>, prepares a Draft renewal <b>AMC/2027/0052</b> (same customer, site, plan and units, start 15 Nov 2027). It is priced again with the formula in force: Retail v2 → 3 × 13,500 + 1 × 21,600 = <b>62,100</b>. Quotation confirmed on 25 Oct → renewal Active from 15 Nov. The third round of the old contract is completed on 5 Nov. On <b>15 Nov</b> the old contract becomes <span class="pill s-end">Renewed</span>; the new one carries on with its own 12 visits and 4 free services.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">AMC-B08</span><span class="ref">AMC-C05</span><span class="ref">AMC-D11 versions</span></dd></dl>
+</div></div>
+
+<!-- ============================================================ 5 -->
+<h2 id="storyB">5. Story B – Harbour View Hotel: a project AMC across two sites</h2>
+<div class="flow"><span class="pill s-draft">Opportunity</span><span class="arrow">→</span><span class="pill s-draft">Draft</span><span class="arrow">→</span><span class="pill s-quote">Quotation</span><span class="arrow">→</span><span class="pill s-await">Awaiting Payment</span><span class="arrow">→</span><span class="pill s-active">Active</span><span class="arrow">→</span><span class="pill s-hold">On Hold</span><span class="arrow">→</span><span class="pill s-active">Active</span><span class="arrow">→</span><span class="pill s-exp">Expiring</span><span class="arrow">→</span><span class="pill s-end">Closed</span></div>
+
+<div class="step"><div class="when">01–10 Dec 2026<small>Dilan</small></div><div>
+  <h4>B1 · Pre-sales opportunity</h4>
+  <p>The hotel's engineer asks for a maintenance offer for 28 units CoolTech did not sell (no warranty cards). Dilan creates an <b>AMC Opportunity</b>: plan Project AMC, expected quantity 28, expected value 120,000. <b>Offer Sent</b> on 3 Dec; the hotel accepts on 10 Dec → <b>Create Contract</b> marks the opportunity <i>Won</i> and opens a linked Draft contract.</p>
+  <dl><dt>Where</dt><dd>AMC Management › Sales › Opportunities</dd><dt>SRS</dt><dd><span class="ref">7 Draft AMC Opportunity</span><span class="ref">AMC-C06 manual AMC</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">10 Dec 2026<small>Dilan</small></div><div>
+  <h4>B2 · Covered equipment and price</h4>
+  <p>Dilan adds the equipment: 16 wall units + 4 cassettes at <i>Main Building</i>, 8 wall units at <i>Annex</i> (sites are delivery addresses of the hotel). The plan starts on a manual date: <b>1 Jan 2027</b>. <b>Calculate Price</b>: 28 units fall in the 26+ tier → 28 × 4,000 = <b>112,000</b> a year.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">16.2 Tiered</span><span class="ref">AMC-B11 sites</span><span class="ref">AMC-B07 start</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">15–22 Dec 2026<small>Dilan · Priya</small></div><div>
+  <h4>B3 · Activation on payment</h4>
+  <p><b>Create Quotation</b> → 4 quarterly periods × 28,000. The hotel confirms on 15 Dec. The Project plan activates on payment, so the contract waits in <span class="pill s-await">Awaiting Payment</span> and only period 1 is released. <b>Create Invoice</b> → Priya posts INV/2026/01187 for 28,000 → payment received 22 Dec → the contract becomes <span class="pill s-active">Active</span> and generates 56 preventive visits (28 units × 2), due 1 Jul 2027 and 31 Dec 2027.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">AMC-A05</span><span class="ref">AMC-G03</span><span class="ref">AMC-G04</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">Apr · Jul · Oct 2027<small>System · Priya</small></div><div>
+  <h4>B4 · Quarterly billing</h4>
+  <p>Each quarter's period is released on its start date (1 Apr, 1 Jul, 1 Oct). Dilan or Priya creates the invoice from the contract or the Sales Order. The contract's <b>Invoices</b> smart button shows all four.</p>
+</div></div>
+
+<div class="step"><div class="when">10 Jun – 1 Jul 2027<small>Dilan · Tharushi · technicians</small></div><div>
+  <h4>B5 · First round on two sites</h4>
+  <p>Alerts arrive 21 days before 1 Jul. A service request combines visits of <b>one contract and one site</b>, so Dilan creates two: Main Building (20 visits) and Annex (8 visits). Each gets its own ticket, case and Service Job with its own date and team, and one worksheet per unit. Both jobs are completed by 1 Jul; 28 visits consumed.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">AMC-F03 merge rules</span><span class="ref">AMC-F04</span><span class="ref">AMC-F05</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">05–25 Aug 2027<small>Sachini</small></div><div>
+  <h4>B6 · Put On Hold for an unpaid invoice</h4>
+  <p>The Q3 invoice is 30 days overdue. Sachini clicks <b>Put On Hold</b> with the reason “Q3 invoice overdue”. While <span class="pill s-hold">On Hold</span>: no visit alerts, no service requests (eligibility fails), billing continues and the end date does <b>not</b> move. Payment arrives 25 Aug → <b>Resume</b> → Active.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">9.13 On Hold</span><span class="ref">AMC-C04</span></dd></dl>
+</div></div>
+
+<div class="step"><div class="when">16 Nov 2027 – 1 Jan 2028<small>System · Sachini</small></div><div>
+  <h4>B7 · Expiring, no renewal, closure</h4>
+  <p>45 days before 31 Dec the contract becomes <span class="pill s-exp">Expiring</span> and Dilan gets a to-do. The Project rule is <i>Manual</i>: no renewal is prepared unless Dilan clicks <b>Renew</b>. The hotel decides to move to an in-house team. The Main Building round is completed on 15 Dec; the Annex round is not done before the end. On <b>1 Jan 2028</b> the scheduler sets the contract to <span class="pill s-end">Closed</span>: the 8 open Annex visits become <i>Expired</i> and any billing period not yet released is cancelled.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">9.13 Closed</span><span class="ref">AMC-C05</span><span class="ref">AS-05</span></dd></dl>
+</div></div>
+
+<!-- ============================================================ 6 -->
+<h2 id="storyC">6. Story C – Sunrise Pharmacy: a draft AMC from a new sale</h2>
+<div class="step"><div class="when">05 Dec 2026<small>System</small></div><div>
+  <h4>C1 · Warranty confirmation prepares an opportunity</h4>
+  <p>Sunrise Pharmacy buys 2 wall units. When the warranty card is confirmed, the setting <i>AMC Auto-create Mode = Draft AMC Opportunity</i> creates opportunity <b>AMCO/2026/0011</b> (expected quantity 2, linked to the card). The card is still under warranty, so nothing is active or billed. The card shows it in its <b>AMC</b> smart button and the chatter. If the opportunity could not be created, the warranty confirmation still succeeds and the failure is logged on the card.</p>
+  <p>Dilan follows it up in late 2027, when the warranty is about to end, exactly as in Story A.</p>
+  <dl><dt>SRS</dt><dd><span class="ref">1.2</span><span class="ref">14 trigger</span><span class="ref">AMC-A03</span><span class="ref">AMC-A04</span></dd></dl>
+</div></div>
+
+<!-- ============================================================ 7 -->
+<h2 id="exceptions">7. Exceptions and what the system does</h2>
+<div class="tablewrap"><table>
+<tr><th>Situation</th><th>What happens</th><th>Who acts</th></tr>
+<tr><td>Visit not done by due date</td><td>Shown <i>Overdue</i>; with Mark Missed it becomes <i>Missed</i> after the grace period (Retail: 15 days).</td><td>Manager can <b>Reopen (Carry Forward)</b> a missed visit</td></tr>
+<tr><td>Technician cannot finish</td><td>Job is rescheduled; AMC visits stay open, not consumed.</td><td>Tharushi plans the follow-up</td></tr>
+<tr><td>Service Job cancelled</td><td>Visits go back to <i>Scheduled</i> on the approved case.</td><td>Tharushi prepares a new job</td></tr>
+<tr><td>Case rejected / closed</td><td>Visits go back to <i>Pending</i>.</td><td>Dilan raises a new request</td></tr>
+<tr><td>No customer signature (sign-off required)</td><td>Complete Visit is refused.</td><td>Technician collects the signature</td></tr>
+<tr><td>Customer wants to stop before activation</td><td><b>Cancel Contract</b> (reason): quotation and billing cancelled.</td><td>Manager</td></tr>
+<tr><td>Customer wants to stop after activation</td><td>Cannot cancel – <b>Close Contract</b> (reason); open visits expire, unreleased billing cancelled.</td><td>Manager</td></tr>
+<tr><td>Quotation expired before signature</td><td><b>Reissue Quotation</b> – priced again for today.</td><td>Dilan</td></tr>
+<tr><td>Usage-based plan (e.g. generator hours)</td><td>A reading higher than the last one is mandatory at completion.</td><td>Technician</td></tr>
+<tr><td>Free services used up</td><td>Further requests are chargeable through the normal sales flow.</td><td>Tharushi / Sales</td></tr>
+</table></div>
+
+<!-- ============================================================ 8 -->
+<h2 id="controls">8. Controls the system enforces</h2>
+<p>Try these during training: each one must be <b>refused</b> with a clear message.</p>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Attempt</th><th>Result</th><th>SRS</th></tr>
+<tr><td>1</td><td>Dilan approves an override request Dilan raised</td><td>Refused – approver must be another AMC Approver</td><td><span class="ref">AMC-D13</span></td></tr>
+<tr><td>2</td><td>Edit or add lines on the AMC Sales Order</td><td>Refused – AMC lines are locked; change the contract and reissue</td><td><span class="ref">AMC-G06</span></td></tr>
+<tr><td>3</td><td>Plan or request a visit on a Draft / Quotation contract</td><td>No visits exist before activation</td><td><span class="ref">AMC-C03</span></td></tr>
+<tr><td>4</td><td>Put the café's cassette serial on a second open contract</td><td>Refused – one open AMC per serial / warranty unit (renewal excepted)</td><td><span class="ref">AMC-E09</span></td></tr>
+<tr><td>5</td><td>Change the price of Retail v1 after activation</td><td>Refused – create a New Version</td><td><span class="ref">AMC-D11</span></td></tr>
+<tr><td>6</td><td>Hybrid formula containing <code>__import__('os')</code></td><td>Rejected – only approved variables and operators</td><td><span class="ref">13</span><span class="ref">AMC-D09</span></td></tr>
+<tr><td>7</td><td>Retail plan for a refrigerator</td><td>Refused – plan applies to Air Conditioners only</td><td><span class="ref">AMC-B03</span></td></tr>
+<tr><td>8</td><td>Service request while the hotel is On Hold</td><td>Refused – eligibility needs Active / Expiring</td><td><span class="ref">AMC-A08</span></td></tr>
+<tr><td>9</td><td>Complete the same AMC visit twice</td><td>Refused – consumed once</td><td><span class="ref">AMC-E09</span></td></tr>
+<tr><td>10</td><td>Change the status field directly (import / API)</td><td>Refused – status changes only through the buttons</td><td><span class="ref">NFR-03</span></td></tr>
+<tr><td>11</td><td>Create an AMC in a company where AMC Enabled is off</td><td>Refused; the app is not shown there</td><td><span class="ref">2.1</span></td></tr>
+<tr><td>12</td><td>Warranty user without an AMC role clicks Convert to AMC</td><td>Refused – AMC users only</td><td><span class="ref">16</span></td></tr>
+</table></div>
+
+<!-- ============================================================ 9 -->
+<h2 id="monitor">9. Daily management and reports</h2>
+<div class="grid g2">
+  <div class="card"><h3 style="margin-top:0">Dilan's morning (Coordinator)</h3>
+    <ul class="tight">
+      <li>Activities: AMC visit alerts, “Offer an AMC”, Expiring contracts</li>
+      <li><span class="mono">Services › AMC Visits</span> – filters <i>Due</i>, <i>Overdue</i>, calendar by due date; select by site → Create Service Request</li>
+      <li><span class="mono">Sales › Quotations</span> – contracts waiting for signature or payment</li>
+      <li><span class="mono">Sales › Renewals</span> – Expiring contracts and their renewal drafts</li>
+    </ul></div>
+  <div class="card"><h3 style="margin-top:0">Sachini's month end (Manager)</h3>
+    <ul class="tight">
+      <li><span class="mono">Reporting › AMC Visit Schedule</span> – pivot plan × due month × status (planned, due, overdue, held, renewed); filters AMC type, customer, site</li>
+      <li>Contracts grouped by Status / Plan; On Hold list with reasons</li>
+      <li>Override Requests – approved discounts</li>
+      <li><b>Print Visit Schedule</b> PDF per contract for the customer</li>
+    </ul></div>
+</div>
+<p class="muted">SRS 15 requires the AMC Visit Schedule report; it is implemented as pivot / graph / list / kanban / calendar on the AMC visits plus a PDF per contract.</p>
+
+<h3>The numbers of the scenario</h3>
+<div class="tablewrap"><table>
+<tr><th>Contract</th><th>Plan</th><th class="num">Units</th><th>Period</th><th class="num">Fee (LKR)</th><th class="num">Visits</th><th class="num">Free services</th><th>Final status</th></tr>
+<tr><td>AMC/2026/0007 Lakeside Café</td><td>Retail</td><td class="num">4</td><td>15 Nov 26 – 14 Nov 27</td><td class="num">51,800</td><td class="num">12</td><td class="num">4</td><td><span class="pill s-end">Renewed</span></td></tr>
+<tr><td>AMC/2027/0052 Lakeside Café (renewal)</td><td>Retail</td><td class="num">4</td><td>15 Nov 27 – 14 Nov 28</td><td class="num">62,100</td><td class="num">12</td><td class="num">4</td><td><span class="pill s-active">Active</span></td></tr>
+<tr><td>AMC/2026/0009 Harbour View Hotel</td><td>Project</td><td class="num">28</td><td>1 Jan 27 – 31 Dec 27</td><td class="num">112,000</td><td class="num">56</td><td class="num">0</td><td><span class="pill s-end">Closed</span></td></tr>
+<tr><td>AMCO/2026/0011 Sunrise Pharmacy</td><td>Retail</td><td class="num">2</td><td>opportunity</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><span class="pill s-draft">New</span></td></tr>
+</table></div>
+
+<!-- ============================================================ 10 -->
+<h2 id="lifecycle">10. Contract lifecycle reference</h2>
+<p>The nine SRS 9.13 states and how the scenario reaches each one.</p>
+<div class="tablewrap"><table>
+<tr><th>State</th><th>Reached by</th><th>In the scenario</th></tr>
+<tr><td><span class="pill s-draft">Draft</span></td><td>Manual, opportunity Won, Convert to AMC, auto-create, Renew</td><td>A2, B1, A10</td></tr>
+<tr><td><span class="pill s-quote">Quotation</span></td><td>Create Quotation</td><td>A5, B3</td></tr>
+<tr><td><span class="pill s-await">Awaiting Payment</span></td><td>SO confirmed, trigger = payment</td><td>B3</td></tr>
+<tr><td><span class="pill s-active">Active</span></td><td>SO confirmed (trigger SO) or first invoice paid</td><td>A5, B3</td></tr>
+<tr><td><span class="pill s-hold">On Hold</span></td><td>Put On Hold (Manager, reason); Resume returns</td><td>B6</td></tr>
+<tr><td><span class="pill s-exp">Expiring</span></td><td>Scheduler at end − renewal notice</td><td>A10, B7</td></tr>
+<tr><td><span class="pill s-end">Renewed</span></td><td>Renewal active at the end date</td><td>A10</td></tr>
+<tr><td><span class="pill s-end">Closed</span></td><td>End date passed without renewal, or Close Contract</td><td>B7</td></tr>
+<tr><td><span class="pill s-end">Cancelled</span></td><td>Cancel before activation</td><td>Exceptions table</td></tr>
+</table></div>
+
+<!-- ============================================================ 11 -->
+<h2 id="trace">11. SRS coverage of the scenario</h2>
+<div class="tablewrap"><table>
+<tr><th>SRS section</th><th>Requirement</th><th>Scenario step</th><th>Delivered by</th></tr>
+<tr><td>1.2, 2.1, 2.12</td><td>AMC is a separate module linked to warranty</td><td>Whole scenario</td><td>3 modules: core, warranty bridge, service bridge</td></tr>
+<tr><td>2.12, 2.15, 7</td><td>Plans, visit counts, free services, billing, start, renewal, trigger</td><td>3.1–3.3</td><td>AMC Plans, Settings, Billing Plans</td></tr>
+<tr><td>2.12, 13, 16.2</td><td>8 pricing methods, controlled formula, versions, override approval</td><td>3.4, A3, A4, A10, controls 1, 5, 6</td><td>Pricing Formulas, Override Requests</td></tr>
+<tr><td>7, 14</td><td>Draft opportunity / contract on warranty confirmation</td><td>C1</td><td><code>amc_management_warranty</code></td></tr>
+<tr><td>12 #12, 14</td><td>Convert to AMC after warranty expiry; offer on expiry</td><td>A1, A2</td><td><code>amc_management_warranty</code></td></tr>
+<tr><td>9.13</td><td>Nine contract states</td><td>Section 10</td><td>AMC Contract</td></tr>
+<tr><td>2.12, 9.9</td><td>Visits generated only after activation; alerts; next visit after completion</td><td>A5, A7, B3, B5</td><td>AMC Visits, daily scheduler</td></tr>
+<tr><td>2.1, 9.9 step 5</td><td>Mandatory Helpdesk → Service Job → Field Service chain</td><td>A7, A8, B5</td><td><code>amc_management_service</code></td></tr>
+<tr><td>9.5</td><td>Eligibility uses the linked AMC</td><td>A7, control 8</td><td>Check Eligibility for AMC cases</td></tr>
+<tr><td>10.3, 13</td><td>Consume once, on valid completion with sign-off; no double consumption</td><td>A7, A9, controls 9</td><td>Service Job completion</td></tr>
+<tr><td>2.16, 19</td><td>Recurring billing without making Subscriptions mandatory</td><td>A6, B4</td><td>Billing schedule on the Sales Order</td></tr>
+<tr><td>12 #20</td><td>SLA by AMC</td><td>A7</td><td>Helpdesk SLA on the AMC tag</td></tr>
+<tr><td>15</td><td>AMC Visit Schedule report</td><td>Section 9</td><td>Reporting menu + PDF</td></tr>
+<tr><td>16</td><td>AMC roles</td><td>Section 1, controls 1, 12</td><td>User / Coordinator / Manager / Approver</td></tr>
+<tr><td>18</td><td>Sample data Project 2 / Retail 3 visits a year</td><td>3.3</td><td>Plan configuration</td></tr>
+</table></div>
+<p class="muted">Full requirement list: <code>01_AMC_SRS_Analysis.md</code>; traceability to code and tests: <code>25_AMC_Requirement_Traceability_Matrix.md</code>.</p>
+
+<!-- ============================================================ 12 -->
+<h2 id="uat">12. Using this scenario for UAT and training</h2>
+<div class="grid g3">
+  <div class="card"><b>1 · Prepare</b><p>Use a copy of the database, never production. Create the users of section 1 with their roles, the three customers (with Main Building / Annex as delivery addresses of the hotel) and the two A/C products in category <i>Air Conditioners</i> with the preventive checklist worksheet.</p></div>
+  <div class="card"><b>2 · Play the stories</b><p>Run Stage 0, then A, B and C in date order. Dates in the future can be simulated by setting contract / visit dates and running the scheduled action <i>AMC: Daily Contract and Visit Scheduler</i> (Settings › Technical › Scheduled Actions › Run Manually).</p></div>
+  <div class="card"><b>3 · Check</b><p>After each step compare the status, generated visits, invoices and chatter with this document, then try the 12 controls of section 8. Record results in <code>17_AMC_Functional_Test_Cases.md</code> format.</p></div>
+</div>
+<div class="note info"><b>Tip.</b> The in-app process video (<span class="mono">AMC Management › Configuration › Documents › Process Recording (Video)</span>) shows the same flow on demo data; this document adds the business reasons, the people and the exceptions.</div>
+
+<footer>
+  AMC Practical Scenario · CoolTech Lanka is a fictional company; all names, numbers and documents are illustrative. Based on the Warranty Module SRS (V1, 02 Aug 2026) and the AMC development baseline (docs 01, 04, 09, 23). Prepared 08 Nov 2026.
+</footer>
+</div>
+</body>
+</html>

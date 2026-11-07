@@ -30,6 +30,12 @@
         <field name="target">new</field>
     </record>
 
+    <record id="amc_management_action_practical_scenario" model="ir.actions.act_url">
+        <field name="name">AMC Practical Scenario</field>
+        <field name="url">/amc_management/practical_scenario</field>
+        <field name="target">new</field>
+    </record>
+
     <record id="amc_management_action_process_video" model="ir.actions.act_url">
         <field name="name">AMC Process Recording</field>
         <field name="url">/amc_management/process_video</field>
@@ -45,6 +51,10 @@
     <menuitem id="amc_management_menu_technical_architecture" name="Technical Architecture"
               parent="amc_management_menu_documents"
               action="amc_management_action_technical_architecture" sequence="15"
+              groups="amc_management_group_user"/>
+    <menuitem id="amc_management_menu_practical_scenario" name="Practical Scenario"
+              parent="amc_management_menu_documents"
+              action="amc_management_action_practical_scenario" sequence="18"
               groups="amc_management_group_user"/>
     <menuitem id="amc_management_menu_process_video" name="Process Recording (Video)"
               parent="amc_management_menu_documents" action="amc_management_action_process_video"
