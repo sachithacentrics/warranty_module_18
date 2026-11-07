@@ -33,7 +33,11 @@ admin.tz = 'Asia/Colombo'
 company.write({'amc_activation_trigger': 'sale_confirmation', 'amc_offer_on_warranty_expiry': True,
                'amc_auto_create_mode': 'none', 'warranty_signoff_required': True,
                'warranty_worksheet_checklist_required': False,
-               'warranty_worksheet_attachment_required': False})
+               'warranty_worksheet_attachment_required': False,
+               # Required on the Settings page when no Default Warranty Policy is set;
+               # without it no setting can be saved (AMC Enabled demonstration).
+               'default_warranty_duration': company.default_warranty_duration or 12,
+               'default_warranty_duration_unit': 'months'})
 
 category = env['product.category'].create({'name': 'Air Conditioners'})
 ac = env['product.product'].create({'name': 'GREE 9000 BTU Wall Mounted A/C', 'type': 'consu',

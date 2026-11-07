@@ -300,6 +300,40 @@ caption('1 · Configure', 'The defaults are proposed for records created afterwa
         'and contracts keep their own values')
 idle(3.5)
 
+
+def save_settings():
+    point('.o_control_panel button, .o_form_button_save', 'Save', hold=0.7)
+    pump(6)
+    overlay()
+
+
+def amc_app_visible():
+    return js("(() => [...document.querySelectorAll('.o_app')].some(e => e.offsetParent && "
+              "e.textContent.trim() === 'AMC Management'))()")
+
+
+# AMC Enabled demonstration: off hides the app in this company, on brings it back.
+caption('1 · Configure', 'Try the switch: untick AMC Enabled and Save')
+point('#amc_enabled input[type=checkbox]', hold=1.0)
+idle(1)
+save_settings()
+goto('/odoo', 3)
+caption('1 · Configure', 'AMC is off for this company: the AMC Management app is no longer on the '
+        'home screen, and no new AMC can be created. Existing contracts continue')
+print('APP VISIBLE WHEN OFF', amc_app_visible())
+idle(5)
+goto(A + 'res_config_settings_action', 4)
+caption('1 · Configure', 'Settings > AMC stays available to the administrator: tick AMC Enabled '
+        'again and Save')
+point('#amc_enabled input[type=checkbox]', hold=1.0)
+idle(1)
+save_settings()
+goto('/odoo', 3)
+caption('1 · Configure', 'AMC is on again: the AMC Management app is back')
+print('APP VISIBLE WHEN ON', amc_app_visible())
+point('.o_app', 'AMC Management', click=False, hold=1.2)
+idle(3)
+
 # ---------------------------------------------------------------- configuration
 goto(A + 'amc_plan_action', 3)
 caption('1 · Configure', 'AMC Plans define visits per year, free services, billing, duration and renewal rules',

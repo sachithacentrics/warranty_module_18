@@ -63,7 +63,7 @@ cp -r ../sessions/filestore/amc_demo ../sessions/filestore/amc_demo_base
 MSYS_NO_PATHCONV=1 ../python/python.exe odoo-bin -c odoo.conf -d amc_demo --db-filter=^amc_demo$ \
   --http-port=8199 --gevent-port=8299 --max-cron-threads=0
 
-# 4. Warm the asset bundles (once per restore), then record (about 6 minutes; prints
+# 4. Warm the asset bundles (once per restore), then record (about 7 minutes; prints
 #    CONTRACT / CASE / JOB ids and FRAMES / DURATION; no NOT FOUND / JS EXCEPTION lines expected)
 ../python/python.exe "$REC/warm_assets.py" http://localhost:8199 amc_demo admin admin
 ../python/python.exe "$REC/record.py" http://localhost:8199 "$WORK"
@@ -83,7 +83,8 @@ chapter times printed by `encode.py`, and play the page `/amc_management/process
 
 Introduction, Sign in, **1. Configuration – AMC settings** (every setting of *Configuration >
 Settings*, one caption each: `SETTINGS` in `record.py`; a setting that is not visible, such as
-Default Pricelist without Sales pricelists, is explained via `HIDDEN`), 1. AMC plans and pricing,
+Default Pricelist without Sales pricelists, is explained via `HIDDEN`; then AMC Enabled is switched
+off and saved – the AMC app disappears from the home screen – and switched on again), 1. AMC plans and pricing,
 2. Create and price a contract, 3. Quotation and activation, 4. Billing, 5. AMC visits and service
 request, 6. Helpdesk case and Service Job, 7. Field Service completion, 8. Hold, expiry and renewal,
 9. Warranty to AMC, 10. Reports and documentation.
@@ -97,4 +98,6 @@ request, 6. Helpdesk case and Service Job, 7. Field Service completion, 8. Hold,
 * `point()` retries for up to 10 seconds until the element is visible, so slow screens do not break
   the take; `NOT FOUND <selector>` in the output means a selector must be adapted to a changed view.
 * Records created during the take are looked up by RPC (`rpc(...)`), never by URL.
-* Keep a take below about 6 minutes; still screens longer than 3 s are shortened by `encode.py`.
+* The settings are saved during the take: the demo company needs a Default Warranty Duration
+  and Unit (`demo_data_1.py`), otherwise the warranty settings block every Settings save.
+* Keep a take below about 7 minutes; still screens longer than 3 s are shortened by `encode.py`.
