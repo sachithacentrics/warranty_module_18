@@ -4,9 +4,9 @@
 
 | Module | Version | Depends | Install |
 |---|---|---|---|
-| amc_management | 18.0.1.0.0 → **18.0.1.1.0** | mail, product, sale_management, stock | upgrade (`-u`) |
-| amc_management_warranty | **18.0.1.0.0** (new) | amc_management, warranty_management | install (`-i`) – optional |
-| amc_management_service | **18.0.1.0.0** (new) | amc_management, warranty_management_fsm | install (`-i`) – optional |
+| amc_management | 18.0.1.0.0 / 18.0.1.1.0 → **18.0.1.3.0** | mail, product, sale_management, stock | upgrade (`-u`); pre-migration renames the old XML ids |
+| amc_management_warranty | **18.0.1.2.0** | amc_management, warranty_management | install (`-i`) – optional |
+| amc_management_service | **18.0.1.1.0** | amc_management, warranty_management_fsm | install (`-i`) – optional; pre-migration renames 3 old XML ids |
 | warranty_meta_dependencies | 18.0.1.0.0 (depends list extended by the two bridges) | — | `-u` installs the bridges |
 
 Neither bridge is `auto_install`; installing them changes nothing until configured

@@ -1,5 +1,19 @@
 # 26 – AMC Change Log
 
+## Upgrade fix (2026-11-07) – XML id migration
+
+Odoo.sh staging databases already contain an AMC version from before the coding standards
+(18.0.1.0.0 / 18.0.1.1.0). The renamed XML ids made the upgrade create the AMC groups a second
+time (`res_groups_name_uniq`: "User" of the AMC category). Pre-migration scripts now rename the
+old XML ids, so the records are kept and updated in place (users keep their AMC groups):
+* `amc_management/migrations/18.0.1.3.0/pre-migrate.py`: 63 ids (groups, record rules, actions,
+  menus, views, access rights of the transient models); removes the inheriting view
+  `amc_plan_view_form_pricing` (merged into the plan form).
+* `amc_management_service/migrations/18.0.1.1.0/pre-migrate.py`: 3 ids.
+* Verified: upgrade from 18.0.1.1.0 (#8, all three modules) – 68 / 68 AMC tests pass during the
+  upgrade; upgrade from 18.0.1.0.0 (#1) – 50 / 50 core tests pass. Idempotent (renames only when
+  the old id exists and the new one does not).
+
 ## 18.0.1.3.0 / amc_management_warranty 18.0.1.2.0 (2026-11-07) – AMC Enabled switch
 
 The company setting **AMC Enabled** (until now stored only, K-08) works as an on / off switch:

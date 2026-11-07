@@ -1,8 +1,10 @@
 # 14 – AMC Data Migration Plan (18.0.1.0.0 → 18.0.1.1.0)
 
 > **Removed in 18.0.1.2.0 (2026-11-06):** the AMC modules are not used in production, so the
-> migration script was deleted with the coding-standards refactor (see 26). This plan is kept
-> for reference only.
+> data migration script was deleted with the coding-standards refactor (see 26). This plan is
+> kept for reference only. **Since 18.0.1.3.0** an XML id migration
+> (`migrations/18.0.1.3.0/pre-migrate.py`) upgrades databases that already contain an older AMC
+> version (Odoo.sh staging); it renames ids only and migrates no business data.
 
 ## 1. Affected data
 
