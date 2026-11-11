@@ -1,22 +1,24 @@
-// Warranty Dashboard - Odoo Plum theme. Backgrounds, text and borders use Odoo's own variables,
-// so the dark-mode bundle recompiles them; only the status accents are fixed colours.
-$o-wd-plum: #714B67;
-$o-wd-teal: #168A72;
-$o-wd-amber: #E3A247;
-$o-wd-red: #D65B65;
-$o-wd-blue: #3B7CC4;
+// Warranty Dashboard. Area colours are fixed; backgrounds, text and borders use Odoo's
+// variables so that the dark-mode bundle recompiles them (see warranty_dashboard.dark.scss).
+$o-wd-primary: #65446E;
+$o-wd-purple: #785287;
+$o-wd-teal: #138F83;
+$o-wd-blue: #4473C4;
+$o-wd-amber: #B87C26;
+$o-wd-coral: #CC6574;
+$o-wd-page: #F6F7FB;
+$o-wd-radius: 12px;
+$o-wd-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
 
 .o_warranty_dashboard {
-    --o-wd-grid: #{rgba($o-main-text-color, 0.08)};
-    background-color: $o-webclient-background-color;
+    background-color: $o-wd-page;
     color: $o-main-text-color;
 
-    // Scrolling: Odoo's `.o_action .o_content` rule (overflow auto, height 100%) on desktop and
-    // the action's own scroll on mobile; only the inner spacing is set here.
     > .o_wd_content {
         padding: 20px 24px 40px;
     }
 
+    // ------------------------------------------------------------ header
     .o_wd_header {
         display: flex;
         align-items: flex-end;
@@ -27,8 +29,8 @@ $o-wd-blue: #3B7CC4;
     .o_wd_title {
         margin: 0;
         font-size: 1.5rem;
-        font-weight: 600;
-        color: $o-wd-plum;
+        font-weight: 700;
+        color: $o-wd-primary;
     }
     .o_wd_subtitle {
         color: $o-main-color-muted;
@@ -40,320 +42,284 @@ $o-wd-blue: #3B7CC4;
         flex-shrink: 0;
     }
     .o_wd_refresh {
-        background-color: $o-wd-plum;
-        border-color: $o-wd-plum;
+        background-color: $o-wd-primary;
+        border-color: $o-wd-primary;
+    }
+
+    // ------------------------------------------------------------ cards and panels
+    .o_wd_panel, .o_wd_card {
+        min-width: 0;
+        background-color: $o-view-background-color;
+        border: 1px solid $border-color;
+        border-radius: $o-wd-radius;
+        box-shadow: $o-wd-shadow;
+    }
+    .o_wd_card {
+        display: flex;
+        flex-direction: column;
+        padding: 18px 20px;
+        h2 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+    }
+    .o_wd_card_head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .o_wd_chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        font-size: 0.95rem;
+    }
+    .o_wd_caption {
+        margin-top: 2px;
+        font-size: 0.82rem;
+        color: $o-main-color-muted;
+    }
+    .o_wd_kpi {
+        margin: 10px 0 14px;
     }
 
     // ------------------------------------------------------------ filters
+    .o_wd_filter_panel {
+        padding: 14px 18px 16px;
+        margin-bottom: 16px;
+    }
+    .o_wd_panel_title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 16px;
+        margin-bottom: 10px;
+        > span {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        small { color: $o-main-color-muted; font-size: 0.75rem; }
+    }
     .o_wd_filters {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-        gap: 10px 12px;
-        padding: 12px 14px;
-        background-color: $o-view-background-color;
-        border: 1px solid $border-color;
-        border-radius: 8px;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
     }
-    .o_wd_filter {
+    .o_wd_field {
         display: flex;
         flex-direction: column;
-        gap: 3px;
-        margin: 0;
+        gap: 2px;
         min-width: 0;
+        margin: 0;
+        padding: 7px 12px 8px;
+        border: 1px solid $border-color;
+        border-radius: 8px;
+        background-color: $o-view-background-color;
         > span {
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
+            font-size: 0.72rem;
             color: $o-main-color-muted;
         }
+        select, input {
+            width: 100%;
+            min-width: 0;
+            padding: 0;
+            border: 0;
+            outline: none;
+            background-color: transparent;
+            color: $o-main-text-color;
+            font-weight: 600;
+            font-size: 0.86rem;
+            text-overflow: ellipsis;
+        }
+        &:focus-within { border-color: $o-wd-primary; }
+        &.o_wd_field_fixed select { color: $o-main-color-muted; cursor: default; }
     }
-    .o_wd_legend_note {
-        margin: 8px 2px 18px;
-        font-size: 0.8rem;
-        color: $o-main-color-muted;
+
+    // ------------------------------------------------------------ rows of cards
+    .o_wd_row {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 16px;
+        align-items: stretch;
     }
-    .o_wd_scope {
-        display: inline-flex;
-        align-items: center;
-        white-space: nowrap;
-        padding: 1px 8px;
-        border-radius: 10px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: $o-main-color-muted;
-        background-color: rgba($o-main-text-color, 0.06);
-        &.o_wd_scope_dated {
-            color: $o-wd-plum;
-            background-color: rgba($o-wd-plum, 0.1);
+    .o_wd_row_3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .o_wd_row_2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    // Area colours: icon chip, main figure, left border (row 2).
+    @each $name, $colour in (purple: $o-wd-purple, teal: $o-wd-teal, blue: $o-wd-blue,
+                             amber: $o-wd-amber, coral: $o-wd-coral) {
+        .o_wd_#{$name} {
+            .o_wd_chip { color: $colour; background-color: rgba($colour, 0.12); }
+            .o_wd_big { color: $colour; }
+            &.o_wd_left_border { border-left: 4px solid $colour; }
         }
     }
 
-    // ------------------------------------------------------------ KPI cards
-    // Fixed column counts per width (auto-fill kept empty tracks on wide screens): 6 KPI cards
-    // in one row on desktop, 3 + 3 on small laptops / tablets, 2 per row on phones.
-    .o_wd_kpis {
-        display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 14px;
-        @media (max-width: 1199.98px) {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-    .o_wd_kpi {
-        position: relative;
-        padding: 14px 16px 12px;
-        background-color: $o-view-background-color;
-        border: 1px solid $border-color;
-        border-left: 4px solid $o-wd-plum;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: box-shadow 0.15s ease, transform 0.15s ease;
-        &:hover, &:focus-visible {
-            box-shadow: 0 4px 14px rgba($o-wd-plum, 0.14);
-            outline: none;
-        }
-        &.o_wd_accent_teal { border-left-color: $o-wd-teal; .o_wd_kpi_icon { color: $o-wd-teal; background-color: rgba($o-wd-teal, 0.1); } }
-        &.o_wd_accent_amber { border-left-color: $o-wd-amber; .o_wd_kpi_icon { color: darken($o-wd-amber, 12%); background-color: rgba($o-wd-amber, 0.14); } }
-        &.o_wd_accent_blue { border-left-color: $o-wd-blue; .o_wd_kpi_icon { color: $o-wd-blue; background-color: rgba($o-wd-blue, 0.1); } }
-        &.o_wd_accent_red { border-left-color: $o-wd-red; .o_wd_kpi_icon { color: $o-wd-red; background-color: rgba($o-wd-red, 0.1); } }
-    }
-    .o_wd_kpi_icon {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        color: $o-wd-plum;
-        background-color: rgba($o-wd-plum, 0.1);
-    }
-    .o_wd_kpi_label {
-        padding-right: 40px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: $o-main-color-muted;
-    }
-    .o_wd_kpi_value {
-        margin-top: 6px;
-        font-size: 2rem;
-        font-weight: 600;
-        line-height: 1.1;
+    // ------------------------------------------------------------ figures and rows
+    .o_wd_num {
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
+        &[role="button"] {
+            cursor: pointer;
+            border-radius: 4px;
+            &:hover, &:focus-visible { text-decoration: underline; outline: none; }
+        }
+        &.o_wd_na { color: $o-main-color-muted; font-weight: 400; }
     }
-    .o_wd_kpi_sub {
+    .o_wd_big {
+        display: inline-block;
+        font-size: 2.25rem;
+        line-height: 1.1;
+    }
+    .o_wd_rows {
+        padding-top: 10px;
+        border-top: 1px solid $border-color;
+    }
+    .o_wd_row_line {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 4px;
-        margin-top: 6px;
-        font-size: 0.78rem;
-        color: $o-main-color-muted;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 5px 0;
+        font-size: 0.86rem;
+        > span:first-child {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     }
-    .o_wd_sub_link {
-        color: $o-wd-plum;
-        text-decoration: none;
-        font-weight: 600;
-        &:hover { text-decoration: underline; }
+    .o_wd_pair {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+    .o_wd_sep { color: $o-main-color-muted; }
+    .o_wd_text_coral { color: $o-wd-coral; }
+    .o_wd_hint {
+        margin-top: 8px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        color: $o-main-color-muted;
+        background-color: rgba($o-wd-purple, 0.06);
     }
     .o_wd_inline_select {
         display: inline-block;
         width: auto;
-        min-width: 0;
-        padding: 0 18px 0 4px !important;
+        padding: 0 2px;
         border: 1px solid $border-color;
         border-radius: 4px;
         background-color: $o-view-background-color;
         color: inherit;
-        font-size: 0.78rem;
+        font-size: 0.82rem;
     }
 
-    // ------------------------------------------------------------ sections and panels
-    .o_wd_section {
-        margin: 28px 0 12px;
-        font-size: 1.05rem;
-        font-weight: 600;
-        small { font-size: 0.75rem; font-weight: 400; margin-left: 8px; }
+    // ------------------------------------------------------------ status chart
+    .o_wd_chart_panel {
+        margin-bottom: 16px;
     }
-    // Section grids use the full content width: 3 or 2 equal columns from 992px, one column
-    // below. minmax(0, 1fr) lets charts shrink instead of widening the page.
-    .o_wd_grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: 14px;
-        @media (min-width: 992px) {
-            &.o_wd_grid_3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-            &.o_wd_grid_2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
-    }
-    .o_wd_approvals_panel {
+    .o_wd_bars {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
         margin-top: 14px;
     }
-    .o_wd_approval_list {
+    .o_wd_bar_row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(#{'min(100%, 190px)'}, 1fr));
-        gap: 8px 12px;
-    }
-    .o_wd_approval {
-        display: flex;
+        grid-template-columns: 170px minmax(0, 1fr) 48px;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        min-width: 0;
-        padding: 7px 10px;
+        gap: 16px;
+        padding: 6px 4px;
         border-radius: 6px;
-        border: 1px solid $border-color;
         font-size: 0.86rem;
         cursor: pointer;
-        &:hover, &:focus-visible { border-color: $o-wd-plum; background-color: rgba($o-wd-plum, 0.05); outline: none; }
-        &.o_wd_muted .o_wd_approval_label { color: $o-main-color-muted; }
+        &:hover, &:focus-visible { background-color: rgba($o-wd-primary, 0.05); outline: none; }
     }
-    .o_wd_approval_label {
+    .o_wd_bar_label {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .o_wd_approval_total {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 6px 16px;
-        margin-top: 10px;
-        .o_wd_footnote { margin-top: 0; }
+    .o_wd_bar_track {
+        height: 10px;
+        border-radius: 5px;
+        background-color: rgba($o-main-text-color, 0.07);
+        overflow: hidden;
     }
-    .o_wd_approval_sum {
-        font-size: 0.86rem;
-        strong { margin-left: 6px; font-size: 1rem; font-variant-numeric: tabular-nums; }
+    .o_wd_bar_fill {
+        display: block;
+        height: 100%;
+        border-radius: 5px;
+        background-color: $o-wd-primary;
     }
-    .o_wd_panel {
-        min-width: 0;
-        padding: 14px 16px;
-        background-color: $o-view-background-color;
-        border: 1px solid $border-color;
-        border-radius: 8px;
-        transition: box-shadow 0.3s ease;
-        &.o_wd_flash { box-shadow: 0 0 0 3px rgba($o-wd-plum, 0.35); }
+    .o_wd_state_draft { background-color: #A98BC6; }
+    .o_wd_state_pending_installation { background-color: #7E8FB8; }
+    .o_wd_state_ready { background-color: #D3A13F; }
+    .o_wd_state_confirmed { background-color: $o-wd-teal; }
+    .o_wd_state_suspended { background-color: #8E6A9B; }
+    .o_wd_state_expired { background-color: $o-wd-coral; }
+    .o_wd_state_cancelled { background-color: #9AA0A6; }
+    .o_wd_bar_value {
+        text-align: right;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
     }
-    .o_wd_panel_head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 10px;
-        h3 {
-            margin: 0;
-            font-size: 0.95rem;
-            font-weight: 600;
-            small { font-weight: 400; color: $o-main-color-muted; }
-        }
-    }
-    .o_wd_chart {
-        position: relative;
-        width: 100%;
-    }
-    .o_wd_toggle {
-        margin-bottom: 8px;
-        flex-wrap: wrap;
-        .btn-primary { background-color: $o-wd-plum; border-color: $o-wd-plum; }
-    }
-    .o_wd_figures {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-        margin-bottom: 10px;
-        > div {
-            padding: 8px 10px;
-            border-radius: 6px;
-            background-color: rgba($o-wd-plum, 0.05);
-            min-width: 0;
-        }
-        span {
-            display: block;
-            font-size: 0.72rem;
-            color: $o-main-color-muted;
-        }
-        strong {
-            display: block;
-            font-size: 0.98rem;
-            font-variant-numeric: tabular-nums;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        [role="button"] { cursor: pointer; &:hover strong { color: $o-wd-plum; } }
-    }
-    .o_wd_text_teal { color: $o-wd-teal; }
-    .o_wd_text_amber { color: darken($o-wd-amber, 14%); }
-    .o_wd_text_muted { color: $o-main-color-muted; }
-    .o_wd_warn { color: darken($o-wd-amber, 14%); }
 
-    .o_wd_pill {
-        display: inline-block;
-        min-width: 28px;
-        padding: 1px 8px;
-        border-radius: 10px;
-        text-align: center;
-        font-weight: 600;
-        color: $o-main-color-muted;
-        background-color: rgba($o-main-text-color, 0.06);
-        &.o_wd_pill_active { color: #fff; background-color: $o-wd-plum; }
-    }
-    .o_wd_footnote {
-        margin-top: 8px;
-        font-size: 0.72rem;
-        color: $o-main-color-muted;
-    }
-    .o_wd_empty {
+    // ------------------------------------------------------------ reports
+    .o_wd_links {
         display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+    }
+    .o_wd_link {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-height: 120px;
+        padding: 8px 14px;
+        border: 0;
+        border-radius: 8px;
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: $o-wd-primary;
+        background-color: rgba($o-wd-primary, 0.08);
+        &:hover, &:focus-visible { background-color: rgba($o-wd-primary, 0.15); outline: none; }
+        i { font-size: 0.75rem; }
+    }
+
+    .o_wd_empty {
+        padding: 12px 4px;
+        font-size: 0.86rem;
         color: $o-main-color-muted;
-        font-size: 0.85rem;
-        text-align: center;
-        i { font-size: 1.2rem; opacity: 0.7; }
-        &.o_wd_loading { min-height: 50vh; }
+        &.o_wd_loading { min-height: 50vh; display: flex; align-items: center; justify-content: center; }
     }
     .o_wd_busy { opacity: 0.55; pointer-events: none; transition: opacity 0.2s; }
 
-    // ------------------------------------------------------------ reports
-    .o_wd_reports {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(#{'min(100%, 230px)'}, 1fr));
-        gap: 10px;
+    // ------------------------------------------------------------ responsive
+    @media (max-width: 1199.98px) {
+        .o_wd_filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .o_wd_row_3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .o_wd_row_3 > :last-child { grid-column: 1 / -1; }
     }
-    .o_wd_report {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        text-align: left;
-        color: inherit;
-        background-color: $o-view-background-color;
-        border: 1px solid $border-color;
-        border-radius: 8px;
-        i { color: $o-wd-plum; width: 16px; text-align: center; }
-        span { flex: 1; font-size: 0.86rem; }
-        small { color: $o-main-color-muted; font-size: 0.7rem; }
-        &:hover { border-color: $o-wd-plum; box-shadow: 0 2px 8px rgba($o-wd-plum, 0.12); }
-    }
-
     @media (max-width: 767.98px) {
-        > .o_wd_content { padding: 12px 12px 32px; }
+        > .o_wd_content { padding: 12px 16px 32px; }
         .o_wd_header { align-items: flex-start; }
         .o_wd_title { font-size: 1.25rem; }
         .o_wd_filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .o_wd_kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-        .o_wd_kpi { padding: 12px; }
-        .o_wd_kpi_value { font-size: 1.6rem; }
-        .o_wd_kpi_icon { display: none; }
-        .o_wd_kpi_label { padding-right: 0; }
-        .o_wd_figures strong { font-size: 0.85rem; }
+        .o_wd_row_3, .o_wd_row_2 { grid-template-columns: minmax(0, 1fr); }
+        .o_wd_row_3 > :last-child { grid-column: auto; }
+        .o_wd_bar_row { grid-template-columns: 110px minmax(0, 1fr) 36px; gap: 10px; }
+        .o_wd_big { font-size: 1.9rem; }
     }
 }

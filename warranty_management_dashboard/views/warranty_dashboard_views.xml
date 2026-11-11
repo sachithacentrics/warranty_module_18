@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- SRS 6 "Warranty Management > Dashboard": first entry of the Warranty app, so it is the
+    <!-- "Warranty Management > Dashboard": first entry of the Warranty app, so it is the
          page that opens with the app; the other menus are unchanged. -->
     <record id="action_warranty_dashboard" model="ir.actions.client">
         <field name="name">Warranty Dashboard</field>

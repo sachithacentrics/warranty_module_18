@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- SRS 15 reports without a menu yet: list / pivot / graph over the existing records.
+    <!-- Reports without a menu yet: list / pivot / graph over the existing records.
          Existing reports (Warranty Cost, Provision / Reserve, Material Approval and Cost, Vendor
          Claim Recovery, Unit Warranty Numbers, Warranty History) are not repeated. -->
 
@@ -240,9 +240,9 @@
     </record>
 
     <!-- ============================================================ menus -->
-    <!-- Warranty > Reports categories (SRS 15); the history menu opens the existing action,
-         also a dashboard shortcut. The Warranty & Entitlements menus were removed on request;
-         their actions stay for the dashboard shortcuts and Cards > Warranty Unit Numbers. -->
+    <!-- Warranty > Reports categories; the history menu opens the existing action, also a
+         dashboard shortcut. The Warranty & Entitlements menus were removed on request; their
+         actions stay for the dashboard shortcuts and Cards > Warranty Unit Numbers. -->
     <menuitem id="menu_report_helpdesk_pending" name="Helpdesk Pending Service"
               parent="warranty_management_mrf.menu_warranty_reports_service"
               action="action_report_helpdesk_pending" sequence="10"/>

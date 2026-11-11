@@ -1,18 +1,13 @@
-// Dark mode only (web.assets_web_dark): Odoo Plum lightened for text on dark backgrounds.
-$o-wd-plum-dark-text: #C9A3BE;
-
+// Dark mode only (web.assets_web_dark): Odoo's dark page background instead of the light
+// neutral one, and lighter area colours for figures and icons on dark cards.
 .o_warranty_dashboard {
-    .o_wd_title,
-    .o_wd_sub_link,
-    .o_wd_scope.o_wd_scope_dated,
-    .o_wd_report i,
-    .o_wd_figures [role="button"]:hover strong {
-        color: $o-wd-plum-dark-text;
-    }
-    .o_wd_scope.o_wd_scope_dated {
-        background-color: rgba($o-wd-plum-dark-text, 0.14);
-    }
-    .o_wd_kpi .o_wd_kpi_icon {
-        color: $o-wd-plum-dark-text;
-    }
+    background-color: $o-webclient-background-color;
+
+    .o_wd_title, .o_wd_link { color: #C9A3BE; }
+    .o_wd_purple { .o_wd_big, .o_wd_chip { color: #B795C6; } }
+    .o_wd_teal { .o_wd_big, .o_wd_chip { color: #3FBFB1; } }
+    .o_wd_blue { .o_wd_big, .o_wd_chip { color: #7FA3E3; } }
+    .o_wd_amber { .o_wd_big, .o_wd_chip { color: #E0A85A; } }
+    .o_wd_coral { .o_wd_big, .o_wd_chip { color: #E8909C; } }
+    .o_wd_text_coral { color: #E8909C; }
 }

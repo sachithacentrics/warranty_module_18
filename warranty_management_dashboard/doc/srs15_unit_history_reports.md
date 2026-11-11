@@ -7,7 +7,7 @@ Dashboard is unchanged.
 
 | Category | Seq | Menu | Action |
 | --- | --- | --- | --- |
-| ~~Warranty & Entitlements~~ | - | Unit Warranty Number (menu removed 2026-11-11, see below) | `warranty_management.action_warranty_unit` |
+| ~~Warranty & Entitlements~~ | - | Unit Warranty Number (menu removed, see below) | `warranty_management.action_warranty_unit` |
 | Quality & History | 40 | Warranty History | `warranty_management.action_warranty_history` |
 
 ### Report categories
@@ -20,13 +20,13 @@ The Reports menu is grouped into five categories. They are defined in `warranty_
 
 | Category | Reports |
 | --- | --- |
-| Warranty & Entitlements | none (its 4 menus were removed 2026-11-11, see below) |
+| Warranty & Entitlements | none (its 4 menus were removed, see below) |
 | Service Operations | Helpdesk Pending Service, Service Merge and Job Planning, Repair and Backup Unit |
 | Quality & History | Failure Pattern, Repeated Failure Escalation, Replacement, Warranty History |
 | Materials & Inventory | Material Approval and Cost, Warranty Material Cost, Material Audit Trail |
 | Financial & Recovery | Warranty Cost, Warranty Provision / Reserve, Vendor Claim Recovery, Chargeable Service Revenue |
 
-### Warranty & Entitlements menus removed (2026-11-11, dashboard 18.0.1.0.4)
+### Warranty & Entitlements menus removed (dashboard 18.0.1.0.5)
 
 The user asked for the 4 report menus to be removed because they are not useful: Active / Expiring Warranty, Draft Warranty Review, Unit Warranty Number and Free Service Due.
 
