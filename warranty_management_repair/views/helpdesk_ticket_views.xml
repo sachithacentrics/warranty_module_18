@@ -29,4 +29,20 @@
             </xpath>
         </field>
     </record>
+
+    <!-- Figure 6: backup units of the ticket. -->
+    <record id="helpdesk_ticket_view_form_warranty_backup" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty.backup</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_backup_units" type="object" class="oe_stat_button"
+                        icon="fa-retweet" groups="helpdesk.group_helpdesk_user,stock.group_stock_user"
+                        invisible="not warranty_backup_unit_count">
+                    <field name="warranty_backup_unit_count" widget="statinfo" string="Backup Units"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
 </odoo>

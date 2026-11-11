@@ -22,8 +22,16 @@ JOB_MATERIAL_STATES = [
     ('none', 'No Material Requests'),
     ('approval', 'Waiting Approval'),
     ('to_issue', 'To Issue'),
-    ('shortage', 'Shortage'),
+    ('shortage', 'Awaiting Stock'),
     ('partial', 'Partially Issued'),
+    ('issued', 'Issued'),
+]
+# Figure 7 D4: Stock available? of the lines the request issues itself (Covered lines; Not
+# Covered lines are delivered by their parts quotation).
+STOCK_STATUSES = [
+    ('ready', 'Ready to Issue'),
+    ('partial', 'Partially Available'),
+    ('awaiting', 'Awaiting Stock'),
     ('issued', 'Issued'),
 ]
 ISSUE_GROUPS = ('material_purchase_requisitions.group_purchase_requisition_user',
@@ -61,6 +69,11 @@ class MaterialPurchaseRequisitionLine(models.Model):
                                     compute='_compute_availability')
     issue_state = fields.Selection(ISSUE_STATES, string='Issue Status',
                                    compute='_compute_approved_qty')
+    stock_wait_reason = fields.Char(
+        string='Awaiting Stock', compute='_compute_stock_wait_reason',
+        help="Why the outstanding quantity cannot be issued now: an open purchase order, or no "
+             "stock and no vendor. Recheck Stock / Issue Remaining issues it once it is in "
+             "stock.")
 
     @api.depends('warranty_move_ids.state', 'warranty_move_ids.product_uom_qty',
                  'warranty_move_ids.quantity', 'warranty_move_ids.location_id',
@@ -121,7 +134,9 @@ class MaterialPurchaseRequisitionLine(models.Model):
     @api.depends('product_id', 'requisition_id.location_id', 'outstanding_qty', 'uom')
     def _compute_availability(self):
         for line in self:
-            line.available_qty = line._warranty_free_qty()
+            # Not storable: Odoo keeps no stock quantity (0), the line is not stock-limited
+            # (Available below) and the issue takes its whole quantity (_warranty_free_qty).
+            line.available_qty = line._warranty_free_qty() if line.product_id.is_storable else 0.0
             needed = line.outstanding_qty
             if not line.is_warranty_mrf or line.requisition_type == SALE_ACTION \
                     or not needed or not line.product_id.is_storable:
@@ -132,6 +147,33 @@ class MaterialPurchaseRequisitionLine(models.Model):
                 line.availability = 'partial'
             else:
                 line.availability = 'unavailable'
+
+    @api.depends('availability', 'outstanding_qty', 'available_qty', 'partner_id',
+                 'warranty_purchase_line_ids.state', 'warranty_purchase_line_ids.qty_received')
+    def _compute_stock_wait_reason(self):
+        for line in self:
+            if line.availability not in ('partial', 'unavailable') \
+                    or line.requisition_type == SALE_ACTION:
+                line.stock_wait_reason = False
+                continue
+            # sudo: purchase orders are named to users without Purchase rights.
+            open_orders = line.sudo().warranty_purchase_line_ids.filtered(
+                lambda pol: pol.state != 'cancel' and pol.qty_received < pol.product_qty
+            ).order_id
+            if open_orders:
+                line.stock_wait_reason = _("Purchase %s open", ', '.join(open_orders.mapped('name')))
+            elif line._warranty_vendor(line.outstanding_qty):
+                line.stock_wait_reason = _("Shortage: Recheck Stock / Issue Remaining creates the "
+                                           "purchase order")
+            else:
+                line.stock_wait_reason = _("No stock and no vendor: waiting for stock")
+
+    def _warranty_vendor(self, qty):
+        """The line vendor, else the product's vendor for the quantity (sudo: vendor
+        pricelists are read for the check only)."""
+        self.ensure_one()
+        return self.partner_id[:1] or self.product_id.sudo()._select_seller(
+            quantity=qty, uom_id=self.uom).partner_id[:1]
 
     def _warranty_not_to_issue_qty(self):
         """Approved quantity that is not issued (again): cancelled (5.6 E-12) or returned by the
@@ -178,6 +220,50 @@ class MaterialPurchaseRequisition(models.Model):
         ondelete={'partially_issued': 'set null', 'issued': 'set null'})
     issue_progress = fields.Char(string='Issue Progress', compute='_compute_issue_progress')
     can_warranty_fulfil = fields.Boolean(compute='_compute_issue_progress')
+    warranty_stock_status = fields.Selection(
+        STOCK_STATUSES, string='Stock Status', compute='_compute_warranty_stock_status',
+        search='_search_warranty_stock_status',
+        help="Stock availability of the approved lines the request issues itself: Ready "
+             "to Issue (free stock for everything outstanding, or already on an issue "
+             "transfer), Partially Available, Awaiting Stock (nothing free: open purchase order, "
+             "or no stock and no vendor), Issued. Not Covered lines are delivered by their "
+             "parts quotation.")
+    warranty_job_state = fields.Selection(related='warranty_service_job_id.state',
+                                          string='Service Job Status')
+
+    @api.depends('state', 'requisition_line_ids.availability',
+                 'requisition_line_ids.outstanding_qty', 'requisition_line_ids.issue_state')
+    def _compute_warranty_stock_status(self):
+        for mrf in self:
+            mrf.warranty_stock_status = mrf._warranty_stock_status()
+
+    def _warranty_stock_status(self):
+        self.ensure_one()
+        if not self.is_warranty_mrf or self.state not in RELEASED_STATES:
+            return False
+        lines = self._warranty_fulfil_lines().filtered('approved_qty')
+        if not lines or not lines.filtered('issue_state'):
+            return False
+        if all(line.issue_state == 'issued' for line in lines):
+            return 'issued'
+        waiting = lines.filtered(lambda line: line.outstanding_qty > 0)
+        availability = set(waiting.mapped('availability'))
+        if not waiting or availability <= {'available'}:
+            return 'ready'
+        if availability & {'available', 'partial'}:
+            return 'partial'
+        return 'awaiting'
+
+    def _search_warranty_stock_status(self, operator, value):
+        """Live stock figures cannot be searched in SQL: the approved warranty requests are
+        evaluated (filters Awaiting Stock / Ready to Issue)."""
+        if operator not in ('=', '!=', 'in', 'not in'):
+            raise UserError(_("Unsupported search on Stock Status."))
+        values = set(value) if operator in ('in', 'not in') else {value}
+        candidates = self.search([('is_warranty_mrf', '=', True),
+                                  ('state', 'in', RELEASED_STATES)])
+        found = candidates.filtered(lambda mrf: mrf._warranty_stock_status() in values)
+        return [('id', 'in' if operator in ('=', 'in') else 'not in', found.ids)]
 
     @api.depends('state', 'is_warranty_mrf', 'requisition_line_ids.issued_qty',
                  'requisition_line_ids.qty', 'requisition_line_ids.chargeable_declined')
@@ -207,10 +293,12 @@ class MaterialPurchaseRequisition(models.Model):
 
     # ------------------------------------------------------------------ fulfilment
     def _warranty_fulfil_lines(self):
-        """Lines issued by the request itself: not Customer Quotation (delivered by the
-        quotation, D8) and not declined."""
+        """Lines issued by the request itself: not Not Covered (quoted or still to quote: only
+        the quotation delivers them, D8 / Figure 7 D2), not Customer Quotation and not
+        declined."""
         return self.requisition_line_ids.filtered(
-            lambda line: line.requisition_type != SALE_ACTION and not line.chargeable_declined)
+            lambda line: line.requisition_type != SALE_ACTION and not line.chargeable_declined
+            and line.coverage_type != 'not_covered')
 
     def request_stock(self):
         """F-1: for warranty requests Create Picking and PO is availability-driven: the free
@@ -218,10 +306,12 @@ class MaterialPurchaseRequisition(models.Model):
         bought by RFQs; it can be repeated (Issue / Purchase Remaining) until everything is
         issued. Standalone requests keep the vendor behaviour."""
         warranty = self.filtered('is_warranty_mrf')
+        result = True
         for mrf in warranty:
-            mrf._warranty_fulfil()
+            # The Awaiting Stock notification of a single request is shown (Figure 7 D4).
+            result = mrf._warranty_fulfil()
         others = self - warranty
-        return super(MaterialPurchaseRequisition, others).request_stock() if others else True
+        return super(MaterialPurchaseRequisition, others).request_stock() if others else result
 
     def action_warranty_fulfil(self):
         return self.request_stock()
@@ -255,11 +345,16 @@ class MaterialPurchaseRequisition(models.Model):
                     to_buy[vendor].append((line, shortage))
                 else:
                     missing |= line
-        if missing:
-            raise UserError(_("No stock and no vendor for %(products)s: set a vendor on the line "
-                              "(Vendors) or on the product, or wait for stock.",
-                              products=', '.join(missing.mapped('product_id.display_name'))))
         if not to_issue and not to_buy:
+            if missing:
+                # Figure 7 D4: Stock available? NO without a vendor -> Awaiting Stock (visible,
+                # To-Do), not a dead end; Recheck Stock / Issue Remaining after replenishment.
+                return self._warranty_await_stock(missing)
+            if not self._warranty_fulfil_lines() and self.requisition_line_ids.filtered(
+                    lambda line: line.coverage_type == 'not_covered'):
+                raise UserError(_("Material Request %s has no Covered material to issue: Not "
+                                  "Covered lines are delivered by their parts quotation only.",
+                                  self.name))
             raise UserError(_("Nothing to issue or purchase for %s now: the outstanding "
                               "quantities are in open pickings or purchase orders.", self.name))
         if to_buy and not self.env.su and not any(user.has_group(group)
@@ -288,7 +383,39 @@ class MaterialPurchaseRequisition(models.Model):
                  notes='; '.join(notes))
         mrf._message_log(body=text)
         self._warranty_log_links(text)
+        if missing:
+            return self._warranty_await_stock(missing)
         return True
+
+    def _warranty_await_stock(self, lines):
+        """Lines without free stock and without a vendor stay Awaiting Stock on the same
+        request: a note, one To-Do for the Requisition Responsible (else the requester) while
+        none is open, and a notification. Nothing is created in Inventory or Purchase."""
+        self.ensure_one()
+        products = ', '.join(lines.mapped('product_id.display_name'))
+        text = _("Awaiting stock for %(products)s (no free stock at %(location)s and no vendor): "
+                 "Recheck Stock / Issue Remaining issues them after replenishment.",
+                 products=products, location=self.location_id.display_name)
+        mrf = self.sudo()
+        mrf._message_log(body=text)
+        self._warranty_log_links(text)
+        user = mrf.requisiton_responsible_id.user_id or mrf._warranty_requester_user()
+        summary = _("Awaiting stock: %s", self.name)
+        open_todo = mrf.activity_ids.filtered(
+            lambda activity: activity.summary == summary and activity.user_id == user)
+        if user and not open_todo:
+            # The assignment e-mail is sent from the current user: without an e-mail address
+            # the To-Do is still assigned, without e-mail (Part 3 pattern).
+            record = mrf if self.env.user.email else \
+                mrf.with_context(mail_activity_quick_update=True)
+            record.activity_schedule('mail.mail_activity_data_todo', user_id=user.id,
+                                     summary=summary, note=text)
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {'title': _("Awaiting Stock"), 'message': text, 'type': 'warning',
+                       'sticky': True, 'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'}},
+        }
 
     def _warranty_check_locations(self):
         company = self.company_id
@@ -356,6 +483,15 @@ class MaterialPurchaseRequisition(models.Model):
     def action_view_warranty_purchases(self):
         self.ensure_one()
         return self.action_show_po()
+
+    def action_warranty_job_awaiting_parts(self):
+        """Figure 7 D4 / SRS 9.8 step 6: the existing Awaiting Parts hold of the service job
+        (reason wizard, Resume Job on the job); never automatic."""
+        self.ensure_one()
+        job = self.warranty_service_job_id
+        if not job:
+            raise UserError(_("Material Request %s has no service job.", self.name))
+        return job.with_context(warranty_hold_action='awaiting_parts').action_open_hold_wizard()
 
 
 class StockPicking(models.Model):
@@ -433,14 +569,17 @@ class WarrantyServiceJob(models.Model):
                  'material_request_ids.requisition_line_ids.in_issue_qty')
     def _compute_material_status(self):
         """Requirement 10 / D15: fulfilment of the job's warranty requests (suggestion only, no
-        automatic Awaiting Parts)."""
+        automatic Awaiting Parts); 'shortage' is shown as Awaiting Stock (Figure 7 D4)."""
         for job in self:
             # sudo: shown to technicians / coordinators without requisition rights.
             mrfs = job.sudo().material_request_ids.filtered(
                 lambda mrf: mrf.state not in ('cancel', 'reject'))
             lines = mrfs.requisition_line_ids.filtered('approved_qty')
+            # Same lines as the request's Stock Status: Not Covered lines are delivered by
+            # their parts quotation, not by the request (Figure 7 D4).
             shortage = any(line.availability in ('partial', 'unavailable')
-                           and line.outstanding_qty for line in lines)
+                           and line.outstanding_qty
+                           for line in lines & mrfs._warranty_fulfil_lines())
             job.material_shortage = shortage
             if not mrfs:
                 job.material_status = 'none'

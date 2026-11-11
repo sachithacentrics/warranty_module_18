@@ -33,7 +33,7 @@
 | Overdue | Issued | Cron, after the Expected Return is moved later |
 | Issued / Overdue | Returned | Return transfer validated, condition Good or Minor Scratch |
 | Issued / Overdue | Damaged | Return transfer validated, condition Damaged |
-| Returned | Closed | Close, once the serial is back in Backup Stock |
+| Returned | Closed | Close, once the serial is back in Backup Stock (manual, D-R1) |
 | Returned | Damaged | Submit Assessment (Part 6.3) |
 | Issued / Overdue | Lost | Approved loss report (Part 6.3) |
 | Damaged / Lost | Closed | **Not implemented: BA decision D3**, `part6_3_backup_billing_design.md` |
@@ -49,6 +49,20 @@
 | BB-5 | "Loan unit allowed", return deadline and damage charge rules (§12 #17) | Not configured; expected return per record |
 | BB-6 | Who may issue or return? §16 role Repair / Backup Coordinator | Inventory users; the role is Phase 4 |
 | BB-7 | Backup record on a non-warranty ticket | Warranty tickets only |
+
+## Return to Backup Stock (18.0.1.6.2, Figure 6)
+
+* Button on a Returned unit with Return Condition Good and no assessment (Inventory users): a
+  standard Internal Transfer Returned-Inspection -> Backup Stock of exactly the backup serial,
+  linked as Return to Stock Transfer. Validated by the user; Close stays manual (D-R1).
+* Operation type: the existing Internal Transfers of the Backup Issue type's warehouse, else of the
+  company's only warehouse (D-R2); no new type, setting or status.
+* A linked pending transfer is opened again. One unlinked pending transfer of exactly this serial
+  to Backup Stock is opened, never linked; any other pending transfer of the serial is listed and
+  nothing is created. Serial already in Backup Stock: Close.
+* Validation is checked like the issue / return (serial, quantity, locations) and refused if the
+  unit is no longer Returned / Good / without assessment. Standard Return of it is refused.
+* Minor Scratch keeps the manual internal transfer; Damaged / Lost unchanged.
 
 ## Known limits
 

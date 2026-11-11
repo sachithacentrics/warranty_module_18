@@ -41,9 +41,6 @@
                             <div class="row"><label for="warranty_provision_account_id" class="col-lg-4"/>
                                 <field name="warranty_provision_account_id" options="{'no_create': True}"
                                        readonly="not warranty_accounting_can_edit"/></div>
-                            <div class="row"><label for="warranty_cost_recognition_account_id" class="col-lg-4"/>
-                                <field name="warranty_cost_recognition_account_id" options="{'no_create': True}"
-                                       readonly="not warranty_accounting_can_edit"/></div>
                             <div class="row"><label for="warranty_accounting_issues" class="col-lg-4"/>
                                 <field name="warranty_accounting_issues"/></div>
                         </div>

@@ -4,13 +4,15 @@
         <field name="name">warranty.unit.list</field>
         <field name="model">warranty.unit</field>
         <field name="arch" type="xml">
-            <list string="Warranty Unit Numbers" create="false">
+            <list string="Warranty Unit Numbers" create="false" delete="false">
                 <field name="name"/>
                 <field name="warranty_card_id"/>
+                <field name="partner_id" optional="show"/>
                 <field name="sale_order_id"/>
                 <field name="product_id"/>
                 <field name="unit_number"/>
-                <field name="stock_move_line_id" optional="show"/>
+                <field name="delivery_picking_id" optional="show"/>
+                <field name="stock_move_line_id" optional="hide"/>
                 <field name="delivery_datetime" optional="show"/>
                 <field name="source_invoice_id" optional="hide"/>
                 <field name="serial_ids" widget="many2many_tags"/>
@@ -42,16 +44,17 @@
                     <group>
                         <group>
                             <field name="warranty_card_id" readonly="1"/>
+                            <field name="partner_id"/>
                             <field name="current_site_id" invisible="not current_site_id"/>
                             <field name="original_end_date" invisible="not original_end_date"/>
-                            <field name="sale_order_line_id"/>
+                            <field name="sale_order_line_id" groups="base.group_no_one"/>
                             <field name="product_id"/>
                             <field name="unit_number"/>
-                            <field name="stock_move_line_id"/>
+                            <field name="stock_move_line_id" groups="base.group_no_one"/>
                             <field name="delivery_picking_id"/>
                             <field name="delivery_datetime"/>
                             <field name="source_invoice_id"/>
-                            <field name="source_invoice_posted_at"/>
+                            <field name="source_invoice_posted_at" groups="base.group_no_one"/>
                             <field name="serial_ids" widget="many2many_tags"/>
                         </group>
                         <group>
@@ -74,12 +77,27 @@
             <search string="Warranty Unit Numbers">
                 <field name="name"/>
                 <field name="warranty_card_id"/>
+                <field name="partner_id"/>
                 <field name="product_id"/>
                 <field name="serial_ids"/>
+                <field name="delivery_picking_id"/>
                 <field name="sale_order_id"/>
+                <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_active" string="Active" domain="[('state', '=', 'active')]"/>
+                <filter name="filter_suspended" string="Suspended" domain="[('state', '=', 'suspended')]"/>
+                <filter name="filter_expired" string="Expired" domain="[('state', '=', 'expired')]"/>
+                <filter name="filter_replaced" string="Replaced" domain="[('state', '=', 'replaced')]"/>
+                <filter name="filter_cancelled" string="Cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter name="filter_start_date" string="Start Date" date="start_date"/>
+                <filter name="filter_end_date" string="End Date" date="end_date"/>
                 <group expand="0" string="Group By">
                     <filter name="group_card" string="Warranty Card" context="{'group_by': 'warranty_card_id'}"/>
+                    <filter name="group_customer" string="Customer" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_product" string="Product" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_sale_order" string="Sale Order" context="{'group_by': 'sale_order_id'}"/>
                     <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_end_date" string="End Date" context="{'group_by': 'end_date'}"/>
                 </group>
             </search>
         </field>

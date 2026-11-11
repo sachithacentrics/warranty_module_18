@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="warranty_management_fsm.warranty_case_view_form_fsm_chargeable"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
-                <button name="action_warranty_close_case" type="object" string="Close Case"
+                <button name="action_warranty_close_case" type="object" string="Close Case" class="btn-primary"
                         groups="helpdesk.group_helpdesk_user" invisible="state != 'completed'"
                         confirm="Close this warranty case? Open vendor claims can continue after closure."/>
             </xpath>

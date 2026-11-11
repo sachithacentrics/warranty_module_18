@@ -1562,8 +1562,20 @@ class MaterialPurchaseRequisition(models.Model):
         return self.sudo().requisition_line_ids.vendor_claim_line_ids
 
 
+def _compute_can_warranty_vendor_claim(records):
+    """Display only (UX): Create Vendor Claim follows the check of action_create_vendor_claim."""
+    for record in records:
+        record.can_warranty_vendor_claim = bool(record._warranty_claim_candidate_lines())
+
+
 class WarrantyServiceJob(models.Model):
     _inherit = 'warranty.service.job'
+
+    can_warranty_vendor_claim = fields.Boolean(compute='_compute_can_warranty_vendor_claim',
+                                               compute_sudo=True)
+
+    def _compute_can_warranty_vendor_claim(self):
+        _compute_can_warranty_vendor_claim(self)
 
     def _warranty_vendor_claims(self):
         return self.env['warranty.vendor.claim'].sudo().search([('job_ids', 'in', self.ids)])
@@ -1574,6 +1586,12 @@ class WarrantyServiceJob(models.Model):
 
 class WarrantyCase(models.Model):
     _inherit = 'warranty.case'
+
+    can_warranty_vendor_claim = fields.Boolean(compute='_compute_can_warranty_vendor_claim',
+                                               compute_sudo=True)
+
+    def _compute_can_warranty_vendor_claim(self):
+        _compute_can_warranty_vendor_claim(self)
 
     def _warranty_vendor_claims(self):
         return self.env['warranty.vendor.claim'].sudo().search([('case_id', 'in', self.ids)])

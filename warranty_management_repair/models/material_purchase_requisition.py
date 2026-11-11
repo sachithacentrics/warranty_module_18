@@ -12,9 +12,11 @@ class MaterialPurchaseRequisition(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """A request of a case with exactly one open repair belongs to that Repair Order."""
+        """A request created from a Repair Order (Figure 7 D9) keeps that Repair Order; any other
+        request of a case with exactly one open repair belongs to that Repair Order; with
+        several open repairs it is linked to none (never guessed)."""
         records = super().create(vals_list)
-        for mrf in records.filtered('warranty_case_id'):
+        for mrf in records.filtered(lambda rec: rec.warranty_case_id and not rec.warranty_repair_id):
             repairs = mrf.warranty_case_id._warranty_active_repairs().filtered(
                 lambda repair: not repair.warranty_equipment_returned)
             if len(repairs) == 1:
@@ -29,3 +31,6 @@ class MaterialPurchaseRequisition(models.Model):
                 raise ValidationError(_(
                     "Repair Order %(repair)s does not belong to the warranty case of Material "
                     "Request %(mrf)s.", repair=mrf.warranty_repair_id.name, mrf=mrf.name))
+            if mrf.warranty_repair_id.state == 'cancel':
+                raise ValidationError(_("Repair Order %s is cancelled: it takes no Material "
+                                        "Request.", mrf.warranty_repair_id.name))

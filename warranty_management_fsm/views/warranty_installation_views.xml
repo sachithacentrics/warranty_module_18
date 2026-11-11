@@ -45,14 +45,20 @@
         <field name="inherit_id" ref="warranty_management.warranty_card_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header/field[@name='state']" position="before">
+                <!-- UX next step: primary while the card waits for its installation. -->
+                <button name="action_create_installation_task" type="object"
+                        string="Create Installation Task" class="btn-primary"
+                        groups="industry_fsm.group_fsm_user"
+                        invisible="start_criterion != 'installation' or state != 'pending_installation' or installation_task_count"/>
                 <button name="action_create_installation_task" type="object"
                         string="Create Installation Task"
                         groups="industry_fsm.group_fsm_user"
-                        invisible="start_criterion != 'installation' or state not in ('draft', 'pending_installation', 'ready')"/>
+                        invisible="start_criterion != 'installation' or state not in ('draft', 'pending_installation', 'ready')
+                                   or (state == 'pending_installation' and not installation_task_count)"/>
             </xpath>
             <div name="button_box" position="inside">
                 <button name="action_view_installation_tasks" type="object"
-                        class="oe_stat_button" icon="fa-wrench"
+                        class="oe_stat_button" icon="fa-cogs"
                         invisible="installation_task_count == 0">
                     <field name="installation_task_count" widget="statinfo" string="Installation"/>
                 </button>

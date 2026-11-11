@@ -13,6 +13,49 @@
                         invisible="(warranty_intake_state != 'returned' and not warranty_machine_replaced)
                                    or state != 'done'
                                    or warranty_case_state not in ('approved', 'chargeable')"/>
+                <!-- Figure 6 navigation: existing Return wizard / Backup Unit form. -->
+                <button name="action_warranty_return_machine" type="object"
+                        string="Return Machine to Customer" class="oe_highlight"
+                        groups="stock.group_stock_user"
+                        invisible="not warranty_case_id or state != 'done'
+                                   or warranty_intake_state != 'repaired' or warranty_machine_replaced"/>
+                <!-- Figure 6 vendor repair: Service Mode Vendor Repair, after Start Repair. -->
+                <field name="warranty_service_mode" invisible="1"/>
+                <field name="warranty_vendor_state" invisible="1"/>
+                <button name="action_warranty_vendor_send" type="object" string="Send for Repair"
+                        groups="stock.group_stock_user"
+                        invisible="warranty_service_mode != 'vendor' or state != 'under_repair'
+                                   or warranty_vendor_state in ('at_vendor', 'receiving')"/>
+                <button name="action_warranty_vendor_receive" type="object"
+                        string="Receive from Repair" class="oe_highlight"
+                        groups="stock.group_stock_user"
+                        invisible="warranty_vendor_state not in ('at_vendor', 'receiving')"/>
+                <!-- Figure 7: parts for this Repair Order (existing Material Request form). -->
+                <button name="action_warranty_create_material_request" type="object"
+                        string="Create Material Request"
+                        groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
+                        invisible="not warranty_case_id or state in ('done', 'cancel')
+                                   or warranty_intake_state == 'returned'"/>
+                <field name="warranty_backup_open" invisible="1"/>
+                <button name="action_warranty_issue_backup" type="object"
+                        string="Issue Backup Machine"
+                        groups="helpdesk.group_helpdesk_user,stock.group_stock_user"
+                        invisible="not warranty_case_id or not ticket_id or state == 'cancel'
+                                   or warranty_intake_state in ('returned', 'cancelled')
+                                   or warranty_machine_replaced or warranty_backup_open"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_backup_units" type="object"
+                        class="oe_stat_button" icon="fa-retweet"
+                        groups="helpdesk.group_helpdesk_user,stock.group_stock_user"
+                        invisible="not warranty_backup_unit_count">
+                    <field name="warranty_backup_unit_count" widget="statinfo" string="Backup Units"/>
+                </button>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="after">
+                <div class="alert alert-info mb-2" role="status" invisible="not warranty_next_step">
+                    <strong>Next step: </strong><field name="warranty_next_step" class="d-inline" readonly="1"/>
+                </div>
             </xpath>
             <xpath expr="//field[@name='picking_id']" position="attributes">
                 <attribute name="readonly">warranty_case_id and state != 'draft'</attribute>
@@ -23,6 +66,8 @@
             <xpath expr="//field[@name='under_warranty']" position="after">
                 <field name="warranty_intake_state" widget="badge"
                        invisible="not warranty_case_id"/>
+                <field name="warranty_vendor_state" widget="badge"
+                       invisible="warranty_vendor_state == 'none'"/>
                 <field name="warranty_repair_result"
                        invisible="not warranty_case_id"
                        readonly="state in ('done', 'cancel')"/>
@@ -45,6 +90,21 @@
             <xpath expr="//page[@name='parts']" position="after">
                 <!-- Linked MRF parts, read-only: nothing is issued or consumed from this list.
                      Groups: the vendor record rule hides other requests from other users. -->
+                <page string="Vendor Repair" name="warranty_vendor_repair"
+                      invisible="not warranty_vendor_picking_ids" groups="stock.group_stock_user">
+                    <field name="warranty_vendor_picking_ids" readonly="1">
+                        <list create="false" edit="false" delete="false">
+                            <field name="name"/>
+                            <field name="warranty_vendor_direction"/>
+                            <field name="warranty_vendor_transfer_type"/>
+                            <field name="partner_id" string="Vendor"/>
+                            <field name="location_id"/>
+                            <field name="location_dest_id"/>
+                            <field name="date_done"/>
+                            <field name="state" widget="badge"/>
+                        </list>
+                    </field>
+                </page>
                 <page string="Material Requests" name="warranty_material_requests"
                       invisible="not warranty_case_id"
                       groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user">
@@ -67,6 +127,19 @@
                         </list>
                     </field>
                 </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Figure 7: the Repair Order of a Material Request (set when created from the Repair
+         Order, or the case's only open repair). -->
+    <record id="material_purchase_requisition_view_form_warranty_repair" model="ir.ui.view">
+        <field name="name">material.purchase.requisition.form.warranty.repair</field>
+        <field name="model">material.purchase.requisition</field>
+        <field name="inherit_id" ref="warranty_management_mrf.material_purchase_requisition_view_form_warranty"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='warranty_task_id']" position="after">
+                <field name="warranty_repair_id" invisible="not warranty_repair_id"/>
             </xpath>
         </field>
     </record>

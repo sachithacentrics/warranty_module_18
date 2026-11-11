@@ -291,3 +291,48 @@ class TestServiceJobReschedule(ServiceJobCommon):
         job_arch = self.env['warranty.service.job'].get_view(view_type='form')['arch']
         self.assertIn('action_open_plan_wizard', job_arch)
         self.assertIn('action_open_cancel_wizard', job_arch)
+
+    def test_110_cancelled_visit_display(self):
+        """UAT Figure 9 (JOB/000032): the rescheduled visit is Cancelled by its task state
+        (its stage is not moved, standard Odoo); the visit lists show the status, mute it and
+        filter on it; the new visit stays actionable."""
+        s1 = self.card.service_entitlement_ids.sorted('service_no')[:1]
+        job = self._started(s1, case_type='free_service')
+        first = job.visit_ids
+        stage = first.stage_id
+        self._stop_timer(first)
+        self._not_completed(job)
+        second = self._plan(job)
+        self.assertEqual(job.state, 'rescheduled')
+        self.assertEqual((first.state, first.warranty_visit_outcome, first.active),
+                         ('1_canceled', 'rescheduled', True))
+        self.assertEqual(first.stage_id, stage)
+        self.assertNotIn(second.state, ('1_done', '1_canceled'))
+        # Visits smart button: Field Service list with Status / Visit Outcome, cancelled muted
+        action = job.action_view_visits()
+        list_view = self.env.ref('industry_fsm.project_task_view_list_fsm')
+        self.assertEqual(action['views'][0], (list_view.id, 'list'))
+        self.assertEqual(self.env['project.task'].search(action['domain']), first | second)
+        arch = self.env['project.task'].get_view(list_view.id, 'list')['arch']
+        self.assertIn('''decoration-muted="state == '1_canceled'"''', arch)
+        self.assertIn('widget="badge"', arch)
+        self.assertIn('warranty_visit_outcome', arch)
+        # Field Service search: Cancelled filter and Group By Status
+        search = self.env.ref('industry_fsm.project_task_view_search_fsm')
+        search_arch = self.env['project.task'].get_view(search.id, 'search')['arch']
+        self.assertIn('warranty_cancelled_tasks', search_arch)
+        self.assertIn("'group_by': 'state'", search_arch)
+        cancelled = self.env['project.task'].search(action['domain'] + [('state', '=', '1_canceled')])
+        self.assertEqual(cancelled, first)
+        groups = self.env['project.task'].read_group(action['domain'], ['state'], ['state'])
+        self.assertEqual({group['state']: group['state_count'] for group in groups},
+                         {'1_canceled': 1, second.state: 1})
+        # job Visits page and visit form ribbon
+        job_arch = self.env['warranty.service.job'].get_view(view_type='form')['arch']
+        self.assertIn('''decoration-muted="state == '1_canceled'"''', job_arch)
+        task_arch = self.env['project.task'].get_view(view_type='form')['arch']
+        self.assertIn('title="Cancelled"', task_arch)
+        # Visit 2 stays actionable
+        second.with_user(self.tech2).action_timer_start()
+        self.assertEqual(job.state, 'in_progress')
+        self.assertEqual(first.state, '1_canceled')

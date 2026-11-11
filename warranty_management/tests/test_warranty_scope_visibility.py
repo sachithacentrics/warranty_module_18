@@ -82,7 +82,10 @@ class TestWarrantyScopeVisibility(TransactionCase):
                       template)
         self.assertIn('name="warranty_worksheet_template_id"', template)
         self.assertIn('name="free_service_configuration"', self._arch(self.env, 'product.category'))
-        self.assertIn('<page string="Free Services" name="free_services">',
+        # UX 2026-11-09: the card tab follows the card's own free services (count or
+        # entitlements), never the company Scope Mode.
+        self.assertIn('<page string="Free Services" name="free_services" '
+                      'invisible="not free_services_allowed and not service_entitlement_ids">',
                       self._arch(self.env, 'warranty.card'))
 
     def test_03_values_kept_when_switching(self):

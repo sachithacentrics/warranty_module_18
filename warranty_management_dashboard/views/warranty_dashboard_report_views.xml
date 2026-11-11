@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- SRS 15 reports without a menu yet: list / pivot / graph over the existing records.
+         Existing reports (Warranty Cost, Provision / Reserve, Material Approval and Cost, Vendor
+         Claim Recovery, Unit Warranty Numbers, Warranty History) are not repeated. -->
+
+    <!-- ============================================================ warranty.card -->
+    <record id="warranty_card_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.card.view.pivot.dashboard</field>
+        <field name="model">warranty.card</field>
+        <field name="arch" type="xml">
+            <pivot string="Warranty Cards" sample="1">
+                <field name="warranty_end_date" interval="month" type="row"/>
+                <field name="state" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="warranty_card_view_graph" model="ir.ui.view">
+        <field name="name">warranty.card.view.graph.dashboard</field>
+        <field name="model">warranty.card</field>
+        <field name="arch" type="xml">
+            <graph string="Warranty Cards" type="bar" sample="1">
+                <field name="warranty_end_date" interval="month"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_report_active_expiring" model="ir.actions.act_window">
+        <field name="name">Active / Expiring Warranty</field>
+        <field name="res_model">warranty.card</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="domain">[('state', 'in', ('confirmed', 'expired'))]</field>
+        <field name="context">{'search_default_filter_confirmed': 1, 'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No confirmed warranty yet</p>
+            <p>Confirmed warranties by expiry date; filter on customer, product or expiry.</p>
+        </field>
+    </record>
+
+    <record id="action_report_draft_review" model="ir.actions.act_window">
+        <field name="name">Draft Warranty Review</field>
+        <field name="res_model">warranty.card</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="domain">[('state', 'in', ('draft', 'pending_installation', 'ready'))]</field>
+        <field name="context">{'create': False, 'pivot_row_groupby': ['state'],
+                               'pivot_column_groupby': []}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No warranty card awaiting confirmation</p>
+            <p>Draft, Pending Installation and Ready to Confirm cards.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================ warranty.service.entitlement -->
+    <record id="warranty_service_entitlement_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.view.pivot.dashboard</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="arch" type="xml">
+            <pivot string="Warranty Services" sample="1">
+                <field name="due_date" interval="month" type="row"/>
+                <field name="due_status" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="warranty_service_entitlement_view_graph" model="ir.ui.view">
+        <field name="name">warranty.service.entitlement.view.graph.dashboard</field>
+        <field name="model">warranty.service.entitlement</field>
+        <field name="arch" type="xml">
+            <graph string="Warranty Services" type="bar" stacked="1" sample="1">
+                <field name="due_date" interval="month"/>
+                <field name="due_status"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_report_free_service_due" model="ir.actions.act_window">
+        <field name="name">Free Service Due</field>
+        <field name="res_model">warranty.service.entitlement</field>
+        <field name="view_mode">list,pivot,graph,calendar,form</field>
+        <field name="domain">[('state', 'in', ('draft', 'pending', 'scheduled', 'in_progress', 'rescheduled', 'missed'))]</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No open warranty service</p>
+            <p>Open free services by due date and due indicator.</p>
+        </field>
+    </record>
+
+    <record id="action_report_service_planning" model="ir.actions.act_window">
+        <field name="name">Service Merge and Job Planning</field>
+        <field name="res_model">warranty.service.entitlement</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="domain">[('state', 'in', ('draft', 'pending', 'scheduled', 'in_progress', 'rescheduled', 'missed'))]</field>
+        <field name="context">{'create': False, 'group_by': ['merge_status'],
+                               'pivot_row_groupby': ['merge_status'],
+                               'pivot_column_groupby': ['due_status']}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No open warranty service</p>
+            <p>Open services by merge status (draft services, merge candidates and jobs).</p>
+        </field>
+    </record>
+
+    <record id="action_report_helpdesk_pending" model="ir.actions.act_window">
+        <field name="name">Helpdesk Pending Service</field>
+        <field name="res_model">warranty.service.entitlement</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="domain">[('helpdesk_ticket_id', '!=', False), ('state', 'in', ('draft', 'pending', 'scheduled', 'in_progress', 'rescheduled', 'missed'))]</field>
+        <field name="context">{'create': False, 'group_by': ['helpdesk_ticket_id'],
+                               'pivot_row_groupby': ['helpdesk_ticket_id'],
+                               'pivot_column_groupby': ['due_status']}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No pending service on a Helpdesk ticket</p>
+            <p>Open services linked to Helpdesk tickets, with their due indicator.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================ warranty.case -->
+    <record id="warranty_case_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.case.view.pivot.dashboard</field>
+        <field name="model">warranty.case</field>
+        <field name="arch" type="xml">
+            <pivot string="Warranty Cases" sample="1">
+                <field name="product_id" type="row"/>
+                <field name="failure_category" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="warranty_case_view_graph" model="ir.ui.view">
+        <field name="name">warranty.case.view.graph.dashboard</field>
+        <field name="model">warranty.case</field>
+        <field name="arch" type="xml">
+            <graph string="Warranty Cases" type="bar" sample="1">
+                <field name="product_id"/>
+                <field name="failure_category"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_report_failure_pattern" model="ir.actions.act_window">
+        <field name="name">Failure Pattern</field>
+        <field name="res_model">warranty.case</field>
+        <field name="view_mode">pivot,graph,list,form</field>
+        <field name="domain">[('case_type', 'in', ('warranty_complaint', 'replacement', 'repeat_complaint'))]</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No failure case yet</p>
+            <p>Warranty complaints, replacements and repeat complaints by product and failure
+                category.</p>
+        </field>
+    </record>
+
+    <record id="action_report_repeated_failure" model="ir.actions.act_window">
+        <field name="name">Repeated Failure Escalation</field>
+        <field name="res_model">warranty.case</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="domain">['|', ('repeated_failure_flag', '=', True), ('escalation_pending', '=', True)]</field>
+        <field name="context">{'create': False, 'pivot_row_groupby': ['serial_id'],
+                               'pivot_column_groupby': ['escalation_pending']}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No repeated failure</p>
+            <p>Units serviced more than the policy threshold, with their escalation status.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================ warranty.replacement -->
+    <record id="warranty_replacement_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.replacement.view.pivot.dashboard</field>
+        <field name="model">warranty.replacement</field>
+        <field name="arch" type="xml">
+            <pivot string="Replacements" sample="1">
+                <field name="replacement_type" type="row"/>
+                <field name="state" type="col"/>
+                <field name="replacement_cost" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="warranty_replacement_view_graph" model="ir.ui.view">
+        <field name="name">warranty.replacement.view.graph.dashboard</field>
+        <field name="model">warranty.replacement</field>
+        <field name="arch" type="xml">
+            <graph string="Replacements" type="bar" sample="1">
+                <field name="requested_date" interval="month"/>
+                <field name="replacement_type"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_report_replacement" model="ir.actions.act_window">
+        <field name="name">Replacement</field>
+        <field name="res_model">warranty.replacement</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No replacement yet</p>
+            <p>Old / new serials, replacement type, approval and cost.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================ warranty.backup.unit -->
+    <record id="warranty_backup_unit_view_pivot" model="ir.ui.view">
+        <field name="name">warranty.backup.unit.view.pivot.dashboard</field>
+        <field name="model">warranty.backup.unit</field>
+        <field name="arch" type="xml">
+            <pivot string="Backup Units" sample="1">
+                <field name="product_id" type="row"/>
+                <field name="state" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_report_repair_backup" model="ir.actions.act_window">
+        <field name="name">Repair and Backup Unit</field>
+        <field name="res_model">warranty.backup.unit</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No backup unit issued</p>
+            <p>Backup units with their repair order, issue date, expected return and condition.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================ sale.order -->
+    <record id="action_report_chargeable_revenue" model="ir.actions.act_window">
+        <field name="name">Chargeable Service Revenue</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">pivot,graph,list,form</field>
+        <field name="domain">[('warranty_case_id', '!=', False)]</field>
+        <field name="context">{'create': False,
+                               'pivot_row_groupby': ['warranty_chargeable_purpose'],
+                               'pivot_column_groupby': ['state'],
+                               'pivot_measures': ['amount_untaxed'],
+                               'graph_groupbys': ['warranty_chargeable_purpose'],
+                               'graph_measure': 'amount_untaxed'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No chargeable quotation yet</p>
+            <p>Inspection, repair and excluded-item quotations / orders of warranty cases.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================ menus -->
+    <!-- Warranty > Reports categories (SRS 15); the history menu opens the existing action,
+         also a dashboard shortcut. The Warranty & Entitlements menus were removed on request;
+         their actions stay for the dashboard shortcuts and Cards > Warranty Unit Numbers. -->
+    <menuitem id="menu_report_helpdesk_pending" name="Helpdesk Pending Service"
+              parent="warranty_management_mrf.menu_warranty_reports_service"
+              action="action_report_helpdesk_pending" sequence="10"/>
+    <menuitem id="menu_report_service_planning" name="Service Merge and Job Planning"
+              parent="warranty_management_mrf.menu_warranty_reports_service"
+              action="action_report_service_planning" sequence="20"/>
+    <menuitem id="menu_report_repair_backup" name="Repair and Backup Unit"
+              parent="warranty_management_mrf.menu_warranty_reports_service"
+              action="action_report_repair_backup" sequence="30"
+              groups="helpdesk.group_helpdesk_user,stock.group_stock_user"/>
+    <menuitem id="menu_report_failure_pattern" name="Failure Pattern"
+              parent="warranty_management_mrf.menu_warranty_reports_quality"
+              action="action_report_failure_pattern" sequence="10"/>
+    <menuitem id="menu_report_repeated_failure" name="Repeated Failure Escalation"
+              parent="warranty_management_mrf.menu_warranty_reports_quality"
+              action="action_report_repeated_failure" sequence="20"/>
+    <menuitem id="menu_report_replacement" name="Replacement"
+              parent="warranty_management_mrf.menu_warranty_reports_quality"
+              action="action_report_replacement" sequence="30"
+              groups="account.group_account_invoice,helpdesk.group_helpdesk_user,stock.group_stock_user"/>
+    <menuitem id="menu_report_warranty_history" name="Warranty History"
+              parent="warranty_management_mrf.menu_warranty_reports_quality"
+              action="warranty_management.action_warranty_history" sequence="40"/>
+    <menuitem id="menu_report_chargeable_revenue" name="Chargeable Service Revenue"
+              parent="warranty_management_mrf.menu_warranty_reports_financial"
+              action="action_report_chargeable_revenue" sequence="40"
+              groups="sales_team.group_sale_salesman,account.group_account_invoice"/>
+</odoo>

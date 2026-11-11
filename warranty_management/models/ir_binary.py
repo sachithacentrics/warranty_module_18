@@ -12,4 +12,7 @@ class IrBinary(models.AbstractModel):
             attachment = record.sudo()
             if attachment.res_model == 'warranty.card' and attachment.res_field == 'pdf_file':
                 raise AccessError(_("Use Download PDF on the warranty card to get its PDF."))
+            # The emailed copy (Send to Customer): administrators only (user decision).
+            if attachment.warranty_card_pdf_copy and not self.env.is_system():
+                raise AccessError(_("Use Download PDF on the warranty card to get its PDF."))
         return super()._record_to_stream(record, field_name)

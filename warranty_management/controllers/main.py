@@ -11,7 +11,10 @@ class WarrantyCardPdfController(http.Controller):
         attachment stays as it is. A failed rendering rolls the download record back."""
         attachment = request.env['warranty.card.download.ticket']._consume(token)
         card = request.env['warranty.card'].browse(attachment.res_id)
-        pdf = card._warranty_render_pdf()
+        # sudo: the download log just recorded by _consume; its number marks a Duplicate Copy.
+        log = request.env['warranty.card.download.log'].sudo().search(
+            [('ticket_id.token', '=', token)], limit=1)
+        pdf = card._warranty_render_pdf(print_no=log.download_no)
         return request.make_response(pdf, headers=[
             ('Content-Type', 'application/pdf'),
             ('Content-Length', len(pdf)),

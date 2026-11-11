@@ -34,9 +34,14 @@ class WarrantyHistory(models.Model):
 
     def _warranty_history_queries(self):
         return super()._warranty_history_queries() + [
-            """SELECT r.card_id, NULL::integer, c.company_id, 'job', 'Job: ' || initcap(replace(j.state, '_', ' ')),
-                      j.create_date, j.create_uid, j.name, NULL::text
+            """SELECT r.card_id, NULL::integer, c.company_id, 'job', 'Job created',
+                      j.create_date, j.create_uid, j.name, NULL::text, 'warranty.service.job', j.id
                  FROM warranty_service_job j
                  JOIN warranty_service_job_card_rel r ON r.job_id = j.id
                  JOIN warranty_card c ON c.id = r.card_id""",
+            self._warranty_history_status_query(
+                'warranty.service.job', 'job', 'Job',
+                """warranty_service_job x
+                   JOIN warranty_service_job_card_rel r ON r.job_id = x.id
+                   JOIN warranty_card c ON c.id = r.card_id""", 'c.id'),
         ]

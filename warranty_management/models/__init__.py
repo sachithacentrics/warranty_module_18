@@ -14,6 +14,7 @@ from . import sale_order
 from . import stock_picking
 from . import warranty_card_download
 from . import ir_actions_report
+from . import ir_attachment
 from . import ir_binary
 from . import account_move
 from . import warranty_card_date_log

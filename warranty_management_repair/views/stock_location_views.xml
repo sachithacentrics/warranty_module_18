@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_location_form_warranty_vendor" model="ir.ui.view">
+        <field name="name">stock.location.form.warranty.vendor</field>
+        <field name="model">stock.location</field>
+        <field name="inherit_id" ref="stock.view_location_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='scrap_location']" position="after">
+                <field name="warranty_vendor_custody"
+                       invisible="usage not in ('internal', 'transit')"/>
+                <field name="warranty_vendor_partner_id" options="{'no_create': True}"
+                       invisible="not warranty_vendor_custody"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

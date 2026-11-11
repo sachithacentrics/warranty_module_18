@@ -23,7 +23,7 @@ OVERRIDE_FIELDS = ('warranty_provision_method', 'warranty_provision_rate',
 COMPANY_CONFIG_FIELDS = ('warranty_provision_enabled', 'warranty_provision_method',
                          'warranty_provision_rate', 'warranty_provision_amount',
                          'warranty_accounting_journal_id', 'warranty_expense_account_id',
-                         'warranty_provision_account_id', 'warranty_cost_recognition_account_id')
+                         'warranty_provision_account_id')
 METHOD_HELP = ("Empty or Use Next Level: the next level decides, in the order product, category, "
                "warranty policy, company. No Provision stops there.")
 
@@ -121,11 +121,6 @@ class ResCompany(models.Model):
         'account.account', string='Warranty Provision / Reserve Account', ondelete='restrict',
         tracking=True, groups=ACCOUNTING_READ_GROUPS,
         help="One account per company.")
-    warranty_cost_recognition_account_id = fields.Many2one(
-        'account.account', string='Warranty Cost Recognition Account', ondelete='restrict',
-        tracking=True, groups=ACCOUNTING_READ_GROUPS,
-        help="Where parts cost is first recognised. Optional: only needed if Finance chooses to "
-             "reclassify parts cost in a later stage.")
 
     @api.constrains(*COMPANY_CONFIG_FIELDS)
     def _check_warranty_accounting_config(self):
@@ -139,9 +134,7 @@ class ResCompany(models.Model):
                     (company.warranty_expense_account_id, EXPENSE_ACCOUNT_TYPES,
                      _("Warranty Expense")),
                     (company.warranty_provision_account_id, PROVISION_ACCOUNT_TYPES,
-                     _("Warranty Provision / Reserve")),
-                    (company.warranty_cost_recognition_account_id, EXPENSE_ACCOUNT_TYPES,
-                     _("Warranty Cost Recognition"))):
+                     _("Warranty Provision / Reserve"))):
                 if not account:
                     continue
                 if company not in account.company_ids:
@@ -379,10 +372,6 @@ class ResConfigSettings(models.TransientModel):
         'account.account', string='Provision / Reserve',
         domain="[('company_ids', 'in', company_id), ('deprecated', '=', False), "
                "('account_type', 'in', %s)]" % (PROVISION_ACCOUNT_TYPES,))
-    warranty_cost_recognition_account_id = fields.Many2one(
-        'account.account', string='Cost Recognition',
-        domain="[('company_ids', 'in', company_id), ('deprecated', '=', False), "
-               "('account_type', 'in', %s)]" % (EXPENSE_ACCOUNT_TYPES,))
 
     @api.depends('warranty_accounting_journal_id', 'warranty_expense_account_id',
                  'warranty_provision_account_id', 'warranty_claim_recovery_account_id')

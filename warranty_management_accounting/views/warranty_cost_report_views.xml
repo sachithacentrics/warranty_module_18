@@ -114,8 +114,8 @@
     </record>
 
     <menuitem id="menu_warranty_cost_report" name="Warranty Cost"
-              parent="warranty_management_mrf.menu_warranty_reports"
-              action="action_server_warranty_cost_report" sequence="3"
+              parent="warranty_management_mrf.menu_warranty_reports_financial"
+              action="action_server_warranty_cost_report" sequence="10"
               groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice,group_warranty_cost_report"/>
     <menuitem id="menu_warranty_cost_report_accounting" name="Warranty Cost"
               parent="account.menu_finance_reports"

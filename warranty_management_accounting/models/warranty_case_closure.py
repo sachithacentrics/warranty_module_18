@@ -61,6 +61,16 @@ class WarrantyCase(models.Model):
                 problems.append(_("Repair Order %s is Not Repairable and has no Done replacement.",
                                   repair.name))
         problems.extend(case._warranty_replacement_problems())
+        # Figure 6 (C4): the backup machine comes back before the case closes. Its assessment,
+        # charge and disposition are tracked on the backup unit (SRS 17) and do not block.
+        units = self.env['warranty.backup.unit'].sudo().search([
+            '|', ('warranty_case_id', '=', case.id), ('repair_id', 'in', case.warranty_repair_ids.ids)])
+        away = units.filtered(lambda unit: unit.state in ('issued', 'overdue') or (
+            unit.state == 'draft' and unit._warranty_backup_active(unit.issue_picking_id))
+            or (unit.state == 'lost' and unit.found_date))  # C2 B5f: found, not received yet
+        if away:
+            problems.append(_("Backup unit %s is still with the customer (or its issue transfer is "
+                              "open): receive it first.", ', '.join(away.mapped('name'))))
         lines = case.warranty_cost_entry_ids.filtered(
             lambda line: line.state in ('draft', 'submitted'))
         if lines:

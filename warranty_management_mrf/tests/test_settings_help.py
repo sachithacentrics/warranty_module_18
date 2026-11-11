@@ -17,7 +17,8 @@ class TestWarrantySettingsHelp(TransactionCase):
 
     def test_01_every_visible_setting_has_help(self):
         app, settings = self._settings()
-        self.assertEqual(len(settings), 63)  # + Inspection Worksheet Template (2026-10-29)
+        # + Inspection Worksheet Template (2026-10-29), + Figure 7 B2 (2026-11-07)
+        self.assertEqual(len(settings), 64)
         self.assertNotIn('warranty_scope_mode', etree.tostring(app, encoding='unicode'))
         fields = self.env['res.config.settings']._fields
         for setting in settings:

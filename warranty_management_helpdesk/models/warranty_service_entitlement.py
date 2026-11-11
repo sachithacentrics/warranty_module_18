@@ -206,7 +206,7 @@ class WarrantyServiceEntitlement(models.Model):
                 continue
             if len(services) > 1:
                 problems.append(_("%(card)s: free services %(services)s of one card cannot be "
-                                  "serviced together (Enforce Service Sequence).", card=card.name,
+                                  "serviced together (Complete Previous Service First).", card=card.name,
                                   services=', '.join(services.sorted('service_no').mapped('name'))))
             for service in services:
                 previous = card.service_entitlement_ids.filtered(
@@ -218,7 +218,7 @@ class WarrantyServiceEntitlement(models.Model):
                 if previous:
                     problems.append(_(
                         "%(service)s (%(card)s): the previous free service %(previous)s must be "
-                        "Completed, Expired or Cancelled first (Enforce Service Sequence).",
+                        "Completed, Expired or Cancelled first (Complete Previous Service First).",
                         service=service.name, card=card.name,
                         previous=', '.join(previous.sorted('service_no').mapped('name'))))
         return problems

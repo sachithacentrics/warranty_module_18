@@ -112,10 +112,6 @@
                                  help="How free service due dates are calculated (equal intervals, or entered manually). Used when the warranty policy, the product and its category do not set a method.">
                             <field name="warranty_default_schedule_method"/>
                         </setting>
-                        <setting id="warranty_auto_create_services" string="Auto-create Services"
-                                 help="If enabled, free service entries are created automatically when a warranty card is confirmed. If disabled, they are added manually. Used only for cards without a warranty policy whose product and category do not enable it; a warranty policy's own setting always applies instead.">
-                            <field name="warranty_auto_create_services"/>
-                        </setting>
                         <setting id="warranty_draft_job_from_service" string="Draft Job from Service"
                                  help="Services may create draft jobs" invisible="1">
                             <field name="warranty_draft_job_from_service"/>

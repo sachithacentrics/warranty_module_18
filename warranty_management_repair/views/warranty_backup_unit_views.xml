@@ -62,9 +62,20 @@
                     <button name="action_warranty_backup_return" type="object"
                             string="Create Return Transfer" class="btn-primary"
                             groups="stock.group_stock_user"
-                            invisible="state not in ('issued', 'overdue') or assessment_state != 'none'"/>
+                            invisible="not (state in ('issued', 'overdue') and assessment_state == 'none') and not (state == 'lost' and found_date)"/>
+                    <button name="action_warranty_backup_restock" type="object"
+                            string="Return to Backup Stock" class="btn-primary"
+                            groups="stock.group_stock_user"
+                            invisible="(not (state == 'returned' and return_condition in ('good', 'minor_scratch') and (assessment_state == 'none' or (found_date and assessment_state == 'approved'))) and not (state == 'damaged' and assessment_state == 'approved' and restored_date)) or asset_status == 'backup_stock'"/>
+                    <!-- Figure 6 C2: Damaged / Lost close after approval (the action checks). -->
+                    <button name="action_warranty_backup_confirm_restored" type="object"
+                            string="Confirm Restored" groups="stock.group_stock_user"
+                            invisible="state != 'damaged' or assessment_state != 'approved' or restored_date"/>
+                    <button name="action_warranty_backup_record_found" type="object"
+                            string="Record Found"
+                            invisible="state != 'lost' or assessment_state != 'approved' or found_date"/>
                     <button name="action_warranty_backup_close" type="object" string="Close"
-                            invisible="state != 'returned'"/>
+                            invisible="state not in ('returned', 'damaged', 'lost') or (state != 'returned' and assessment_state != 'approved') or (state == 'lost' and found_date)"/>
                     <button name="action_warranty_backup_report_lost" type="object"
                             string="Report Lost"
                             invisible="state not in ('issued', 'overdue') or assessment_state != 'none'"/>
@@ -124,10 +135,11 @@
                         <group string="Return" invisible="state == 'draft'">
                             <field name="actual_return_date"/>
                             <field name="return_condition"
-                                   readonly="state not in ('issued', 'overdue')"/>
+                                   readonly="state not in ('issued', 'overdue') and not (state == 'lost' and found_date)"/>
                             <field name="return_notes"
-                                   readonly="state not in ('issued', 'overdue')"/>
+                                   readonly="state not in ('issued', 'overdue') and not (state == 'lost' and found_date)"/>
                             <field name="return_picking_id" invisible="not return_picking_id"/>
+                            <field name="restock_picking_id" invisible="not restock_picking_id"/>
                         </group>
                     </group>
                     <group invisible="state == 'draft'">
@@ -155,6 +167,22 @@
                             <group string="Physical Asset" colspan="2">
                                 <field name="asset_status"/>
                                 <field name="serial_location_id" groups="stock.group_stock_user"/>
+                                <field name="restored_condition"
+                                       invisible="state != 'damaged' and not restored_condition"
+                                       readonly="state != 'damaged' or assessment_state != 'approved' or restored_date"/>
+                                <field name="restored_note"
+                                       invisible="state != 'damaged' and not restored_note"
+                                       readonly="state != 'damaged' or assessment_state != 'approved' or restored_date"/>
+                                <field name="restored_by_id" invisible="not restored_by_id"/>
+                                <field name="restored_date" invisible="not restored_date"/>
+                                <field name="found_note"
+                                       invisible="state != 'lost' and not found_note"
+                                       readonly="state != 'lost' or found_date"/>
+                                <field name="found_by_id" invisible="not found_by_id"/>
+                                <field name="found_date" invisible="not found_date"/>
+                                <field name="disposal_type" invisible="not disposal_type"/>
+                                <field name="disposal_move_line_id" invisible="not disposal_move_line_id"
+                                       groups="stock.group_stock_user"/>
                             </group>
                             <group string="Financial Recovery" colspan="2">
                                 <field name="charge_status"/>
@@ -188,8 +216,20 @@
 
     <menuitem id="menu_warranty_repairs_root" name="Repairs"
               parent="warranty_management.menu_warranty_root" sequence="60"/>
+    <!-- UX: the warranty Repair Orders (all Repair Orders stay in the Repair app). -->
+    <record id="action_warranty_repair_order" model="ir.actions.act_window">
+        <field name="name">Warranty Repair Orders</field>
+        <field name="res_model">repair.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('warranty_case_id', '!=', False)]</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No warranty Repair Order yet</p>
+            <p>Repair Orders are created from the warranty case (Repair Order) or its Helpdesk ticket.</p>
+        </field>
+    </record>
     <menuitem id="menu_warranty_repair_order" name="Repair Orders"
-              action="repair.action_repair_order_tree"
+              action="action_warranty_repair_order" groups="stock.group_stock_user"
               parent="menu_warranty_repairs_root" sequence="10"/>
     <menuitem id="menu_warranty_backup_unit" name="Backup Units"
               action="action_warranty_backup_unit"

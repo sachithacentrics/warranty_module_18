@@ -473,10 +473,9 @@ class TestWarrantyPart2(TransactionCase):
                          ('Free Service Settings', visible_rule))
         self.assertEqual([s.get('id') for s in free.xpath('./setting')], [
             'warranty_default_policy_free_services', 'warranty_default_free_service_count', 'warranty_default_free_service_period',
-            'warranty_default_schedule_method', 'warranty_auto_create_services',
-            'warranty_draft_job_from_service'])
-        self.assertIsNone(
-            free.xpath("./setting[@id='warranty_auto_create_services']")[0].get('invisible'))
+            'warranty_default_schedule_method', 'warranty_draft_job_from_service'])
+        # Auto-create Services is configured on the Warranty Policy only (not in the Settings).
+        self.assertNotIn('warranty_auto_create_services', etree.tostring(arch).decode())
         self.assertEqual(
             free.xpath("./setting[@id='warranty_draft_job_from_service']")[0].get('invisible'), '1')
         monitoring = arch.xpath("//block[@name='warranty_service_monitoring_settings']")[0]

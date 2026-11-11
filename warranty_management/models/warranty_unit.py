@@ -36,6 +36,9 @@ class WarrantyUnit(models.Model):
         'sale.order.line', string='Sales Order Line', readonly=True, index=True)
     sale_order_id = fields.Many2one(
         related='sale_order_line_id.order_id', string='Sale Order', store=True, index=True)
+    # SRS 15 Unit Warranty Number Report: customer filter / grouping.
+    partner_id = fields.Many2one(
+        related='warranty_card_id.partner_id', string='Customer', store=True, index=True)
     product_id = fields.Many2one('product.product', string='Product', readonly=True)
     unit_number = fields.Integer(string='Unit No.', readonly=True)
     stock_move_line_id = fields.Many2one(

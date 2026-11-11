@@ -41,17 +41,34 @@ class WarrantyHistory(models.Model):
     def _warranty_history_queries(self):
         return super()._warranty_history_queries() + [
             """SELECT p.warranty_card_id, p.warranty_unit_id, c.company_id, 'replacement',
-                      'Replacement: ' || initcap(p.state), p.create_date, p.create_uid, p.name, NULL::text
+                      'Replacement created', p.create_date, p.create_uid, p.name, NULL::text,
+                      'warranty.replacement', p.id
                  FROM warranty_replacement p
                  JOIN warranty_card c ON c.id = p.warranty_card_id""",
+            self._warranty_history_status_query(
+                'warranty.replacement', 'replacement', 'Replacement',
+                "warranty_replacement x JOIN warranty_card c ON c.id = x.warranty_card_id",
+                'c.id', 'x.warranty_unit_id'),
             """SELECT w.warranty_card_id, NULL::integer, c.company_id, 'backup',
-                      'Backup unit: ' || initcap(b.state), b.create_date, b.create_uid, b.name, NULL::text
+                      'Backup unit created', b.create_date, b.create_uid, b.name, NULL::text,
+                      'warranty.backup.unit', b.id
                  FROM warranty_backup_unit b
                  JOIN warranty_case w ON w.id = b.warranty_case_id
                  JOIN warranty_card c ON c.id = w.warranty_card_id""",
+            self._warranty_history_status_query(
+                'warranty.backup.unit', 'backup', 'Backup unit',
+                """warranty_backup_unit x
+                   JOIN warranty_case w ON w.id = x.warranty_case_id
+                   JOIN warranty_card c ON c.id = w.warranty_card_id""", 'c.id'),
             """SELECT w.warranty_card_id, NULL::integer, c.company_id, 'repair',
-                      'Repair: ' || initcap(replace(r.state, '_', ' ')), r.create_date, r.create_uid, r.name, NULL::text
+                      'Repair created', r.create_date, r.create_uid, r.name, NULL::text,
+                      'repair.order', r.id
                  FROM repair_order r
                  JOIN warranty_case w ON w.id = r.warranty_case_id
                  JOIN warranty_card c ON c.id = w.warranty_card_id""",
+            self._warranty_history_status_query(
+                'repair.order', 'repair', 'Repair',
+                """repair_order x
+                   JOIN warranty_case w ON w.id = x.warranty_case_id
+                   JOIN warranty_card c ON c.id = w.warranty_card_id""", 'c.id'),
         ]

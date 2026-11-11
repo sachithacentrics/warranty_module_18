@@ -17,6 +17,11 @@ GOODWILL_CONDITIONS = [
     ('any', 'Any'),
     ('goodwill', 'Goodwill Lines Present'),
 ]
+# Figure 7 D3: the amount compared with the rule's range (routing costs of the lines).
+AMOUNT_BASES = [
+    ('all', 'All Lines'),
+    ('covered', 'Covered Lines Only'),
+]
 
 
 class WarrantyMrfApprovalRule(models.Model):
@@ -38,6 +43,11 @@ class WarrantyMrfApprovalRule(models.Model):
         string='Minimum Amount', help="Routing amount from (inclusive).")
     max_amount = fields.Monetary(
         string='Maximum Amount', help="Routing amount up to (exclusive); 0 = no upper limit.")
+    amount_basis = fields.Selection(
+        AMOUNT_BASES, string='Amount Basis', default='all', required=True,
+        help="Amount compared with the minimum and maximum: all request lines, or only the "
+             "Covered lines (goodwill lines included). Each line counts at the higher of its "
+             "estimated cost and its product cost.")
     coverage_condition = fields.Selection(COVERAGE_CONDITIONS, string='Coverage Condition',
                                           default='any', required=True)
     goodwill_condition = fields.Selection(GOODWILL_CONDITIONS, string='Goodwill Condition',
@@ -109,6 +119,12 @@ class WarrantyMrfApprovalRule(models.Model):
     def _level_users(self, level):
         self.ensure_one()
         return self['%s_user_ids' % level]
+
+    def _basis_amount(self, amounts):
+        """The routing amount of the rule's Amount Basis ({routing, covered, ...} of the
+        request, see _warranty_routing_amounts)."""
+        self.ensure_one()
+        return amounts['covered'] if self.amount_basis == 'covered' else amounts['routing']
 
     def _matches(self, amount, lines):
         """Amount range, coverage, goodwill and product / category conditions (section 3.3)."""

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_repair_vendor_send_view_form" model="ir.ui.view">
+        <field name="name">warranty.repair.vendor.send.form</field>
+        <field name="model">warranty.repair.vendor.send</field>
+        <field name="arch" type="xml">
+            <form string="Send for Repair">
+                <field name="available_location_ids" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <group>
+                    <group>
+                        <field name="repair_id"/>
+                        <field name="product_id"/>
+                        <field name="lot_id"/>
+                        <field name="location_id"/>
+                    </group>
+                    <group>
+                        <field name="transfer_type" widget="radio"/>
+                        <field name="partner_id" invisible="transfer_type != 'external'"
+                               required="transfer_type == 'external'"
+                               options="{'no_create': True}"/>
+                        <field name="location_dest_id" options="{'no_create': True}"
+                               invisible="not transfer_type"/>
+                    </group>
+                </group>
+                <div class="text-muted" invisible="transfer_type != 'external'">
+                    External: a Vendor Repair Custody location (Inventory &gt; Configuration &gt;
+                    Locations). The machine is not sold, purchased or revalued.
+                </div>
+                <footer>
+                    <button name="action_confirm" type="object" string="Create Transfer"
+                            class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

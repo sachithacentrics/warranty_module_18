@@ -1,6 +1,8 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
+from .material_purchase_requisition_approval import RELEASED_STATES, WAITING_STATES
+
 # Phase 5.4 (mapping 5.4, D8, D9): commercial control of Not Covered lines.
 CHARGEABLE_STATES = [
     ('to_quote', 'To Quote'),
@@ -8,8 +10,13 @@ CHARGEABLE_STATES = [
     ('waiting_payment', 'Waiting Payment'),
     ('released', 'Released'),
     ('released_exception', 'Released (Exception)'),
+    ('blocked', 'Release Blocked (Request Not Valid)'),
     ('declined', 'Customer Declined'),
 ]
+# Figure 7 D2: coverage conditions of rules that explicitly approve Not Covered materials.
+NOT_COVERED_CONDITIONS = ('not_covered', 'only_not_covered')
+# Request line fields fixed while the line is on a confirmed customer order.
+SOLD_LINE_LOCKED = {'product_id', 'qty', 'uom', 'coverage_type', 'goodwill'}
 RELEASED_CHARGEABLE_STATES = ('released', 'released_exception')
 RELEASE_TRIGGERS = [
     ('confirmation', 'On Quotation Confirmation'),
@@ -35,7 +42,8 @@ class MaterialPurchaseRequisition(models.Model):
     can_decline_chargeable = fields.Boolean(compute='_compute_parts_quotation')
     can_approve_release_exception = fields.Boolean(compute='_compute_can_release_exception')
 
-    @api.depends('parts_quotation_ids', 'requisition_line_ids.chargeable_state', 'state')
+    @api.depends('parts_quotation_ids', 'requisition_line_ids.chargeable_state', 'state',
+                 'approval_round', 'approval_signature')
     def _compute_parts_quotation(self):
         for mrf in self:
             # sudo: counts shown to users without sales rights.
@@ -43,10 +51,10 @@ class MaterialPurchaseRequisition(models.Model):
             mrf.parts_quotation_count = len(orders)
             mrf.parts_delivery_count = len(orders.picking_ids)
             states = mrf.requisition_line_ids.mapped('chargeable_state')
-            mrf.can_create_parts_quotation = mrf.is_warranty_mrf \
-                and mrf.state in ('approve', 'stock') and 'to_quote' in states
+            mrf.can_create_parts_quotation = mrf.is_warranty_mrf and 'to_quote' in states \
+                and not mrf._warranty_quotation_error()
             mrf.can_decline_chargeable = mrf.is_warranty_mrf \
-                and mrf.state in ('approve', 'stock') \
+                and mrf.state in WAITING_STATES + ('approve', 'stock') \
                 and bool({'to_quote', 'waiting_customer'} & set(states))
 
     @api.depends_context('uid')
@@ -59,31 +67,111 @@ class MaterialPurchaseRequisition(models.Model):
 
     # ------------------------------------------------------------------ release rule
     def _warranty_commercial_release_error(self):
-        """Create Picking and PO (covered lines): every Not Covered line is on a parts
-        quotation (delivered by the quotation, D8) or declined by the customer."""
+        """Figure 7 D2: Covered and Not Covered lines follow their own release conditions. Not
+        Covered lines are never issued by the internal picking (_warranty_fulfil_lines), only by
+        the parts quotation's delivery (D8), so they no longer hold back the covered lines."""
         self.ensure_one()
-        open_lines = self.requisition_line_ids.filtered(
-            lambda line: line.coverage_type == 'not_covered'
-            and line.requisition_type != SALE_ACTION and not line.chargeable_declined)
-        if open_lines:
-            return _("Material Request %(mrf)s: create the parts quotation or record the customer "
-                     "decline for the Not Covered lines (%(products)s) first; they are never "
-                     "issued by the internal picking.", mrf=self.name,
-                     products=', '.join(open_lines.mapped('product_id.display_name')))
         return False
+
+    def _warranty_chargeable_request_error(self):
+        """Figure 7 D2 (Not Covered -> customer quotation, N5): why the Not Covered lines of the
+        request may not be quoted or released now (False: they may). The request must be
+        submitted with its coverage decided (Pending blocks the submission), unchanged since,
+        and not rejected, withdrawn or cancelled. A matching rule that explicitly approves Not
+        Covered materials (coverage condition Not Covered Lines Present / Only Not Covered
+        Lines with approval levels) makes them wait for the final approval; the Requisition
+        workflow (matrix off) too."""
+        self.ensure_one()
+        if not self.is_warranty_mrf:
+            return _("Parts quotations are created for warranty Material Requests.")
+        if self.state in RELEASED_STATES:
+            return self._warranty_approved_error()
+        if self.state not in WAITING_STATES:
+            status = dict(self._fields['state']._description_selection(self.env)).get(
+                self.state, self.state)
+            return _("Material Request %(mrf)s is %(status)s: customer quotations and the release "
+                     "of Not Covered materials need a submitted request (not approved or "
+                     "submitted yet, or rejected / withdrawn / cancelled).",
+                     mrf=self.name, status=status)
+        if self.warranty_approval_mode != 'matrix' or not self.approval_round:
+            return _("Material Request %s is not approved yet: with the Requisition workflow the "
+                     "Not Covered materials are quoted after the final approval.", self.name)
+        if self.approval_signature != self._warranty_line_signature():
+            return _("The lines of %s changed after submission.", self.name)
+        explicit = self._warranty_round_lines().filtered(
+            lambda line: line.level != 'none').rule_ids.filtered(
+            lambda rule: rule.coverage_condition in NOT_COVERED_CONDITIONS)
+        if explicit:
+            return _("Material Request %(mrf)s is not approved yet: rule(s) %(rules)s require the "
+                     "approval of Not Covered materials before the customer quotation.",
+                     mrf=self.name, rules=', '.join(explicit.mapped('name')))
+        return False
+
+    def _warranty_quotation_error(self):
+        """Figure 7 change request (2026-11-07, MRF/000013 UAT): new parts quotations only for
+        a request with every required approval level completed (Approved, or Approved - No
+        Approval Required at submission). The release of orders that already exist keeps
+        _warranty_chargeable_request_error (historical early quotations stay valid)."""
+        self.ensure_one()
+        error = self._warranty_chargeable_request_error()
+        if error:
+            return error
+        if self.state not in RELEASED_STATES:
+            return _("Material Request %s is waiting for approval: Create Parts Quotation is "
+                     "available after all required approval levels are completed.", self.name)
+        return False
+
+    def _warranty_cancel_open_parts_quotations(self, text):
+        """Rejected / withdrawn request (Figure 7 D2): quotations the customer has not confirmed
+        are cancelled (no accounting impact); confirmed orders are never cancelled, their
+        delivery waits until the request is valid again (chargeable state Release Blocked)."""
+        self.ensure_one()
+        # sudo: system cancellation after the approval workflow checks.
+        orders = self.sudo().parts_quotation_ids.filtered(
+            lambda order: order.state in ('draft', 'sent'))
+        if not orders:
+            return
+        orders._action_cancel()
+        note = _("Parts quotation(s) %(orders)s cancelled: %(text)s", text=text,
+                 orders=', '.join(orders.mapped('name')))
+        self.sudo()._message_log(body=note)
+        for order in orders:
+            order._message_log(body=note)
+        self._warranty_log_links(note)
+
+    def _warranty_reject(self, reason):
+        super()._warranty_reject(reason)
+        self._warranty_cancel_open_parts_quotations(_("Material Request %s rejected.", self.name))
+
+    def action_warranty_withdraw(self):
+        result = super().action_warranty_withdraw()
+        for mrf in self:
+            mrf._warranty_cancel_open_parts_quotations(
+                _("Material Request %s withdrawn.", mrf.name))
+        return result
+
+    def _warranty_check_open_customer_orders(self):
+        """Cancel Material Request (E-13b check): a request whose Not Covered lines are on a
+        confirmed customer order is not cancelled; the order stays valid until Sales cancels
+        it (Figure 7 D2)."""
+        for mrf in self.filtered('is_warranty_mrf'):
+            confirmed = mrf.sudo().parts_quotation_ids.filtered(lambda order: order.state == 'sale')
+            if confirmed:
+                raise UserError(_("Material Request %(mrf)s has confirmed customer order(s) "
+                                  "%(orders)s: cancel them in Sales first, or keep the request.",
+                                  mrf=mrf.name, orders=', '.join(confirmed.mapped('name'))))
 
     # ------------------------------------------------------------------ quotation
     def _warranty_quotable_lines(self):
         return self.requisition_line_ids.filtered(lambda line: line.chargeable_state == 'to_quote')
 
     def action_create_parts_quotation(self):
-        """Create Parts Quotation (mapping 5.4): approved Not Covered lines without active
-        quotation -> draft quotation for the commercial customer, delivery to the site; no
-        Service Job (no chargeable purpose), no e-mail (Send To-Do, Part 4 C10)."""
+        """Create Parts Quotation (mapping 5.4, Figure 7 D2): Not Covered lines without active
+        quotation of a fully approved request (_warranty_quotation_error) -> draft quotation
+        for the commercial customer, delivery to the site; no Service Job (no chargeable
+        purpose), no e-mail (Send To-Do, Part 4 C10)."""
         self.ensure_one()
-        if not self.is_warranty_mrf:
-            raise UserError(_("Parts quotations are created for warranty Material Requests."))
-        error = self._warranty_approved_error()
+        error = self._warranty_quotation_error()
         if error:
             raise UserError(error)
         lines = self._warranty_quotable_lines()
@@ -267,7 +355,9 @@ class MaterialPurchaseRequisitionLine(models.Model):
 
     @api.depends('coverage_type', 'chargeable_declined', 'sale_line_ids.order_id.state',
                  'sale_line_ids.order_id.invoice_status',
-                 'sale_line_ids.order_id.warranty_release_exception_by_id')
+                 'sale_line_ids.order_id.warranty_release_exception_by_id',
+                 'requisition_id.state', 'requisition_id.approval_round',
+                 'requisition_id.approval_signature')
     def _compute_chargeable_state(self):
         for line in self:
             if not line.is_warranty_mrf or line.coverage_type != 'not_covered':
@@ -283,7 +373,33 @@ class MaterialPurchaseRequisitionLine(models.Model):
                 elif sale_line.order_id.state in ('draft', 'sent'):
                     line.chargeable_state = 'waiting_customer'
                 else:
-                    line.chargeable_state = sale_line.order_id._warranty_parts_release_state()
+                    state = sale_line.order_id._warranty_parts_release_state()
+                    # Figure 7 D2: a confirmed order never overrides a rejected, withdrawn,
+                    # cancelled or changed request; its delivery waits (history kept).
+                    if state in RELEASED_CHARGEABLE_STATES \
+                            and line.requisition_id._warranty_chargeable_request_error():
+                        state = 'blocked'
+                    line.chargeable_state = state
+
+    def _warranty_confirmed_sale_lines(self):
+        """Quotation lines of a confirmed customer order (sudo: read for the checks)."""
+        return self.sudo().sale_line_ids.filtered(lambda sol: sol.order_id.state == 'sale')
+
+    def _warranty_check_not_sold(self, action):
+        """Figure 7 D2: a request line on a confirmed customer order keeps its product,
+        quantity, unit and coverage, also when the request is New again after a rejection or a
+        withdrawal; it is not deleted."""
+        sold = self.filtered(lambda line: line.is_warranty_mrf
+                             and line._warranty_confirmed_sale_lines())
+        if sold:
+            line = sold[0]
+            raise UserError(_("%(product)s of Material Request %(mrf)s is on confirmed customer "
+                              "order %(order)s: it cannot be %(action)s. Cancel the order in "
+                              "Sales first, or keep the line unchanged.",
+                              product=line.product_id.display_name,
+                              mrf=line.requisition_id.name, action=action,
+                              order=', '.join(line._warranty_confirmed_sale_lines()
+                                              .order_id.mapped('name'))))
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -300,7 +416,13 @@ class MaterialPurchaseRequisitionLine(models.Model):
             raise UserError(_("The line action Customer Quotation is set by Create Parts "
                               "Quotation and cannot be changed (the quotation delivers these "
                               "materials)."))
+        if SOLD_LINE_LOCKED & set(vals):
+            self._warranty_check_not_sold(_("changed"))
         return super().write(vals)
+
+    def unlink(self):
+        self._warranty_check_not_sold(_("deleted"))
+        return super().unlink()
 
 
 class SaleOrder(models.Model):
@@ -398,6 +520,14 @@ class SaleOrderLine(models.Model):
     def create(self, vals_list):
         if not self.env.su and any('warranty_mrf_line_id' in vals for vals in vals_list):
             raise UserError(_("Material request lines are quoted with Create Parts Quotation."))
+        # Figure 7 change request (2026-11-07): every quotation path, sudo included.
+        mrf_lines = self.env['material.purchase.requisition.line'].browse(
+            [vals['warranty_mrf_line_id'] for vals in vals_list
+             if vals.get('warranty_mrf_line_id')])
+        for mrf in mrf_lines.sudo().requisition_id:
+            error = mrf._warranty_quotation_error()
+            if error:
+                raise UserError(error)
         return super().create(vals_list)
 
     def write(self, vals):

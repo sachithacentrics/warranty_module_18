@@ -30,8 +30,9 @@
                         invisible="not can_warranty_approve"/>
                 <button name="action_warranty_reject" type="object" string="Reject"
                         invisible="not can_warranty_approve"/>
+                <!-- Hidden (2026-11-07, user request): Submit already validates the route. -->
                 <button name="action_warranty_check_route" type="object" string="Check Approval Route"
-                        invisible="not is_warranty_mrf or state != 'draft'"/>
+                        invisible="1"/>
                 <button name="action_warranty_withdraw" type="object" string="Withdraw"
                         invisible="not can_warranty_withdraw"
                         confirm="Withdraw this Material Request? It becomes New again and needs a new approval round."/>
@@ -53,7 +54,9 @@
                                decoration-info="warranty_mrf_status in ('manager', 'finance_gm')"
                                decoration-success="warranty_mrf_status in ('approved', 'released', 'received')"
                                decoration-danger="warranty_mrf_status == 'rejected'"/>
-                        <field name="approval_status"/>
+                        <field name="approval_status" widget="badge"
+                               decoration-success="approval_status in ('approved', 'not_required')"
+                               decoration-danger="approval_status == 'rejected'"/>
                         <field name="warranty_approval_mode" invisible="not warranty_approval_mode"/>
                         <field name="approval_round" invisible="not approval_round"/>
                         <field name="can_warranty_approve" invisible="1"/>
@@ -175,6 +178,7 @@
                 <field name="currency_id" column_invisible="True"/>
                 <field name="min_amount"/>
                 <field name="max_amount"/>
+                <field name="amount_basis" optional="show"/>
                 <field name="coverage_condition"/>
                 <field name="goodwill_condition"/>
                 <field name="no_approval"/>
@@ -202,6 +206,7 @@
                             <field name="currency_id" invisible="1"/>
                             <field name="min_amount"/>
                             <field name="max_amount"/>
+                            <field name="amount_basis"/>
                             <field name="coverage_condition"/>
                             <field name="goodwill_condition"/>
                             <field name="categ_ids" widget="many2many_tags"/>
@@ -222,10 +227,14 @@
                                    invisible="no_approval or not gm_required" required="gm_required"/>
                         </group>
                     </group>
-                    <p class="text-muted">Routing amount = all request lines, each at the higher of its
-                        estimated cost and its product cost. All matching rules of the company and its
-                        parent companies are combined (strictest). Goodwill always needs Finance and GM.
-                        No matching rule: the request cannot be submitted.</p>
+                    <p class="text-muted">Routing amount = the request lines of the Amount Basis (all lines,
+                        or only the Covered lines), each at the higher of its estimated cost and its product
+                        cost; minimum inclusive, maximum exclusive. All matching rules of the company and its
+                        parent companies are combined (strictest); No Approval Required applies only when
+                        every matching rule is a No Approval Required rule. No matching rule: No Approval
+                        Required. Goodwill always needs Finance and GM approvers.
+                        A rule with coverage condition Not Covered Lines Present or Only Not Covered Lines
+                        and approval levels makes the parts quotation wait for the final approval.</p>
                     <field name="note" placeholder="Notes"/>
                 </sheet>
             </form>
@@ -250,7 +259,7 @@
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Define the material approval matrix</p>
-            <p>Warranty Material Requests can only be submitted when at least one rule matches.</p>
+            <p>Requests that match no rule need no approval; goodwill materials always need Finance and GM approvers.</p>
         </field>
     </record>
 

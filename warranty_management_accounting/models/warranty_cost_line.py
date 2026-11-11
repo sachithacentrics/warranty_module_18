@@ -53,7 +53,7 @@ class WarrantyCostLine(models.Model):
                                 domain="[('warranty_case_id', '=', case_id)]")
     cost_type = fields.Selection(COST_TYPES, string='Cost Type', required=True, tracking=True)
     reason = fields.Text(string='Reason', required=True, tracking=True,
-                         help="Why this cost is needed (audit reason, SRS 17).")
+                         help="Why this cost is needed (kept for audit).")
     estimated_amount = fields.Monetary(string='Estimated', tracking=True)
     approved_amount = fields.Monetary(string='Approved', readonly=True, copy=False, tracking=True)
     actual_amount = fields.Monetary(

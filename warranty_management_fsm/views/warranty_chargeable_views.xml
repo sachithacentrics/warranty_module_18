@@ -35,7 +35,8 @@
         <field name="inherit_id" ref="warranty_case_view_form_fsm"/>
         <field name="arch" type="xml">
             <xpath expr="//button[@name='action_prepare_service_job']" position="attributes">
-                <attribute name="invisible">open_service_job_id or not (state == 'chargeable' or (state == 'approved' and eligibility_result == 'eligible'))</attribute>
+                <!-- UX: Inspection Required: Create / Open Inspection Quotation instead. -->
+                <attribute name="invisible">open_service_job_id or not (state == 'chargeable' or (state == 'approved' and eligibility_result == 'eligible')) or warranty_inspection_step in ('quotation', 'waiting')</attribute>
             </xpath>
             <xpath expr="//button[@name='action_prepare_service_job']" position="after">
                 <button name="action_open_decline_repair_wizard" type="object"

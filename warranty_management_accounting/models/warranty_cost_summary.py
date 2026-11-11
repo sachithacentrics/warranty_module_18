@@ -504,6 +504,58 @@ class WarrantyVendorClaimRecovery(models.Model):
 class MaterialPurchaseRequisition(models.Model):
     _inherit = 'material.purchase.requisition'
 
+    warranty_case_cost_breakdown = fields.Html(
+        string='Case Cost Breakdown', sanitize=False, groups=COST_GROUPS,
+        compute='_compute_warranty_case_cost_breakdown',
+        help="Estimated / approved / actual cost: this request's materials, then the "
+             "warranty case totals (all its Material Requests, labour, travel, subcontract, "
+             "other and replacement), each source counted once.")
+
+    def _compute_warranty_case_cost_breakdown(self):
+        labels = dict(COST_TYPES, parts=_("Parts (all Material Requests of the case)"),
+                      replacement=_("Replacement"))
+        for mrf in self:
+            case = mrf.sudo().warranty_case_id
+            if not mrf.is_warranty_mrf or not case:
+                mrf.warranty_case_cost_breakdown = False
+                continue
+            currency = case.company_id.currency_id
+
+            def money(amount):
+                return escape(format_amount(self.env, amount, currency))
+
+            def row(label, values, css=''):
+                return Markup('<tr class="%s"><th>%s</th><td class="text-end">%s</td>'
+                              '<td class="text-end">%s</td><td class="text-end">%s</td>'
+                              '<td class="text-end">%s</td></tr>') % (
+                    css, label, money(values['estimated']), money(values['approved']),
+                    money(values['actual']), money(values['actual'] - values['estimated']))
+            own = warranty_parts_figures(mrf.sudo()._warranty_cost_lines(), True)
+            figures = case._warranty_cost_figures()[0]
+            totals = {key: sum(values[key] for values in figures.values())
+                      for key in ('estimated', 'approved', 'actual')}
+            head = Markup('<thead><tr><th>%s</th><th class="text-end">%s</th>'
+                          '<th class="text-end">%s</th><th class="text-end">%s</th>'
+                          '<th class="text-end">%s</th></tr></thead>') % (
+                _("Cost"), _("Estimated"), _("Approved"), _("Actual"),
+                _("Variance (Actual - Estimated)"))
+            body = row(_("This request: warranty-borne materials"), own, 'fw-bold')
+            body += Markup('<tr><th colspan="5" class="pt-3">%s</th></tr>') % _(
+                "Warranty case %s (shared by its requests, jobs and Repair Orders)", case.name)
+            body += Markup('').join(row(labels[key], values) for key, values in figures.items())
+            body += row(_("Total warranty cost of the case"), totals, 'fw-bold')
+            gate = case._warranty_expected_cost_error()
+            note = Markup('<div class="alert alert-warning" role="alert">%s</div>') % gate \
+                if gate else Markup('')
+            mrf.warranty_case_cost_breakdown = note + Markup(
+                '<table class="table table-sm">%s<tbody>%s</tbody></table>'
+                '<p class="text-muted">%s</p>') % (head, body, _(
+                    "Customer-paid (Not Covered) parts are billed to the customer and are not "
+                    "warranty cost. Labour, travel, subcontract and other costs are cost lines "
+                    "and timesheets of the case: they are approved there (Cost Lines, Expected "
+                    "Cost Approval Gate), not by this request's material approval, and counted "
+                    "once for the case."))
+
     def _warranty_release_error(self):
         error = super()._warranty_release_error()
         if error or not self.warranty_case_id:

@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
+        <!-- Send to Customer (SRS 9.10): the stored soft copy is attached by the action, not by
+             the template (the report itself is protected). -->
+        <record id="mail_template_warranty_card" model="mail.template">
+            <field name="name">Warranty: Warranty Card to Customer</field>
+            <field name="model_id" ref="model_warranty_card"/>
+            <field name="subject">Your Warranty Card {{ object.name }}</field>
+            <field name="email_from">{{ object.company_id.email_formatted or user.email_formatted or '' }}</field>
+            <field name="partner_to">{{ object.partner_id.email and object.partner_id.id or '' }}</field>
+            <field name="lang">{{ object.partner_id.lang }}</field>
+            <field name="auto_delete" eval="False"/>
+            <field name="body_html" type="html">
+                <div style="margin: 0; padding: 0;">
+                    <p>Dear <t t-out="object.partner_id.name or ''"/>,</p>
+                    <p>
+                        Please find attached your warranty card
+                        <strong><t t-out="object.name or ''"/></strong>.
+                        Keep it for any service or warranty claim.
+                    </p>
+                    <p t-if="object.warranty_end_date">
+                        Warranty period:
+                        <t t-out="format_date(object.warranty_start_date) or ''"/> -
+                        <t t-out="format_date(object.warranty_end_date) or ''"/>
+                    </p>
+                    <p>Kind regards,<br/><t t-out="object.company_id.name or ''"/></p>
+                </div>
+            </field>
+        </record>
+
         <record id="mail_template_free_service_due_alert" model="mail.template">
             <field name="name">Warranty: Free Service Due Alert</field>
             <field name="model_id" ref="model_warranty_service_entitlement"/>

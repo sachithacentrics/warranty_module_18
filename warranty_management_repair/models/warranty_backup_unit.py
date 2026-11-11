@@ -56,17 +56,29 @@ CHARGE_STATUSES = [
 # Written by the actions and the validated pickings only. Python object: no client can send it.
 _BACKUP_MARKER = object()
 SYSTEM_FIELDS = {'state', 'issue_date', 'actual_return_date', 'issue_picking_id',
-                 'return_picking_id', 'assessment_type', 'assessment_state',
+                 'return_picking_id', 'restock_picking_id', 'assessment_type', 'assessment_state',
                  'assessment_submitted_by_id', 'assessment_submitted_date',
                  'assessment_approved_by_id', 'assessment_approved_date', 'charge_order_id',
-                 'charge_product_id'}
+                 'charge_product_id', 'restored_by_id', 'restored_date', 'found_by_id',
+                 'found_date', 'disposal_type', 'disposal_move_line_id'}
 ISSUE_FIELDS = {'ticket_id', 'warranty_case_id', 'repair_id', 'partner_id', 'site_id',
                 'product_id', 'lot_id', 'issue_reason', 'issue_condition', 'issue_notes'}
 RETURN_FIELDS = {'return_condition', 'return_notes'}
 ASSESSMENT_FIELDS = {'assessment_notes', 'repair_scrap_cost', 'charge_amount'}
+# Figure 6 C2: entered before Confirm Restored (B1) / Record Found (B5), then locked.
+RESTORE_FIELDS = {'restored_condition', 'restored_note'}
+FOUND_FIELDS = {'found_note'}
 # Billing users have write access for the deposit invoice link only.
-COORDINATOR_FIELDS = ISSUE_FIELDS | RETURN_FIELDS | ASSESSMENT_FIELDS | {
-    'expected_return_date', 'deposit_amount'}
+COORDINATOR_FIELDS = ISSUE_FIELDS | RETURN_FIELDS | ASSESSMENT_FIELDS | RESTORE_FIELDS \
+    | FOUND_FIELDS | {'expected_return_date', 'deposit_amount'}
+# Figure 6 C2: how the unit left the backup fleet or came back to it (set by Close).
+DISPOSAL_TYPES = [
+    ('stock', 'Back in Backup Stock'),
+    ('restored', 'Restored to Backup Stock'),
+    ('scrap', 'Scrapped'),
+    ('missing', 'Missing (Inventory Adjustment)'),
+]
+WRITTEN_OFF = ('scrap', 'missing')
 
 
 class WarrantyBackupUnit(models.Model):
@@ -114,6 +126,9 @@ class WarrantyBackupUnit(models.Model):
                                        copy=False)
     return_picking_id = fields.Many2one('stock.picking', string='Return Transfer', readonly=True,
                                         copy=False)
+    # Figure 6: Returned-Inspection -> Backup Stock, standard Internal Transfers (D-R2).
+    restock_picking_id = fields.Many2one('stock.picking', string='Return to Stock Transfer',
+                                         readonly=True, copy=False)
     issue_date = fields.Datetime(string='Issue Date', readonly=True, copy=False, tracking=True,
                                  help="Set when the issue transfer is validated.")
     expected_return_date = fields.Date(string='Expected Return', required=True, tracking=True)
@@ -171,6 +186,23 @@ class WarrantyBackupUnit(models.Model):
         'account.move', string='Deposit Invoice', copy=False, tracking=True, ondelete='restrict',
         domain="[('move_type', '=', 'out_invoice'), "
                "('commercial_partner_id', '=', commercial_partner_id)]")
+    # Figure 6 C2 (B1): a damaged unit goes back into service only with a recorded restoration.
+    restored_condition = fields.Selection([('good', 'Good'), ('minor_scratch', 'Minor Scratch')],
+                                          string='Restored Condition', copy=False, tracking=True)
+    restored_note = fields.Text(string='Restoration Note', copy=False)
+    restored_by_id = fields.Many2one('res.users', string='Restored By', readonly=True, copy=False)
+    restored_date = fields.Datetime(string='Restored On', readonly=True, copy=False)
+    # Figure 6 C2 (B5): a Lost unit found again, before its record is closed.
+    found_note = fields.Text(string='Found Note', copy=False,
+                             help="Where and when the lost unit was found.")
+    found_by_id = fields.Many2one('res.users', string='Found Recorded By', readonly=True,
+                                  copy=False)
+    found_date = fields.Datetime(string='Found On', readonly=True, copy=False, tracking=True)
+    # Figure 6 C2 (B4): the verified standard stock operation behind the closure.
+    disposal_type = fields.Selection(DISPOSAL_TYPES, string='Disposition', readonly=True,
+                                     copy=False, tracking=True)
+    disposal_move_line_id = fields.Many2one('stock.move.line', string='Disposition Move',
+                                            readonly=True, copy=False)
 
     @api.depends_context('uid')
     @api.depends('assessment_state', 'assessment_submitted_by_id', 'company_id')
@@ -262,20 +294,76 @@ class WarrantyBackupUnit(models.Model):
                                  ('quantity', '>', 0)]).lot_id if location else self.env['stock.lot']
             lots -= self.sudo().search([('state', '!=', 'closed'), ('lot_id', 'in', lots.ids),
                                         ('id', '!=', unit._origin.id or 0)]).lot_id
+            lots -= self._warranty_backup_written_off_lots(lots)
             unit.available_product_ids = lots.product_id
             unit.available_lot_ids = lots.filtered(
                 lambda lot: not unit.product_id or lot.product_id == unit.product_id)
 
+    # A case / Repair Order still valid for the new ticket / case is kept (Issue Backup Machine
+    # prefills all three; the first onchange runs on every default).
     @api.onchange('ticket_id')
     def _onchange_ticket_id(self):
         cases = self.ticket_id._warranty_active_cases() if self.ticket_id \
             else self.env['warranty.case']
-        self.warranty_case_id = cases if len(cases) == 1 else False
+        if self.warranty_case_id._origin not in cases:
+            self.warranty_case_id = cases if len(cases) == 1 else False
 
     @api.onchange('warranty_case_id')
     def _onchange_warranty_case_id(self):
         repairs = self.warranty_case_id._warranty_active_repairs()
-        self.repair_id = repairs.id if len(repairs) == 1 else False
+        if self.repair_id._origin not in repairs:
+            self.repair_id = repairs.id if len(repairs) == 1 else False
+
+    # ------------------------------------------------------------------ navigation (Figure 6)
+    @api.model
+    def _warranty_backup_counts(self, field, records):
+        """{record id: number of backup units} for the Backup Units smart buttons."""
+        groups = self._read_group([(field, 'in', records._origin.ids)], [field], ['__count'])
+        return {record.id: count for record, count in groups}
+
+    @api.model
+    def _warranty_backup_action(self, domain):
+        """Backup Units smart buttons: the linked records; created from Issue Backup Machine."""
+        units = self.search(domain)
+        action = {
+            'type': 'ir.actions.act_window',
+            'name': _("Backup Units"),
+            'res_model': 'warranty.backup.unit',
+            'view_mode': 'list,form',
+            'views': [(False, 'list'), (False, 'form')],
+            'domain': [('id', 'in', units.ids)],
+            'context': {'create': False},
+        }
+        if len(units) == 1:
+            action.update({'view_mode': 'form', 'views': [(False, 'form')], 'res_id': units.id})
+        return action
+
+    def _warranty_backup_next_step(self):
+        """Repair Order Next Step, after the machine went back: the first backup unit still to
+        receive, inspect or assess (existing buttons; Damaged / Lost after approval wait for BA
+        decision D3)."""
+        for unit in self.sorted('id'):
+            if unit.assessment_state == 'to_approve':
+                return _("Backup unit %s: the damage / loss assessment waits for approval.",
+                         unit.name)
+            if unit.state in AT_CUSTOMER_STATES:
+                if self._warranty_backup_active(unit.return_picking_id):
+                    return _("Backup unit %(unit)s: validate the return %(picking)s.",
+                             unit=unit.name, picking=unit.sudo().return_picking_id.name)
+                return _("Backup unit %s: receive the backup machine (Create Return Transfer).",
+                         unit.name)
+            if unit.state == 'returned':
+                restock = unit.sudo().restock_picking_id
+                if unit._warranty_backup_restock_open() and restock.state == 'done':
+                    return _("Backup unit %s: Close.", unit.name)
+                if unit._warranty_backup_restock_open() and self._warranty_backup_active(restock):
+                    return _("Backup unit %(unit)s: validate the return to Backup Stock "
+                             "%(picking)s, then Close.", unit=unit.name, picking=restock.name)
+                return _("Backup unit %s: after the inspection, move the serial to Backup Stock, "
+                         "then Close.", unit.name)
+            if unit.state == 'damaged' and unit.assessment_state == 'none':
+                return _("Backup unit %s: submit the damage assessment.", unit.name)
+        return False
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
@@ -305,9 +393,22 @@ class WarrantyBackupUnit(models.Model):
                 raise ValidationError(_("Repair Order %s belongs to another warranty case.",
                                         unit.repair_id.name))
 
+    @api.model
+    def _warranty_backup_written_off_lots(self, lots):
+        """B5e: serials whose latest backup record was closed after a Scrap or a missing count.
+        A manual stock correction never makes them issuable again (recovery of a closed record:
+        Part 9)."""
+        latest = {}
+        for unit in self.sudo().search([('lot_id', 'in', lots.ids)], order='id'):
+            latest[unit.lot_id] = unit
+        return self.env['stock.lot'].union(*[
+            lot for lot, unit in latest.items()
+            if unit.state == 'closed' and unit.disposal_type in WRITTEN_OFF])
+
     @api.constrains('lot_id')
     def _check_backup_serial_open(self):
-        """A backup serial has one open record at a time (no duplicate issue)."""
+        """A backup serial has one open record at a time (no duplicate issue), and a written-off
+        serial is not issued again (B5e)."""
         for unit in self.sudo():
             other = self.sudo().search([('lot_id', '=', unit.lot_id.id), ('id', '!=', unit.id),
                                         ('state', '!=', 'closed')], limit=1)
@@ -315,6 +416,13 @@ class WarrantyBackupUnit(models.Model):
                 raise ValidationError(_("Backup serial %(serial)s is already on the open backup "
                                         "record %(other)s.", serial=unit.lot_id.name,
                                         other=other.name))
+            previous = self.sudo().search([('lot_id', '=', unit.lot_id.id), ('id', '<', unit.id)],
+                                          order='id desc', limit=1)
+            if previous.state == 'closed' and previous.disposal_type in WRITTEN_OFF:
+                raise ValidationError(_(
+                    "Backup serial %(serial)s was written off with backup record %(other)s "
+                    "(%(disposal)s): it cannot be issued again.", serial=unit.lot_id.name,
+                    other=previous.name, disposal=dict(DISPOSAL_TYPES)[previous.disposal_type]))
 
     @api.constrains('deposit_amount', 'deposit_invoice_id', 'partner_id')
     def _check_backup_deposit(self):
@@ -368,10 +476,19 @@ class WarrantyBackupUnit(models.Model):
                                                 for unit in self):
                 raise UserError(_("The issue details can only be changed while the backup unit is "
                                   "Draft, before its issue transfer exists."))
-            if RETURN_FIELDS & set(vals) and any(unit.state not in AT_CUSTOMER_STATES
+            if RETURN_FIELDS & set(vals) and any(not unit._warranty_backup_receivable()
                                                  for unit in self):
                 raise UserError(_("The return details are recorded while the backup unit is with "
                                   "the customer."))
+            if RESTORE_FIELDS & set(vals) and any(
+                    unit.state != 'damaged' or unit.assessment_state != 'approved'
+                    or unit.restored_date for unit in self):
+                raise UserError(_("The restoration is recorded on a Damaged backup unit with an "
+                                  "approved assessment, before Confirm Restored."))
+            if FOUND_FIELDS & set(vals) and any(unit.state != 'lost' or unit.found_date
+                                                for unit in self):
+                raise UserError(_("The found note is recorded on a Lost backup unit, before Record "
+                                  "Found."))
             if 'expected_return_date' in vals and any(
                     unit.state not in ('draft',) + AT_CUSTOMER_STATES for unit in self):
                 raise UserError(_("The expected return can only be changed until the backup unit "
@@ -390,6 +507,11 @@ class WarrantyBackupUnit(models.Model):
     def _warranty_backup_issue_locked(self):
         self.ensure_one()
         return self.state != 'draft' or self._warranty_backup_active(self.issue_picking_id)
+
+    def _warranty_backup_receivable(self):
+        """With the customer, or a Lost unit found again (B5): the Backup Return receives it."""
+        self.ensure_one()
+        return self.state in AT_CUSTOMER_STATES or (self.state == 'lost' and bool(self.found_date))
 
     @api.model
     def _warranty_backup_active(self, picking):
@@ -454,14 +576,17 @@ class WarrantyBackupUnit(models.Model):
         if not self.env.user.has_group('stock.group_stock_user'):
             raise AccessError(_("Only Inventory users can create backup unit transfers."))
 
-    def _warranty_backup_create_picking(self, picking_type):
-        """Standard internal transfer of exactly this serial. Odoo may reserve any serial on
-        confirmation, so that reservation is released and this serial reserved."""
+    def _warranty_backup_create_picking(self, picking_type, source=None, destination=None):
+        """Standard internal transfer of exactly this serial, between the operation's default
+        locations unless given. Odoo may reserve any serial on confirmation, so that reservation
+        is released and this serial reserved."""
         self.ensure_one()
+        source = source or picking_type.default_location_src_id
+        destination = destination or picking_type.default_location_dest_id
         picking = self.env['stock.picking'].create({
             'picking_type_id': picking_type.id,
-            'location_id': picking_type.default_location_src_id.id,
-            'location_dest_id': picking_type.default_location_dest_id.id,
+            'location_id': source.id,
+            'location_dest_id': destination.id,
             'partner_id': self.partner_id.id,
             'origin': self.name,
             'move_ids': [(0, 0, {
@@ -469,8 +594,8 @@ class WarrantyBackupUnit(models.Model):
                 'product_id': self.product_id.id,
                 'product_uom': self.product_id.uom_id.id,
                 'product_uom_qty': 1.0,
-                'location_id': picking_type.default_location_src_id.id,
-                'location_dest_id': picking_type.default_location_dest_id.id,
+                'location_id': source.id,
+                'location_dest_id': destination.id,
             })],
         })
         picking.action_confirm()
@@ -520,7 +645,10 @@ class WarrantyBackupUnit(models.Model):
         """Create Return Transfer: the dedicated Backup Return operation (SRS 2.9)."""
         self.ensure_one()
         self._warranty_backup_check_user()
-        if self.state not in AT_CUSTOMER_STATES:
+        if self.state == 'lost' and not self.found_date:
+            raise UserError(_("Backup unit %s is Lost: an approver must first use Record Found.",
+                              self.name))
+        if not self._warranty_backup_receivable():
             raise UserError(_("Backup unit %s is not with the customer.", self.name))
         if self.assessment_state == 'to_approve':
             raise UserError(_("Backup unit %s has a loss report waiting for approval: the approver "
@@ -534,24 +662,320 @@ class WarrantyBackupUnit(models.Model):
         self._warranty_backup_marked().write({'return_picking_id': picking.id})
         return self._warranty_open_picking(picking)
 
+    def _warranty_backup_restock_open(self):
+        """Return to Backup Stock: a unit returned in Good or Minor Scratch condition (C3), without
+        assessment, or recovered after Lost (B5); a Damaged unit with an approved assessment and
+        a confirmed restoration (B1). A manual internal transfer, then Close, still works."""
+        self.ensure_one()
+        if self.state == 'returned':
+            return self.return_condition in ('good', 'minor_scratch') and (
+                self.assessment_state == 'none' or self._warranty_backup_recovered())
+        return self.state == 'damaged' and self.assessment_state == 'approved' \
+            and bool(self.restored_date)
+
+    def _warranty_backup_recovered(self):
+        """Received again after an approved loss (B5)."""
+        self.ensure_one()
+        return bool(self.found_date) and self.assessment_type == 'loss' \
+            and self.assessment_state == 'approved'
+
+    def _warranty_backup_restock_locations(self):
+        """(Returned-Inspection, Backup Stock): the locations of the two backup operations."""
+        company = self.company_id
+        return (company.warranty_backup_return_type_id.default_location_dest_id,
+                company.warranty_backup_issue_type_id.default_location_src_id)
+
+    def _warranty_backup_restock_type(self):
+        """The existing standard Internal Transfers of the Backup Issue operation's warehouse,
+        else of the company's only warehouse (D-R2: no new operation type or setting)."""
+        company = self.company_id
+        warehouses = company.warranty_backup_issue_type_id.warehouse_id \
+            or self.env['stock.warehouse'].search([('company_id', '=', company.id)])
+        picking_type = warehouses.int_type_id if len(warehouses) == 1 \
+            else self.env['stock.picking.type']
+        if not picking_type.active or picking_type.code != 'internal' \
+                or picking_type.company_id != company:
+            raise UserError(_("No active standard Internal Transfers operation type was found for "
+                              "%(company)s: activate it, or set the Warehouse of the Backup Issue "
+                              "Operation Type.", company=company.name))
+        return picking_type
+
+    def _warranty_backup_pending_transfers(self):
+        """Transfers not done yet, not linked to a backup unit, that hold this serial in
+        Returned-Inspection: (those that move exactly this unit to Backup Stock, the others)."""
+        self.ensure_one()
+        source, destination = self._warranty_backup_restock_locations()
+        within = self._warranty_backup_location_within
+        lines = self.env['stock.move.line'].search([
+            ('lot_id', '=', self.lot_id.id), ('picking_id', '!=', False),
+            ('state', 'not in', ('done', 'cancel')), ('location_id', 'child_of', source.id)])
+        linked = self._warranty_backup_units_of(lines.picking_id)
+        pickings = lines.picking_id - linked.issue_picking_id - linked.return_picking_id \
+            - linked.restock_picking_id
+        matching = pickings.filtered(lambda picking: (
+            picking.company_id == self.company_id
+            and len(picking.move_ids) == 1 and len(picking.move_line_ids) == 1
+            and picking.move_ids.product_id == self.product_id
+            and picking.move_ids.product_uom_qty == 1
+            and picking.move_line_ids.lot_id == self.lot_id
+            and within(picking.location_id, source) and within(picking.location_dest_id, destination)
+            and within(picking.move_line_ids.location_dest_id, destination)))
+        return matching, pickings - matching
+
+    def action_warranty_backup_restock(self):
+        """Return to Backup Stock (Figure 6): a standard internal transfer of exactly this serial,
+        Returned-Inspection -> Backup Stock, validated by the user on the standard screen. Close
+        stays a separate step (D-R1). An unlinked transfer is opened, never linked."""
+        self.ensure_one()
+        self._warranty_backup_check_user()
+        if not self._warranty_backup_restock_open():
+            raise UserError(_("Return to Backup Stock is for a backup unit Returned in Good or "
+                              "Minor Scratch condition, without assessment, or a restored "
+                              "Damaged unit (%s).", self.name))
+        restock = self.restock_picking_id
+        if self._warranty_backup_active(restock):
+            if restock.state != 'done':
+                return self._warranty_open_picking(restock)
+            raise UserError(_("Backup unit %(unit)s was returned to Backup Stock with %(picking)s: "
+                              "use Close.", unit=self.name, picking=restock.name))
+        source, destination = self._warranty_backup_restock_locations()
+        if not source or not destination:
+            raise UserError(_("Set the Backup Issue and Backup Return Operation Types in "
+                              "Settings > Warranty."))
+        if self.env['stock.quant'].sudo()._get_available_quantity(
+                self.product_id, destination, lot_id=self.lot_id, strict=False):
+            raise UserError(_("Serial %(serial)s is already in %(location)s: use Close.",
+                              serial=self.lot_id.name, location=destination.display_name))
+        matching, others = self._warranty_backup_pending_transfers()
+        if len(matching) == 1 and not others:
+            return self._warranty_open_picking(matching)
+        if matching or others:
+            raise UserError(_("Serial %(serial)s is already on transfers not validated yet: "
+                              "%(pickings)s. Validate or cancel them in Inventory first.",
+                              serial=self.lot_id.name,
+                              pickings=', '.join((matching | others).mapped('name'))))
+        picking = self._warranty_backup_create_picking(self._warranty_backup_restock_type(),
+                                                       source, destination)
+        self._warranty_backup_marked().write({'restock_picking_id': picking.id})
+        self._warranty_backup_log(_("Backup unit %(unit)s: return to Backup Stock %(picking)s "
+                                    "created by %(user)s for serial %(serial)s.", unit=self.name,
+                                    picking=picking.name, user=self.env.user.name,
+                                    serial=self.lot_id.name))
+        return self._warranty_open_picking(picking)
+
     def action_warranty_backup_close(self):
         """Close a returned unit once it is back in Backup Stock (standard internal transfer);
-        its serial can then be issued again. Damaged / Lost: not closed until BA decision D3, so
-        their serials stay blocked."""
+        its serial can then be issued again. Damaged / Lost / recovered units (Figure 6 C2): an
+        approved assessment, a settled charge and a verified standard stock operation (B1-B7).
+        Nothing is moved, scrapped, adjusted, invoiced or posted here."""
         self.ensure_one()
-        if self.state != 'returned':
-            raise UserError(_("Only Returned backup units can be closed (%s).", self.name))
-        location = self.company_id.warranty_backup_issue_type_id.default_location_src_id
-        if not self.env['stock.quant'].sudo()._get_available_quantity(
-                self.product_id, location, lot_id=self.lot_id, strict=False):
-            raise UserError(_("Serial %(serial)s is not back in %(location)s: transfer it with a "
-                              "standard internal transfer after the inspection.",
-                              serial=self.lot_id.name, location=location.display_name))
-        self._warranty_backup_marked().write({'state': 'closed'})
+        if self.state == 'returned' and self.assessment_state == 'none':
+            location = self.company_id.warranty_backup_issue_type_id.default_location_src_id
+            if not self.env['stock.quant'].sudo()._get_available_quantity(
+                    self.product_id, location, lot_id=self.lot_id, strict=False):
+                raise UserError(_("Serial %(serial)s is not back in %(location)s: transfer it "
+                                  "with a standard internal transfer after the inspection.",
+                                  serial=self.lot_id.name, location=location.display_name))
+            self._warranty_backup_marked().write({'state': 'closed', 'disposal_type': 'stock'})
+            self._warranty_backup_close_todos()
+            self._warranty_backup_log(_("Backup unit %(unit)s closed by %(user)s: serial %(serial)s "
+                                        "is back in Backup Stock.", unit=self.name,
+                                        user=self.env.user.name, serial=self.lot_id.name))
+            return True
+        if self.state not in ('returned', 'damaged', 'lost'):
+            raise UserError(_("Only Returned, Damaged or Lost backup units can be closed (%s).",
+                              self.name))
+        self._warranty_backup_check_user()  # B7: Close confirms the physical state
+        problems, disposal, line = self._warranty_backup_close_check()
+        if problems:
+            raise UserError(_("Backup unit %(unit)s cannot be closed:\n%(problems)s",
+                              unit=self.name,
+                              problems='\n'.join('- %s' % problem for problem in problems)))
+        self._warranty_backup_marked().write({'state': 'closed', 'disposal_type': disposal,
+                                              'disposal_move_line_id': line.id})
         self._warranty_backup_close_todos()
-        self._warranty_backup_log(_("Backup unit %(unit)s closed by %(user)s: serial %(serial)s "
-                                    "is back in Backup Stock.", unit=self.name,
-                                    user=self.env.user.name, serial=self.lot_id.name))
+        unit = self.sudo()
+        self._warranty_backup_log(_(
+            "Backup unit %(unit)s closed by %(user)s: %(type)s assessment approved by %(approver)s; "
+            "Financial Recovery %(financial)s; Disposition %(disposal)s%(reference)s; serial "
+            "%(serial)s.", unit=self.name, user=self.env.user.name,
+            type=dict(ASSESSMENT_TYPES)[unit.assessment_type],
+            approver=unit.assessment_approved_by_id.name,
+            financial=dict(CHARGE_STATUSES)[unit.charge_status],
+            disposal=dict(DISPOSAL_TYPES)[disposal],
+            reference=' (%s, %s, %s)' % (line.reference, line.write_uid.name, line.date)
+            if line else '', serial=unit.lot_id.name))
+        return True
+
+    # ------------------------------------------------------------------ Figure 6 C2 closure
+    def _warranty_backup_close_check(self):
+        """(problems, disposition, verified stock move line) of a Damaged / Lost / recovered
+        unit; every problem listed at once."""
+        self.ensure_one()
+        unit = self.sudo()
+        problems = []
+        if unit.state == 'lost' and unit.found_date:
+            return [_("The unit was found: receive it with Create Return Transfer first.")], \
+                False, self.env['stock.move.line']
+        if unit.assessment_state != 'approved':
+            problems.append(_("The assessment must be approved."))
+        financial = unit._warranty_backup_financial_problem()
+        if financial:
+            problems.append(financial)
+        pending = self.env['stock.move.line'].sudo().search([
+            ('lot_id', '=', unit.lot_id.id), ('state', 'not in', ('done', 'cancel'))])
+        if pending:
+            problems.append(_("Serial %(serial)s is on transfers not validated yet: %(pickings)s.",
+                              serial=unit.lot_id.name, pickings=', '.join(
+                                  pending.mapped('reference'))))
+        disposal, line, physical = unit._warranty_backup_disposition()
+        if physical:
+            problems.append(physical)
+        return problems, disposal, line
+
+    def _warranty_backup_financial_problem(self):
+        """B2 / B3 / B5c, read from the actual Sales and Accounting documents."""
+        self.ensure_one()
+        unit = self.sudo()
+        status = unit.charge_status
+        order = unit.charge_order_id
+        if status == 'no_charge':
+            return False
+        if status == 'paid':
+            if order.invoice_status != 'invoiced':
+                return _("Charge order %s is not fully invoiced.", order.name)
+            if order.invoice_ids.filtered(lambda move: move.state == 'draft'):
+                return _("Charge order %s has a draft invoice or credit note.", order.name)
+            return False
+        if status == 'credited' and unit._warranty_backup_recovered():
+            # B5c: the correction of a recovered loss is valid only when every posted invoice and
+            # credit note of the charge is settled (reconciled with each other or paid) and none
+            # is left in draft.
+            moves = order.invoice_ids
+            if moves.filtered(lambda move: move.state == 'draft'):
+                return _("Charge order %s has a draft invoice or credit note.", order.name)
+            open_moves = moves.filtered(lambda move: move.state == 'posted'
+                                        and not move.currency_id.is_zero(move.amount_residual))
+            if open_moves:
+                return _("Credit note correction not settled: %s still open.",
+                         ', '.join(open_moves.mapped('name')))
+            return False
+        return _("Financial Recovery is %s: the charge must be paid (or approved as no charge).",
+                 dict(CHARGE_STATUSES)[status]) if status != 'credited' else _(
+            "Financial Recovery is Credit Note Issued: closing needs a write-off rule (not "
+            "defined).")
+
+    def _warranty_backup_disposition(self):
+        """(disposition, stock move line, problem) from the serial's actual stock records (B1 /
+        B4): restored or recovered units back in Backup Stock; Damaged units scrapped from
+        Returned-Inspection; Lost units scrapped or counted missing from Service / Loan."""
+        self.ensure_one()
+        Line = self.env['stock.move.line']
+        company = self.company_id
+        backup_stock = company.warranty_backup_issue_type_id.default_location_src_id
+        inspection = company.warranty_backup_return_type_id.default_location_dest_id
+        loan = company.warranty_backup_issue_type_id.default_location_dest_id
+        within = self._warranty_backup_location_within
+        if self.state == 'returned' or (self.state == 'damaged' and self.restored_date):
+            if self.state == 'returned' and not self._warranty_backup_recovered():
+                return False, Line, _("Only a recovered unit has an assessment in Returned.")
+            if not self.env['stock.quant'].sudo()._get_available_quantity(
+                    self.product_id, backup_stock, lot_id=self.lot_id, strict=False):
+                return False, Line, _("Serial %(serial)s is not back in %(location)s: use Return "
+                                      "to Backup Stock.", serial=self.lot_id.name,
+                                      location=backup_stock.display_name)
+            return ('stock' if self.state == 'returned' else 'restored'), Line, False
+        source, allowed = (inspection, ('scrap',)) if self.state == 'damaged' \
+            else (loan, ('scrap', 'missing'))
+        if self.state == 'damaged':
+            needed = _("Scrap serial %(serial)s (Inventory > Scrap) from %(location)s, or record "
+                       "the restoration and use Confirm Restored.", serial=self.lot_id.name,
+                       location=source.display_name)
+        else:
+            needed = _("Resolve serial %(serial)s in %(location)s with a standard Scrap, or count "
+                       "it missing in Physical Inventory (Inventory Administrator).",
+                       serial=self.lot_id.name, location=source.display_name)
+        quants = self.env['stock.quant'].sudo().search([('lot_id', '=', self.lot_id.id),
+                                                        ('quantity', '>', 0)])
+        if quants.filtered(lambda quant: quant.location_id.usage in ('internal', 'transit')):
+            return False, Line, needed
+        line = Line.sudo().search([('lot_id', '=', self.lot_id.id), ('state', '=', 'done')],
+                                  order='date desc, id desc', limit=1)
+        kind = 'scrap' if line.move_id.scrap_id and line.location_dest_id.scrap_location else (
+            'missing' if line.move_id.is_inventory and line.location_dest_id.usage == 'inventory'
+            and not line.location_dest_id.scrap_location else False)
+        if not line or kind not in allowed or line.company_id != company \
+                or not within(line.location_id, source) \
+                or (self.issue_date and line.date < self.issue_date):
+            return False, Line, needed
+        return kind, line, False
+
+    def action_warranty_backup_confirm_restored(self):
+        """B1: an Inventory user records that the damaged unit is fit for service again, in
+        Returned-Inspection; Return to Backup Stock and Close follow."""
+        self.ensure_one()
+        self._warranty_backup_check_user()
+        if self.state != 'damaged' or self.assessment_state != 'approved' or self.restored_date:
+            raise UserError(_("Confirm Restored is for a Damaged backup unit with an approved "
+                              "assessment, once (%s).", self.name))
+        if not self.restored_condition or not (self.restored_note or '').strip():
+            raise UserError(_("Enter the Restored Condition and the Restoration Note."))
+        inspection = self.company_id.warranty_backup_return_type_id.default_location_dest_id
+        if not self.env['stock.quant'].sudo()._get_available_quantity(
+                self.product_id, inspection, lot_id=self.lot_id, strict=False):
+            raise UserError(_("Serial %(serial)s is not in %(location)s.",
+                              serial=self.lot_id.name, location=inspection.display_name))
+        self._warranty_backup_marked().write({'restored_by_id': self.env.uid,
+                                              'restored_date': fields.Datetime.now()})
+        self._warranty_backup_log(_(
+            "Backup unit %(unit)s: restoration confirmed by %(user)s, condition %(condition)s. "
+            "Note: %(note)s", unit=self.name, user=self.env.user.name,
+            condition=dict(self._fields['restored_condition']._description_selection(self.env))[
+                self.restored_condition], note=self.restored_note))
+        self._warranty_backup_todo(_("close"), _(
+            "Use Return to Backup Stock, validate the transfer, then use Close."))
+        return True
+
+    def action_warranty_backup_record_found(self):
+        """B5: a Backup Damage / Loss Approver records that the Lost unit was found. The serial
+        must verifiably be in Service / Loan With Customer again (a written-off serial needs a
+        standard stock correction by an Inventory Administrator first). The unit is then
+        received with the Backup Return operation."""
+        self.ensure_one()
+        if self.env.user not in self.sudo().company_id.warranty_backup_approver_user_ids:
+            raise AccessError(_("Only a Backup Damage / Loss Approver of the company can record a "
+                                "lost unit as found."))
+        if self.state != 'lost' or self.assessment_state != 'approved' or self.found_date:
+            raise UserError(_("Record Found is for a Lost backup unit, once (%s).", self.name))
+        if not (self.found_note or '').strip():
+            raise UserError(_("Enter the Found Note (where and when the unit was found)."))
+        unit = self.sudo()  # the approver may have no Inventory rights; read for the checks
+        loan = unit.company_id.warranty_backup_issue_type_id.default_location_dest_id
+        quants = self.env['stock.quant'].sudo().search([('lot_id', '=', unit.lot_id.id),
+                                                        ('quantity', '>', 0)])
+        written_off = quants.filtered(lambda quant: quant.location_id.usage == 'inventory')
+        if written_off:
+            raise UserError(_(
+                "Serial %(serial)s was written off (%(locations)s): an Inventory Administrator "
+                "must first correct the stock with a standard operation, back into %(loan)s.",
+                serial=unit.lot_id.name, loan=loan.display_name,
+                locations=', '.join(written_off.location_id.mapped('display_name'))))
+        if len(quants) != 1 or quants.quantity != 1 or quants.company_id != unit.company_id \
+                or not self._warranty_backup_location_within(quants.location_id, loan):
+            raise UserError(_("Serial %(serial)s must be in %(loan)s exactly once to be received "
+                              "(found in: %(locations)s).", serial=unit.lot_id.name,
+                              loan=loan.display_name, locations=', '.join(
+                                  quants.location_id.mapped('display_name')) or '-'))
+        unit._warranty_backup_marked().write({'found_by_id': self.env.uid,
+                                              'found_date': fields.Datetime.now()})
+        self._warranty_backup_log(_(
+            "Backup unit %(unit)s: lost serial %(serial)s recorded as found by %(user)s. Note: "
+            "%(note)s. The loss assessment and its charge are unchanged; any financial correction "
+            "is made by Accounting.", unit=self.name, serial=unit.lot_id.name,
+            user=self.env.user.name, note=self.found_note))
+        self._warranty_backup_todo(_("receive the backup unit"), _(
+            "The lost unit was found: set the Return Condition, use Create Return Transfer and "
+            "validate it."))
         return True
 
     # ------------------------------------------------------------------ damage / loss assessment
@@ -680,9 +1104,13 @@ class WarrantyBackupUnit(models.Model):
         if order:
             self._warranty_backup_todo(_("send the charge quotation"), _(
                 "Send quotation %s to the customer; it is confirmed and invoiced with the standard "
-                "Sales screens.", order.name))
+                "Sales screens. Close needs it paid and the unit scrapped, counted missing or "
+                "restored.", order.name))
         else:
-            self._warranty_backup_close_todos()
+            # Figure 6 C2: the next step is the physical disposition, then Close.
+            self._warranty_backup_todo(_("dispose and close"), _(
+                "Lost: Scrap the serial or count it missing in Physical Inventory. Damaged: Scrap "
+                "it, or record the restoration and use Confirm Restored. Then use Close."))
         return True
 
     def action_warranty_backup_send_back(self):
@@ -741,8 +1169,9 @@ class WarrantyBackupUnit(models.Model):
     @api.model
     def _warranty_backup_units_of(self, pickings):
         # sudo: the warehouse user may not read the record; read for the checks and status only.
-        return self.sudo().search(['|', ('issue_picking_id', 'in', pickings.ids),
-                                   ('return_picking_id', 'in', pickings.ids)])
+        return self.sudo().search(['|', '|', ('issue_picking_id', 'in', pickings.ids),
+                                   ('return_picking_id', 'in', pickings.ids),
+                                   ('restock_picking_id', 'in', pickings.ids)])
 
     @api.model
     def _warranty_backup_location_within(self, location, parent):
@@ -751,17 +1180,29 @@ class WarrantyBackupUnit(models.Model):
     @api.model
     def _warranty_backup_check_pickings(self, pickings):
         """Before any stock move (SRS 13): exactly this serial, from and to the operation's
-        locations, once; a return needs its condition."""
+        locations, once; a return needs its condition; a return to Backup Stock a Good unit."""
         for unit in self._warranty_backup_units_of(pickings):
             is_issue = unit.issue_picking_id in pickings
-            picking = unit.issue_picking_id if is_issue else unit.return_picking_id
+            is_restock = unit.restock_picking_id in pickings
+            picking = unit.issue_picking_id if is_issue else \
+                unit.restock_picking_id if is_restock else unit.return_picking_id
             if is_issue and unit.state != 'draft':
                 raise UserError(_("Backup unit %s has already been issued.", unit.name))
-            if not is_issue:
-                if unit.state == 'lost':
-                    raise UserError(_("Backup unit %s is recorded as Lost: the recovery of a lost "
-                                      "unit is not defined yet (BA decision D6).", unit.name))
-                if unit.state not in AT_CUSTOMER_STATES:
+            if is_restock:
+                if not unit._warranty_backup_restock_open():
+                    raise UserError(_("Backup unit %(unit)s is no longer Returned in Good or Minor "
+                                      "Scratch condition without assessment: cancel %(picking)s.",
+                                      unit=unit.name,
+                                      picking=picking.name))
+                source, destination = unit._warranty_backup_restock_locations()
+            else:
+                source = picking.picking_type_id.default_location_src_id
+                destination = picking.picking_type_id.default_location_dest_id
+            if not is_issue and not is_restock:
+                if unit.state == 'lost' and not unit.found_date:
+                    raise UserError(_("Backup unit %s is recorded as Lost: an approver must use "
+                                      "Record Found before it is received.", unit.name))
+                if not unit._warranty_backup_receivable():
                     raise UserError(_("Backup unit %s has already been returned.", unit.name))
                 if unit.assessment_state == 'to_approve':
                     raise UserError(_("Backup unit %s has a loss report waiting for approval: the "
@@ -769,23 +1210,19 @@ class WarrantyBackupUnit(models.Model):
                 if not unit.return_condition:
                     raise UserError(_("Set the Return Condition on backup unit %s before "
                                       "validating the return.", unit.name))
-            picking_type = picking.picking_type_id
             lines = picking.move_line_ids.filtered('quantity')
             line = lines if len(lines) == 1 else lines.browse()
             if not line or line.product_id != unit.product_id or line.lot_id != unit.lot_id \
                     or line.quantity_product_uom != 1 \
-                    or not self._warranty_backup_location_within(
-                        line.location_id, picking_type.default_location_src_id) \
-                    or not self._warranty_backup_location_within(
-                        line.location_dest_id, picking_type.default_location_dest_id):
+                    or not self._warranty_backup_location_within(line.location_id, source) \
+                    or not self._warranty_backup_location_within(line.location_dest_id,
+                                                                 destination):
                 raise UserError(_(
                     "%(picking)s must move exactly one %(product)s, serial %(serial)s, from "
-                    "%(source)s to %(destination)s (backup unit %(unit)s).",
+                    "%(origin)s to %(destination)s (backup unit %(unit)s).",
                     picking=picking.name, product=unit.product_id.display_name,
-                    serial=unit.lot_id.name,
-                    source=picking_type.default_location_src_id.display_name,
-                    destination=picking_type.default_location_dest_id.display_name,
-                    unit=unit.name))
+                    serial=unit.lot_id.name, origin=source.display_name,
+                    destination=destination.display_name, unit=unit.name))
 
     @api.model
     def _warranty_backup_after_pickings(self, pickings):
@@ -801,8 +1238,9 @@ class WarrantyBackupUnit(models.Model):
                     picking=unit.issue_picking_id.name, product=unit.product_id.display_name,
                     serial=unit.lot_id.name, customer=unit.partner_id.display_name,
                     date=unit.expected_return_date))
-            elif unit.return_picking_id in pickings and unit.state in AT_CUSTOMER_STATES:
+            elif unit.return_picking_id in pickings and unit._warranty_backup_receivable():
                 damaged = unit.return_condition == 'damaged'
+                recovered = unit.state == 'lost'
                 unit._warranty_backup_marked().write({
                     'state': 'damaged' if damaged else 'returned',
                     'actual_return_date': unit.return_picking_id.date_done})
@@ -811,14 +1249,33 @@ class WarrantyBackupUnit(models.Model):
                     "%(condition)s.", unit=unit.name, picking=unit.return_picking_id.name,
                     serial=unit.lot_id.name,
                     condition=dict(BACKUP_CONDITIONS)[unit.return_condition]))
-                if damaged:
+                if recovered:
+                    # B5d: the approved loss assessment stays the only financial decision.
+                    unit._warranty_backup_log(_(
+                        "Backup unit %(unit)s recovered after Lost: the approved loss assessment "
+                        "and its charge stay unchanged; any financial correction (credit note) is "
+                        "made by Accounting. A further damage charge needs a separate business "
+                        "decision.", unit=unit.name))
+                    unit._warranty_backup_todo(_("inspect and close"), _(
+                        "Damaged: Scrap the serial, or record the restoration and use Confirm "
+                        "Restored, then Return to Backup Stock and Close.") if damaged else _(
+                        "After the inspection, use Return to Backup Stock and validate the "
+                        "transfer, then use Close."))
+                elif damaged:
                     unit._warranty_backup_todo(_("submit the damage assessment"), _(
                         "Enter the assessment notes, repair / scrap cost and customer charge, then "
                         "use Submit Assessment."))
                 else:
                     unit._warranty_backup_todo(_("inspect and close"), _(
-                        "After the inspection, transfer the serial back to Backup Stock with a "
-                        "standard internal transfer, then use Close."))
+                        "After the inspection, use Return to Backup Stock and validate the "
+                        "transfer, then use Close."))
+            elif unit.restock_picking_id in pickings and unit.state in ('returned', 'damaged'):
+                unit._warranty_backup_log(_(
+                    "Backup unit %(unit)s: serial %(serial)s returned to Backup Stock with "
+                    "%(picking)s.", unit=unit.name, serial=unit.lot_id.name,
+                    picking=unit.restock_picking_id.name))
+                unit._warranty_backup_todo(_("close"), _(
+                    "Serial %s is back in Backup Stock: use Close.", unit.lot_id.name))
 
     # ------------------------------------------------------------------ overdue
     @api.model

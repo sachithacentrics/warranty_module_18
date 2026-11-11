@@ -86,6 +86,8 @@
                 .wc-note { font-size: 9pt; text-align: center; margin-top: 3mm; }
                 .wc-note-valid { color: #c0241c; font-weight: bold; }
                 .wc-updated { color: #c0241c; font-weight: bold; font-size: 9pt; margin-bottom: 2mm; }
+                .wc-duplicate { color: #c0241c; font-weight: bold; font-size: 10pt; letter-spacing: 0.5px; margin: 1mm 0 1.5mm 0; }
+                .wc-notice > div { display: inline-block; margin: 0 5mm 2mm 0; }
                 .wc-mail { position: absolute; left: 25mm; top: 12mm; width: 100mm; height: 90mm; }
                 .wc-mail-text { -webkit-transform: rotate(90deg); -webkit-transform-origin: left top; position: absolute; left: 62mm; top: 0; width: 170mm; font-size: 10pt; line-height: 1.5; }
                 .wc-mail-company { color: #3f3d96; font-weight: bold; font-size: 11pt; }
@@ -104,10 +106,29 @@
                 .wc-terms p { margin: 0 0 1.5mm 0; }
                 .wc-company { text-align: center; font-size: 9pt; margin-top: 2mm; }
                 .wc-company strong { color: #3f3d96; font-size: 11pt; }
+                .wc-schedule { width: 280mm; font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #222; padding-top: 5mm; }
+                .wc-schedule table { border-collapse: collapse; }
+                .wc-schedule .wc-head { width: 280mm; }
+                .wc-schedule .wc-title { height: 19mm; }
+                .wc-schedule-info { margin: 0 0 3mm 0; }
+                .wc-units { width: 280mm; }
+                .wc-units thead { display: table-header-group; }
+                .wc-units tr { page-break-inside: avoid; }
+                .wc-units th { background-color: #3f3d96; color: #fff; text-align: left; padding: 1.5mm 2mm; border: 1px solid #3f3d96; }
+                .wc-units td { border: 1px solid #999; padding: 1.5mm 2mm; vertical-align: top; }
+                .wc-units-no { width: 16mm; text-align: center; }
+                .wc-units-date { width: 26mm; }
             </style>
+            <!-- One unit: the unit on the sheet. Several units (SRS 2.3): one sheet with the card
+                 values, then the Unit Warranty Schedule, which continues on further pages. -->
+            <!-- SRS 9.10 step 7: Print No. 2 onwards (the download being delivered) is a
+                 Duplicate Copy; the stored soft copy has no print number. -->
+            <t t-set="print_no" t-value="card.env.context.get('warranty_card_print_no') or 0"/>
+            <t t-set="duplicate_label" t-value="print_no &gt; 1 and ('DUPLICATE COPY – Print No. %s' % print_no)"/>
             <t t-set="units" t-value="card._warranty_card_print_units()"/>
-            <t t-foreach="units or [card.env['warranty.unit']]" t-as="unit">
-                <t t-set="doc_values" t-value="card._warranty_card_print_values(unit)"/>
+            <t t-set="multi_unit" t-value="len(units) &gt; 1"/>
+            <t t-foreach="[units[:0]] if multi_unit else (units or [card.env['warranty.unit']])" t-as="unit">
+                <t t-set="doc_values" t-value="card._warranty_card_print_summary_values(units) if multi_unit else card._warranty_card_print_values(unit)"/>
                 <!-- Front: Warranty Certificate and Registration Copy -->
                 <div class="wc-sheet wc-break">
                     <table class="wc-panels"><tr>
@@ -117,7 +138,9 @@
                                 <td class="wc-gap"/>
                                 <td class="wc-title">WARRANTY CERTIFICATE</td>
                             </tr></table>
-                            <div name="warranty_card_notice"/>
+                            <div name="warranty_card_notice" class="wc-notice">
+                                <div t-if="duplicate_label" class="wc-duplicate" t-out="duplicate_label"/>
+                            </div>
                             <table class="wc-rows">
                                 <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Dealer Name</t><t t-set="value" t-value="doc_values['dealer']"/><t t-set="always" t-value="True"/></t>
                                 <t t-call="warranty_management.report_warranty_card_line"><t t-set="label">Model No</t><t t-set="value" t-value="doc_values['model']"/><t t-set="always" t-value="True"/></t>
@@ -175,13 +198,14 @@
                                 </table>
                             </div>
                             <div class="wc-number">Warranty Card Number : <strong t-out="doc_values['number']"/></div>
+                            <div t-if="duplicate_label" class="wc-duplicate" t-out="duplicate_label"/>
                             <div t-if="company.warranty_card_return_note" class="wc-note" t-field="company.warranty_card_return_note"/>
                             <div t-if="company.warranty_card_valid_note" class="wc-note wc-note-valid" t-field="company.warranty_card_valid_note"/>
                         </td>
                     </tr></table>
                 </div>
                 <!-- Back: mailing and stamp panel, then Terms and Conditions -->
-                <div t-attf-class="wc-sheet {{ '' if unit_last else 'wc-break' }}">
+                <div t-attf-class="wc-sheet {{ '' if unit_last and not multi_unit else 'wc-break' }}">
                     <table class="wc-panels"><tr>
                         <td class="wc-panel wc-fold" name="warranty_card_back_left">
                             <div class="wc-mail">
@@ -209,6 +233,7 @@
                                     <div name="warranty_card_start"><span name="warranty_card_start_label">Start Date :</span> <strong t-out="doc_values['start_text']"/></div>
                                     <div t-if="doc_values['end_text']" name="warranty_card_end"><span name="warranty_card_end_label">End Date :</span> <strong t-out="doc_values['end_text']"/></div>
                                     <div t-if="doc_values['free_services']">Free Services : <strong t-out="doc_values['free_services']"/></div>
+                                    <div t-if="multi_unit">Dates of each unit : see the Unit Warranty Schedule</div>
                                 </td>
                                 <td class="wc-logo-cell"><t t-call="warranty_management.report_warranty_card_logo"/></td>
                             </tr></table>
@@ -226,6 +251,48 @@
                     </tr></table>
                 </div>
             </t>
+            <!-- Unit Warranty Schedule: not a fixed-size sheet, so the rows continue on further
+                 pages with the column headings repeated. -->
+            <div t-if="multi_unit" class="wc-schedule" name="warranty_card_schedule">
+                <table class="wc-head"><tr>
+                    <td class="wc-logo-cell"><t t-call="warranty_management.report_warranty_card_logo"/></td>
+                    <td class="wc-gap"/>
+                    <td class="wc-title">UNIT WARRANTY SCHEDULE</td>
+                </tr></table>
+                <div t-if="duplicate_label" class="wc-duplicate" t-out="duplicate_label"/>
+                <div class="wc-schedule-info">
+                    Warranty Card Number : <strong t-out="card.name"/>
+                    &#160; | &#160; Customer : <strong t-out="card.partner_id.name"/>
+                    &#160; | &#160; Units : <strong t-out="len(units)"/>
+                </div>
+                <table class="wc-units">
+                    <thead>
+                        <tr>
+                            <th class="wc-units-no">#</th>
+                            <th>Product Name</th>
+                            <th>Unit Warranty Number</th>
+                            <th>Serial / Lot Number</th>
+                            <th class="wc-units-no">Unit No.</th>
+                            <th class="wc-units-date">Start Date</th>
+                            <th class="wc-units-date">End Date</th>
+                            <th class="wc-units-date">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="card._warranty_card_print_schedule(units)" t-as="row">
+                            <td class="wc-units-no" t-out="row_index + 1"/>
+                            <td t-out="row['product']"/>
+                            <td t-out="row['number']"/>
+                            <td t-out="row['serial'] or '-'"/>
+                            <td class="wc-units-no" t-out="row['unit_number']"/>
+                            <td t-out="row['start_text']"/>
+                            <td t-out="row['end_text'] or '-'"/>
+                            <td t-out="row['state']"/>
+                        </tr>
+                    </tbody>
+                </table>
+                <div name="warranty_card_schedule_extra"/>
+            </div>
         </div>
     </template>
 

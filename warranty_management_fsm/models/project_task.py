@@ -59,6 +59,21 @@ class ProjectTask(models.Model):
     warranty_hide_standard_worksheet = fields.Boolean(
         compute='_compute_warranty_worksheet_count', compute_sudo=True)
 
+    # Next step of the visit header (UX): not stored, read from the existing completion checks.
+    warranty_signoff_required = fields.Boolean(
+        related='company_id.warranty_signoff_required', string='Customer Sign-off Required')
+    warranty_worksheets_ready = fields.Boolean(compute='_compute_warranty_worksheets_ready',
+                                               compute_sudo=True)
+
+    def _compute_warranty_worksheets_ready(self):
+        """Worksheets filled in: each instance passes the worksheet checks of Complete Visit and
+        has its checklist record (when it has a template)."""
+        for task in self:
+            task.warranty_worksheets_ready = all(
+                not sheet._warranty_completion_problems()
+                and (not sheet.template_id or sheet._worksheet_existing_record())
+                for sheet in task.warranty_worksheet_ids)
+
     @api.depends('warranty_service_job_id', 'warranty_shared_job_ids')
     def _compute_warranty_is_visit(self):
         for task in self:

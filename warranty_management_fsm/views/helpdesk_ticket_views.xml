@@ -9,6 +9,14 @@
             <xpath expr="//field[@name='warranty_linked_service_ids']/list/field[@name='warranty_units_display']" position="replace">
                 <field name="warranty_job_units_display"/>
             </xpath>
+            <!-- A linked ticket shows the header Product / Serial No. only for a single unit
+                 (set from the job); several units: the Linked Free Services table shows each. -->
+            <xpath expr="//field[@name='warranty_product_id']" position="attributes">
+                <attribute name="invisible">warranty_is_linked and not warranty_product_id</attribute>
+            </xpath>
+            <xpath expr="//field[@name='warranty_serial_id']" position="attributes">
+                <attribute name="invisible">warranty_is_linked and not warranty_product_id</attribute>
+            </xpath>
         </field>
     </record>
 </odoo>

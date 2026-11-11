@@ -42,6 +42,13 @@ class WarrantyCase(models.Model):
              "On Payment: that order is fully invoiced and fully paid.")
     source_service_job_id = fields.Many2one('warranty.service.job', string='Reported From Job',
                                             readonly=True, copy=False, index='btree_not_null')
+    # Display only (UX): the header button of an Approved, Eligible case with Inspection Required
+    # follows the step Prepare Service Job would run (quotation / waiting for the trigger / job).
+    warranty_inspection_step = fields.Selection([
+        ('quotation', 'Inspection Quotation to Create'),
+        ('waiting', 'Waiting for the Inspection Trigger'),
+        ('job', 'Service Job to Prepare'),
+    ], compute='_compute_warranty_inspection_step')
 
     @api.constrains('service_entitlement_ids', 'helpdesk_ticket_id')
     def _check_services_open_job(self):
@@ -280,6 +287,35 @@ class WarrantyCase(models.Model):
                     self.env))[service.merge_status]))
         return job
 
+    def _compute_warranty_inspection_step(self):
+        for case in self:
+            step = False
+            if case.id and case._warranty_inspection_gate() and not case.open_service_job_id:
+                orders = case._warranty_inspection_orders()
+                if not orders:
+                    step = 'quotation'
+                elif not orders.filtered(case._warranty_trigger_met):
+                    step = 'waiting'
+                else:
+                    # Trigger met but its automatic job failed (logged): Prepare Service Job.
+                    step = 'job'
+            case.warranty_inspection_step = step
+
+    def action_open_inspection_quotation(self):
+        """Open Inspection Quotation: the case's existing inspection quotation (never a new
+        one); the service job follows the Inspection Trigger."""
+        self.ensure_one()
+        orders = self._warranty_inspection_orders()
+        if not orders:
+            raise UserError(_("%s has no inspection quotation.", self.name))
+        return self._warranty_open_quotation(orders.with_env(self.env)[-1])
+
+    def action_open_service_job(self):
+        self.ensure_one()
+        if not self.open_service_job_id:
+            raise UserError(_("%s has no open service job.", self.name))
+        return self._warranty_open_service_job(self.open_service_job_id)
+
     def _warranty_open_service_job(self, job):
         return {
             'type': 'ir.actions.act_window',
@@ -396,17 +432,29 @@ class WarrantyCase(models.Model):
     def _warranty_create_inspection_quotation(self):
         """SRS Figure 4 "Yes" / 2.11: draft inspection quotation of the case (team Inspection
         Product / Amount), linked to the case and its ticket; the customer is notified with the
-        quotation's Send button (C10 To-Do). The case stays Approved / Eligible."""
+        quotation's Send button (C10 To-Do). The case stays Approved / Eligible.
+        An Inspection Product explicitly Covered by the policy keeps its price with a 100%
+        discount (customer amount 0.00); Excluded or Not Listed stays chargeable."""
         self.ensure_one()
-        order = self._warranty_create_quotation(self._warranty_inspection_line_vals())
+        line_vals = self._warranty_inspection_line_vals()
+        coverage, item = self._warranty_inspection_coverage(
+            self.env['product.product'].browse(line_vals[0]['product_id']))
+        line_vals[0]['warranty_inspection_coverage'] = coverage
+        if coverage == 'covered':
+            line_vals[0]['discount'] = 100.0
+        order = self._warranty_create_quotation(line_vals)
         # sudo: the purpose is a system value (sale.order write guard).
         order.sudo().warranty_chargeable_purpose = 'inspection'
         self._warranty_send_todo(order)
-        self._message_log(body=Markup('<p><b>%s</b></p>') % _(
+        labels = dict(order.order_line._fields['warranty_inspection_coverage']
+                      ._description_selection(self.env))
+        self._message_log(body=Markup('<p><b>%s</b></p><p>%s</p>') % (_(
             "Inspection quotation %(order)s created (Inspection Required) by %(user)s: the "
             "service job is created on %(trigger)s.", order=order.name, user=self.env.user.name,
             trigger=dict(self._fields['warranty_inspection_trigger']._description_selection(
-                self.env)).get(self._warranty_job_trigger())))
+                self.env)).get(self._warranty_job_trigger())), _(
+            "Inspection coverage: %(coverage)s%(item)s.", coverage=labels[coverage],
+            item=' (%s)' % item.name if item else '')))
         return self._warranty_open_quotation(order)
 
     def _warranty_trigger_case_job(self, origin):

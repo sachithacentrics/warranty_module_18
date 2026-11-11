@@ -19,8 +19,12 @@ class WarrantyHistory(models.Model):
     def _warranty_history_queries(self):
         return super()._warranty_history_queries() + [
             """SELECT w.warranty_card_id, w.warranty_unit_id, c.company_id, 'case',
-                      'Case: ' || initcap(replace(w.state, '_', ' ')), w.create_date, w.create_uid,
-                      w.name, initcap(replace(w.case_type, '_', ' '))
+                      'Case created', w.create_date, w.create_uid,
+                      w.name, initcap(replace(w.case_type, '_', ' ')), 'warranty.case', w.id
                  FROM warranty_case w
                  JOIN warranty_card c ON c.id = w.warranty_card_id""",
+            self._warranty_history_status_query(
+                'warranty.case', 'case', 'Case',
+                "warranty_case x JOIN warranty_card c ON c.id = x.warranty_card_id",
+                'c.id', 'x.warranty_unit_id'),
         ]

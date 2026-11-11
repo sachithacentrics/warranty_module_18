@@ -87,8 +87,12 @@
                 <field name="can_warranty_return_unused" invisible="1"/>
                 <field name="can_warranty_customer_resolve" invisible="1"/>
                 <field name="can_warranty_cancel_remaining" invisible="1"/>
+                <!-- UX: secondary while Recheck Stock / Issue Remaining is the next step. -->
                 <button name="action_warranty_record_usage" type="object" string="Confirm Material Usage"
-                        class="btn-primary" invisible="not can_warranty_record_usage"/>
+                        class="btn-primary"
+                        invisible="not can_warranty_record_usage or (state == 'stock' and can_warranty_fulfil)"/>
+                <button name="action_warranty_record_usage" type="object" string="Confirm Material Usage"
+                        invisible="not can_warranty_record_usage or not (state == 'stock' and can_warranty_fulfil)"/>
                 <button name="action_warranty_return_unused" type="object" string="Return Unused"
                         invisible="not can_warranty_return_unused"/>
                 <button name="action_warranty_customer_keep" type="object" string="Customer Keeps"

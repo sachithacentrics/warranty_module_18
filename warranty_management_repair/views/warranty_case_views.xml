@@ -5,7 +5,20 @@
         <field name="model">warranty.case</field>
         <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
         <field name="arch" type="xml">
+            <!-- Case hub (UX): the case opens its ticket, Field Service visits and ticket Returns. -->
             <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_warranty_view_ticket" type="object" class="oe_stat_button"
+                        icon="fa-life-ring" string="Ticket" invisible="not helpdesk_ticket_id"/>
+                <button name="action_warranty_view_visits" type="object" class="oe_stat_button"
+                        icon="fa-truck" invisible="not warranty_visit_count"
+                        groups="industry_fsm.group_fsm_user,project.group_project_user">
+                    <field name="warranty_visit_count" widget="statinfo" string="Field Service"/>
+                </button>
+                <button name="action_warranty_view_returns" type="object" class="oe_stat_button"
+                        icon="fa-reply" invisible="not warranty_return_count"
+                        groups="stock.group_stock_user">
+                    <field name="warranty_return_count" widget="statinfo" string="Returns"/>
+                </button>
                 <button name="action_view_warranty_repairs" type="object" class="oe_stat_button"
                         icon="fa-wrench" groups="stock.group_stock_user"
                         invisible="not warranty_repair_count">
@@ -15,6 +28,17 @@
                         icon="fa-exchange" invisible="not warranty_replacement_count">
                     <field name="warranty_replacement_count" widget="statinfo" string="Replacements"/>
                 </button>
+                <button name="action_view_warranty_backup_units" type="object" class="oe_stat_button"
+                        icon="fa-retweet" groups="helpdesk.group_helpdesk_user,stock.group_stock_user"
+                        invisible="not warranty_backup_unit_count">
+                    <field name="warranty_backup_unit_count" widget="statinfo" string="Backup Units"/>
+                </button>
+            </xpath>
+            <!-- Figure 6 "On-site resolution possible?" (SRS 12 scenario 18); the write checks it. -->
+            <xpath expr="//field[@name='warranty_inspection_required']" position="after">
+                <field name="warranty_service_mode" groups="helpdesk.group_helpdesk_user"
+                       placeholder="Decided by the actions used"
+                       readonly="state in ('rejected', 'closed', 'completed')"/>
             </xpath>
             <xpath expr="//header" position="inside">
                 <button name="action_warranty_create_replacement" type="object"
@@ -31,6 +55,68 @@
                         string="Complete Warranty Case" class="btn-primary"
                         groups="helpdesk.group_helpdesk_user"
                         invisible="not warranty_goodwill_can_complete"/>
+                <!-- Done Full Product / Indoor / Outdoor / Vendor replacement of an Approved case
+                     without a job: the user completes the case; the action lists the blockers. -->
+                <field name="warranty_replacement_can_complete" invisible="1"/>
+                <button name="action_warranty_complete_replacement_case" type="object"
+                        string="Complete Warranty Case" class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="not warranty_replacement_can_complete"
+                        confirm="Complete this warranty case after its Done replacement? Close Case stays a separate step."/>
+                <!-- Case hub (UX, SRS 2.9): Return / Repair Order / Backup Unit from the case, by
+                     the existing job / ticket / Repair Order actions. Workshop or Vendor Repair
+                     without a Return yet: Workshop Intake is the next step. Not for AMC and free
+                     service visits. -->
+                <field name="warranty_service_mode" invisible="1"/>
+                <field name="warranty_ticket_returns" invisible="1"/>
+                <field name="warranty_ticket_repairs" invisible="1"/>
+                <field name="warranty_workshop_repair_count" invisible="1"/>
+                <button name="action_warranty_case_workshop_intake" type="object"
+                        string="Workshop Intake" class="btn-primary" groups="stock.group_stock_user"
+                        invisible="case_type in ('amc', 'free_service') or not warranty_ticket_returns
+                                   or state not in ('approved', 'job_created', 'chargeable')
+                                   or warranty_service_mode not in ('workshop', 'vendor')
+                                   or warranty_return_count or warranty_repair_count
+                                   or warranty_inspection_step in ('quotation', 'waiting')"/>
+                <button name="action_warranty_case_workshop_intake" type="object"
+                        string="Workshop Intake" groups="stock.group_stock_user"
+                        invisible="case_type in ('amc', 'free_service') or not warranty_ticket_returns
+                                   or state not in ('approved', 'job_created', 'chargeable')
+                                   or warranty_workshop_repair_count
+                                   or (warranty_service_mode in ('workshop', 'vendor')
+                                       and not warranty_return_count and not warranty_repair_count
+                                       and warranty_inspection_step not in ('quotation', 'waiting'))"/>
+                <button name="action_warranty_case_open_repair" type="object"
+                        string="Repair Order" class="btn-primary" groups="stock.group_stock_user"
+                        invisible="case_type in ('amc', 'free_service') or not warranty_ticket_repairs
+                                   or state not in ('approved', 'job_created', 'chargeable')
+                                   or warranty_service_mode not in ('workshop', 'vendor')
+                                   or not warranty_return_count or warranty_repair_count"/>
+                <button name="action_warranty_case_open_repair" type="object"
+                        string="Repair Order" groups="stock.group_stock_user"
+                        invisible="case_type in ('amc', 'free_service') or not warranty_ticket_repairs
+                                   or state not in ('approved', 'job_created', 'chargeable')
+                                   or (warranty_service_mode in ('workshop', 'vendor')
+                                       and warranty_return_count and not warranty_repair_count)"/>
+                <button name="action_warranty_case_issue_backup" type="object"
+                        string="Issue Backup Unit"
+                        groups="helpdesk.group_helpdesk_user,stock.group_stock_user"
+                        invisible="not warranty_workshop_repair_count or case_type == 'amc'
+                                   or state not in ('approved', 'job_created', 'chargeable')"/>
+            </xpath>
+            <!-- Workshop / Vendor Repair: Prepare Service Job refuses an on-site job (S1) unless an
+                 inspection is required first; the Return / Repair Order above are the next step. -->
+            <!-- Workshop / Vendor Repair: the workshop actions are the next step; the open
+                 (inspection) job stays reachable as a secondary button. -->
+            <xpath expr="//button[@name='action_open_service_job']" position="attributes">
+                <attribute name="invisible" add="warranty_service_mode in ('workshop', 'vendor')" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='action_open_service_job']" position="after">
+                <button name="action_open_service_job" type="object" string="Open Service Job"
+                        invisible="not open_service_job_id or warranty_service_mode not in ('workshop', 'vendor')"/>
+            </xpath>
+            <xpath expr="//button[@name='action_prepare_service_job']" position="attributes">
+                <attribute name="invisible" add="(state == 'approved' and warranty_service_mode in ('workshop', 'vendor') and not warranty_inspection_required) or (state == 'chargeable' and chargeable_type == 'repair' and warranty_service_mode in ('workshop', 'vendor'))" separator=" or "/>
             </xpath>
         </field>
     </record>

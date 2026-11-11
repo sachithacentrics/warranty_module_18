@@ -111,7 +111,6 @@ class TestWarrantyAccountingConfig(_SavepointMixin, TransactionCase):
                 ({'warranty_accounting_journal_id': self.other_journal.id}, 'Miscellaneous'),
                 ({'warranty_expense_account_id': self.provision.id}, 'wrong account type'),
                 ({'warranty_provision_account_id': self.asset.id}, 'wrong account type'),
-                ({'warranty_cost_recognition_account_id': self.asset.id}, 'wrong account type'),
                 ({'warranty_expense_account_id': self.other_expense.id}, 'does not belong'),
         ):
             with self.assertRaisesRegex(ValidationError, message):
@@ -120,8 +119,7 @@ class TestWarrantyAccountingConfig(_SavepointMixin, TransactionCase):
         with self.assertRaisesRegex(ValidationError, 'deprecated'):
             self.company.warranty_expense_account_id = self.expense
         self.expense.deprecated = False
-        self.company.write({'warranty_expense_account_id': self.direct.id,
-                            'warranty_cost_recognition_account_id': self.expense.id})
+        self.company.write({'warranty_expense_account_id': self.direct.id})
         with self.assertRaisesRegex(ValidationError, 'Warranty Provision / Reserve Account'):
             self.company.warranty_provision_enabled = True
         with self.assertRaisesRegex(ValidationError, 'Warranty Accounting Journal'):

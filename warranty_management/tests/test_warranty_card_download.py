@@ -1,10 +1,12 @@
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from lxml import etree
 
-from odoo import fields
+from odoo import fields, http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import Form, HttpCase, TransactionCase, tagged
+from odoo.tools import mute_logger
 
 from ..models.warranty_card import PDF_PROTECTION_PARAM, SYSTEM_PDF_TOKEN
 from .common import confirm_and_group, set_installation
@@ -87,9 +89,9 @@ class TestWarrantyCardDownload(DownloadCommon, TransactionCase):
         file is delivered (request dialog)."""
         card = card or self.card
         action = card.with_user(user).action_download_pdf()
-        if action.get('type') != 'ir.actions.act_url':
+        if action.get('tag') != 'warranty_card_download_pdf':
             return action
-        token = action['url'].rsplit('/', 1)[-1]
+        token = action['params']['url'].rsplit('/', 1)[-1]
         return self.env['warranty.card.download.ticket'].with_user(user)._consume(token)
 
     def _request(self, user, reason='Customer lost the copy', card=None):
@@ -126,8 +128,9 @@ class TestWarrantyCardDownload(DownloadCommon, TransactionCase):
         """First download without approval: the stored PDF, Download Count 1, one history
         line; the ticket cannot be used again or by another user."""
         action = self.card.with_user(self.requester).action_download_pdf()
-        self.assertEqual(action['type'], 'ir.actions.act_url')
-        token = action['url'].rsplit('/', 1)[-1]
+        self.assertEqual((action['type'], action['tag']),
+                         ('ir.actions.client', 'warranty_card_download_pdf'))
+        token = action['params']['url'].rsplit('/', 1)[-1]
         Ticket = self.env['warranty.card.download.ticket']
         with self.assertRaises(AccessError):
             Ticket.with_user(self.outsider)._consume(token)
@@ -207,8 +210,8 @@ class TestWarrantyCardDownload(DownloadCommon, TransactionCase):
         """Expired tickets are refused; two free tickets issued before the first download:
         the second is refused at download time; an approval is used once."""
         Ticket = self.env['warranty.card.download.ticket']
-        first = self.card.with_user(self.requester).action_download_pdf()['url'].rsplit('/', 1)[-1]
-        second = self.card.with_user(self.requester).action_download_pdf()['url'].rsplit('/', 1)[-1]
+        first = self.card.with_user(self.requester).action_download_pdf()['params']['url'].rsplit('/', 1)[-1]
+        second = self.card.with_user(self.requester).action_download_pdf()['params']['url'].rsplit('/', 1)[-1]
         Ticket.with_user(self.requester)._consume(first)
         with self.assertRaises(AccessError):
             Ticket.with_user(self.requester)._consume(second)
@@ -216,14 +219,14 @@ class TestWarrantyCardDownload(DownloadCommon, TransactionCase):
 
         request = self._request(self.requester)
         request.with_user(self.approver).action_approve()
-        late = self.card.with_user(self.requester).action_download_pdf()['url'].rsplit('/', 1)[-1]
+        late = self.card.with_user(self.requester).action_download_pdf()['params']['url'].rsplit('/', 1)[-1]
         Ticket.sudo().search([('token', '=', late)]).expiry = \
             fields.Datetime.now() - timedelta(minutes=1)
         with self.assertRaises(AccessError):
             Ticket.with_user(self.requester)._consume(late)
         self.assertEqual(request.state, 'approved', 'still usable after an expired ticket')
-        one = self.card.with_user(self.requester).action_download_pdf()['url'].rsplit('/', 1)[-1]
-        two = self.card.with_user(self.requester).action_download_pdf()['url'].rsplit('/', 1)[-1]
+        one = self.card.with_user(self.requester).action_download_pdf()['params']['url'].rsplit('/', 1)[-1]
+        two = self.card.with_user(self.requester).action_download_pdf()['params']['url'].rsplit('/', 1)[-1]
         Ticket.with_user(self.requester)._consume(one)
         with self.assertRaises(AccessError):
             Ticket.with_user(self.requester)._consume(two)
@@ -391,7 +394,7 @@ class TestWarrantyCardDownload(DownloadCommon, TransactionCase):
         """A retried link and a refused download log nothing; the next approved download
         gets its own note (No. 2)."""
         action = self.card.with_user(self.requester).action_download_pdf()
-        token = action['url'].rsplit('/', 1)[-1]
+        token = action['params']['url'].rsplit('/', 1)[-1]
         Ticket = self.env['warranty.card.download.ticket'].with_user(self.requester)
         Ticket._consume(token)
         with self.assertRaises(AccessError):
@@ -408,6 +411,106 @@ class TestWarrantyCardDownload(DownloadCommon, TransactionCase):
         self.assertEqual(len(notes), 2)
         self.assertIn('Download No. 2', notes[0].body)
         self.assertEqual(self.card.print_count, 2)
+
+    # ------------------------------------------------------------------ Send to Customer
+    def _composer(self, user):
+        action = self.card.with_user(user).action_send_warranty_card()
+        self.assertEqual(action['res_model'], 'mail.compose.message')
+        return self.env['mail.compose.message'].with_user(user).with_context(
+            action['context']).create({})
+
+    def test_17_send_to_customer_composer(self):
+        """The standard composer: template, customer with an email as recipient, the stored
+        soft copy attached (a protected copy); no download is recorded."""
+        self.partner.email = 'customer@example.com'
+        composer = self._composer(self.requester)
+        self.assertEqual(composer.template_id,
+                         self.env.ref('warranty_management.mail_template_warranty_card'))
+        self.assertEqual(composer.partner_ids, self.partner)
+        self.assertIn(self.card.name, composer.subject)
+        attachment = composer.attachment_ids
+        self.assertEqual(len(attachment), 1)
+        self.assertEqual(attachment.name, self._pdf(self.card).name)
+        self.assertEqual(attachment.sudo().raw, self._pdf(self.card).raw)
+        self.assertTrue(attachment.sudo().warranty_card_pdf_copy)
+        composer.action_send_mail()
+        message = self.card.message_ids.filtered(
+            lambda m: m.message_type == 'comment' and m.attachment_ids)[:1]
+        self.assertEqual(message.partner_ids, self.partner)
+        self.assertEqual(message.attachment_ids, attachment)
+        self.assertEqual(attachment.sudo().res_model, 'warranty.card')
+        mail = self.env['mail.mail'].sudo().search([('mail_message_id', '=', message.id)])
+        self.assertEqual(mail.attachment_ids, attachment)
+        self.assertEqual((self.card.print_count, len(self.card.download_log_ids)), (0, 0))
+        self.assertFalse(self.env['warranty.card.download.request'].search([
+            ('warranty_card_id', '=', self.card.id)]))
+        self.assertEqual(len(self._pdf(self.card)), 1, 'the stored soft copy stays as it is')
+
+    def test_18_send_to_customer_without_email_and_after_downloads(self):
+        """No email: no recipient is preselected. After the free download (approval needed
+        for the next print) sending still needs no approval and counts nothing."""
+        self.partner.email = False
+        self.assertFalse(self._composer(self.requester).partner_ids)
+        self._download(self.requester)
+        self.partner.email = 'customer@example.com'
+        composer = self._composer(self.requester)
+        self.assertEqual(composer.partner_ids, self.partner)
+        composer.action_send_mail()
+        self.assertEqual((self.card.print_count, len(self.card.download_log_ids)), (1, 1))
+        self.card.state = 'draft'
+        with self.assertRaises(UserError):
+            self.card.with_user(self.requester).action_send_warranty_card()
+
+    def test_19_emailed_copy_content_administrators_only(self):
+        """The emailed copy in the chatter: a user who can read the card sees it listed but
+        cannot read its content; administrators and system code (email sending) can."""
+        self.partner.email = 'customer@example.com'
+        composer = self._composer(self.requester)
+        attachment = composer.attachment_ids
+        composer.action_send_mail()
+        stored = self._pdf(self.card).raw
+        listed = self.env['ir.attachment'].with_user(self.requester).browse(attachment.id)
+        self.assertEqual(listed.read(['name', 'mimetype'])[0]['name'], attachment.sudo().name)
+        for field in ('raw', 'datas'):
+            listed.invalidate_recordset()
+            with self.assertRaises(AccessError):
+                listed.read([field])
+        sysadmin = self._user('wdl_sysadmin')
+        sysadmin.groups_id |= self.env.ref('base.group_system')
+        self.assertEqual(attachment.with_user(sysadmin).raw, stored)
+        self.assertEqual(attachment.sudo().raw, stored)
+
+    # ------------------------------------------------------------------ list view
+    def test_20_list_serial_numbers(self):
+        """Warranty Cards list: Serial Number(s) next to Product, from the card's units in unit
+        order; searchable by serial. No serial: empty."""
+        arch = etree.fromstring(self.env['warranty.card'].get_view(view_type='list')['arch'])
+        columns = [field.get('name') for field in arch.xpath('/list/field')]
+        self.assertEqual(columns[columns.index('product_id') + 1], 'unit_serial_numbers')
+        for name in ('name', 'partner_id', 'product_id', 'state'):
+            self.assertIn(name, columns)
+        self.assertFalse(self.card.unit_serial_numbers)
+
+        tracked = self.env['product.product'].create({
+            'name': 'Serial AC', 'type': 'consu', 'is_storable': True, 'tracking': 'serial',
+            'warranty_applicable': True})
+        order = self.env['sale.order'].create({
+            'partner_id': self.partner.id,
+            'order_line': [(0, 0, {'product_id': tracked.id, 'product_uom_qty': 2})]})
+        confirm_and_group(order)
+        card = order.warranty_card_ids
+        units = card.unit_warranty_ids.sorted('unit_number')
+        self.assertEqual(len(units), 2)
+        lots = self.env['stock.lot'].create([{'name': name, 'product_id': tracked.id}
+                                             for name in ('SN-LIST-B', 'SN-LIST-A')])
+        units[0].serial_ids = lots[0]
+        self.assertEqual(card.unit_serial_numbers, 'SN-LIST-B')
+        units[1].serial_ids = lots[1]
+        # Display only (not stored): the list computes it on each read.
+        card.invalidate_recordset(['unit_serial_numbers'])
+        self.assertEqual(card.unit_serial_numbers, 'SN-LIST-B, SN-LIST-A')
+        self.assertEqual(self.env['warranty.card'].search(
+            [('unit_warranty_ids.serial_ids.name', 'ilike', 'SN-LIST-A')]), card)
 
 @tagged('post_install', '-at_install', 'warranty_download')
 class TestWarrantyCardDownloadHttp(DownloadCommon, HttpCase):
@@ -438,10 +541,32 @@ class TestWarrantyCardDownloadHttp(DownloadCommon, HttpCase):
                 self.assertNotIn(attachment.raw[:20], response.content, (login, url))
         self.authenticate('wdl_requester', 'wdl_requester')
         self.assertEqual(self.url_open('/web/content/%s' % normal.id).content, b'normal file')
+        # The emailed copy (Send to Customer): administrators only, also in a chatter zip.
+        emailed = self.env['ir.attachment'].create({
+            'name': attachment.name, 'raw': attachment.raw, 'res_model': 'warranty.card',
+            'res_id': self.card.id, 'warranty_card_pdf_copy': True})
+        sysadmin = self._user('wdl_sysadmin')
+        sysadmin.groups_id |= self.env.ref('base.group_system')
+        urls = ('/web/content/%s' % emailed.id, '/web/content/%s?download=true' % emailed.id)
+        self.authenticate('wdl_requester', 'wdl_requester')
+        for url in urls:
+            response = self.url_open(url)
+            self.assertNotEqual(response.status_code, 200, url)
+            self.assertNotIn(attachment.raw[:20], response.content, url)
+        response = self.url_open('/mail/attachment/zip', data={
+            'file_ids': str(emailed.id), 'zip_name': 'cards.zip',
+            'csrf_token': http.Request.csrf_token(self)})
+        self.assertNotIn(attachment.raw[:20], response.content, 'zip')
+        self.authenticate('wdl_sysadmin', 'wdl_sysadmin')
+        for url in urls:
+            response = self.url_open(url)
+            self.assertEqual(response.status_code, 200, url)
+            self.assertEqual(response.content, attachment.raw, url)
+        self.authenticate('wdl_requester', 'wdl_requester')
 
         action = self.card.with_user(self.requester).action_download_pdf()
         count, stored = self.card.print_count, attachment.raw
-        response = self.url_open(action['url'])
+        response = self.url_open(action['params']['url'])
         self.assertEqual(response.status_code, 200)
         # Rendered now with the current report (HTML in test mode); nothing stored changes.
         self.assertIn(b'WARRANTY CERTIFICATE', response.content)
@@ -450,11 +575,115 @@ class TestWarrantyCardDownloadHttp(DownloadCommon, HttpCase):
         self.env.invalidate_all()
         self.assertEqual(attachment.raw, stored, 'the stored PDF stays as it is')
         self.assertEqual(self.card.print_count, count + 1, 'the download is recorded once')
-        self.assertNotEqual(self.url_open(action['url']).status_code, 200, 'single-use ticket')
+        self.assertNotEqual(self.url_open(action['params']['url']).status_code, 200, 'single-use ticket')
         self.assertEqual(self.card.print_count, count + 1)
         self.assertIn('attachment', response.headers.get('Content-Disposition', ''))
-        self.assertNotEqual(self.url_open(action['url']).status_code, 200, 'single use')
+        self.assertNotEqual(self.url_open(action['params']['url']).status_code, 200, 'single use')
         self.authenticate('wdl_outsider', 'wdl_outsider')
         action = self.card.with_user(self.outsider).action_download_pdf()
         self.assertEqual(action['res_model'], 'warranty.card.download.request.wizard')
         self.assertEqual(self.card.print_count, 1)
+
+    def test_13_form_shows_the_download_without_refresh(self):
+        """Download PDF in the web client: one ticket request, then the form shows the new
+        Download Count and the chatter note without a browser refresh."""
+        card = self._confirmed_card()
+        # The form shows the order lines: a sales user opens it.
+        self.requester.groups_id |= self.env.ref('sales_team.group_sale_salesman_all_leads')
+        code = """(async () => {
+            const wait = async (check, label) => {
+                for (let i = 0; i < 300; i++) {
+                    if (check()) { return; }
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                }
+                throw new Error('timeout: ' + label + ' at ' + location.href + ': '
+                                + document.body.innerText.slice(0, 300));
+            };
+            let requests = 0;
+            const open = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function (method, url) {
+                if (String(url).includes('/warranty/card/pdf/')) { requests++; }
+                return open.apply(this, arguments);
+            };
+            const count = () => document.querySelector('div[name=print_count]')?.textContent.trim();
+            const tab = () => document.querySelector('a[name=other_information]');
+            await wait(() => document.querySelector('button[name=action_download_pdf]') && tab(), 'form');
+            tab().click();
+            await wait(() => count() === '0', 'Other Information');
+            document.querySelector('button[name=action_download_pdf]').click();
+            await wait(() => count() === '1', 'Download Count');
+            await wait(() => [...document.querySelectorAll('.o-mail-Message')].some(
+                (message) => message.textContent.includes('Download No. 1')), 'chatter');
+            if (requests !== 1) { throw new Error('PDF requests: ' + requests); }
+            console.log('test successful');
+        })().catch((error) => console.error(error.message));"""
+        self.browser_js('/odoo/warranty.card/%s' % card.id, code, login='wdl_requester',
+                        timeout=90)
+        self.assertEqual((card.print_count, len(card.download_log_ids)), (1, 1))
+
+    # ------------------------------------------------------------------ Duplicate Copy (SRS 9.10)
+    def _http_download(self, card):
+        action = card.with_user(self.requester).action_download_pdf()
+        response = self.url_open(action['params']['url'])
+        self.env.invalidate_all()
+        return response
+
+    def _approved_request(self, card):
+        action = card.with_user(self.requester).action_download_pdf()
+        self.assertEqual(action.get('res_model'), 'warranty.card.download.request.wizard')
+        self.env[action['res_model']].with_user(self.requester).with_context(
+            action['context']).create({'reason': 'Customer lost the copy'}).action_submit()
+        request = self.env['warranty.card.download.request'].search([
+            ('warranty_card_id', '=', card.id)], order='id desc', limit=1)
+        request.with_user(self.approver).action_approve()
+        return request
+
+    def test_14_duplicate_copy_from_print_no_2(self):
+        """Print No. 1 has no label; the approved Print No. 2 is a Duplicate Copy; the stored
+        soft copy stays without it; one count and one history line per download."""
+        card = self._confirmed_card()
+        stored = self._pdf(card).raw
+        self.authenticate('wdl_requester', 'wdl_requester')
+        first = self._http_download(card)
+        self.assertEqual(first.status_code, 200)
+        self.assertIn(b'WARRANTY CERTIFICATE', first.content)
+        self.assertNotIn(b'DUPLICATE COPY', first.content)
+        request = self._approved_request(card)
+        second = self._http_download(card)
+        self.assertEqual(second.status_code, 200)
+        self.assertIn('DUPLICATE COPY – Print No. 2'.encode(), second.content)
+        self.assertEqual((card.print_count, len(card.download_log_ids)), (2, 2))
+        self.assertEqual((request.state, request.download_log_id.download_no), ('used', 2))
+        self.assertEqual(self._pdf(card).raw, stored)
+        self.assertNotIn(b'DUPLICATE COPY', stored)
+
+    def test_15_duplicate_copy_without_approval(self):
+        """The label follows the print sequence, also when the company needs no approval."""
+        self.company.warranty_download_approval_required = False
+        card = self._confirmed_card()
+        self.authenticate('wdl_requester', 'wdl_requester')
+        self.assertNotIn(b'DUPLICATE COPY', self._http_download(card).content)
+        self.assertIn('DUPLICATE COPY – Print No. 2'.encode(), self._http_download(card).content)
+        self.assertIn('DUPLICATE COPY – Print No. 3'.encode(), self._http_download(card).content)
+        self.assertEqual((card.print_count, len(card.download_log_ids)), (3, 3))
+
+    def test_16_failed_rendering_records_nothing(self):
+        """A rendering failure rolls back the download: no count, no history, no chatter note,
+        the approval is not used; the next download is Print No. 2."""
+        card = self._confirmed_card()
+        self.authenticate('wdl_requester', 'wdl_requester')
+        self._http_download(card)
+        request = self._approved_request(card)
+        notes = len(card.message_ids)
+        action = card.with_user(self.requester).action_download_pdf()
+        with patch.object(type(self.env['warranty.card']), '_warranty_render_pdf',
+                          side_effect=UserError('Rendering failed')), mute_logger('odoo.http'):
+            response = self.url_open(action['params']['url'])
+        self.env.invalidate_all()
+        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual((card.print_count, len(card.download_log_ids), request.state),
+                         (1, 1, 'approved'))
+        self.assertEqual(len(card.message_ids), notes)
+        retry = self._http_download(card)
+        self.assertIn('DUPLICATE COPY – Print No. 2'.encode(), retry.content)
+        self.assertEqual((card.print_count, request.state), (2, 'used'))

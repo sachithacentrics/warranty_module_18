@@ -409,8 +409,8 @@ class TestWarrantyMrfCost(WarrantyMrfCommon):
 
     # ------------------------------------------------------------------ menu (SRS section 6)
     def test_09_report_menu_navigation_and_access(self):
-        """Warranty -> Reports -> Warranty Material Cost (no separate Warranty -> Material Cost
-        entry); Accounting -> Reporting shortcut kept; both open the same report action; menus
+        """Warranty -> Reports -> Materials & Inventory -> Warranty Material Cost (no separate
+        Warranty -> Material Cost entry); Accounting -> Reporting shortcut kept; both open the same report action; menus
         visible to the authorised groups only, the Reports parent only when it has a report."""
         root = self.env.ref('warranty_management.menu_warranty_root')
         reports = self.env.ref('warranty_management_mrf.menu_warranty_reports')
@@ -418,8 +418,10 @@ class TestWarrantyMrfCost(WarrantyMrfCommon):
         shortcut = self.env.ref('warranty_management_mrf.menu_warranty_mrf_cost_report_accounting')
         action = self.env.ref('warranty_management_mrf.action_warranty_mrf_cost_report')
         self.assertEqual((reports.parent_id, reports.name, bool(reports.action)), (root, 'Reports', False))
-        self.assertEqual((menu.parent_id, menu.name, menu.action), (reports, 'Warranty Material Cost',
-                                                                    action))
+        category = self.env.ref('warranty_management_mrf.menu_warranty_reports_material')
+        self.assertEqual((category.parent_id, category.name), (reports, 'Materials & Inventory'))
+        self.assertEqual((menu.parent_id, menu.name, menu.action),
+                         (category, 'Warranty Material Cost', action))
         self.assertEqual((shortcut.parent_id, shortcut.action),
                          (self.env.ref('account.menu_finance_reports'), action))
         self.assertFalse(self.env['ir.ui.menu'].search([('parent_id', '=', root.id),

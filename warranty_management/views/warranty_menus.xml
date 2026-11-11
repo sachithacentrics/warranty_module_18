@@ -11,8 +11,6 @@
               parent="menu_warranty_cards_root" sequence="20"/>
     <menuitem id="menu_warranty_card_action" name="Controlled Actions"
               action="action_warranty_card_action" parent="menu_warranty_cards_root" sequence="25"/>
-    <menuitem id="menu_warranty_history" name="Warranty History"
-              action="action_warranty_history" parent="menu_warranty_cards_root" sequence="26"/>
     <menuitem id="menu_warranty_card_download_request" name="Download Approval Requests"
               action="action_warranty_card_download_request"
               parent="menu_warranty_cards_root" sequence="30"/>

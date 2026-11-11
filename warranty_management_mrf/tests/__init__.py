@@ -10,3 +10,4 @@ from . import test_vendor_claim
 from . import test_mrf_closure
 from . import test_settings_help
 from . import test_mrf_shared_visit
+from . import test_mrf_figure7

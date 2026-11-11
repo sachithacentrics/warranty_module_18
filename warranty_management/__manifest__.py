@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management',
-    'version': '18.0.1.2.3',
+    'version': '18.0.1.2.10',
     'category': 'Sales/After-Sales',
     'summary': 'Configurable warranty engine: policies, product/pricelist rules, '
                'draft warranty cards and unit warranty numbers',
@@ -61,6 +61,11 @@ Warranty Management - Part 1 (Configuration + Warranty Card Creation)
         'views/warranty_menus.xml',
         'data/warranty_policy_migration_data.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'warranty_management/static/src/js/warranty_card_download.js',
+        ],
+    },
     'installable': True,
     'application': True,
     'license': 'LGPL-3',

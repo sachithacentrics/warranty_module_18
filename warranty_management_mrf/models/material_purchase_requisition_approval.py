@@ -28,6 +28,7 @@ APPROVAL_STATUSES = [
     ('finance_approved', 'Finance Approved'),
     ('gm_approved', 'GM Approved'),
     ('approved', 'Approved'),
+    ('not_required', 'Approved - No Approval Required'),
     ('rejected', 'Rejected'),
 ]
 APPROVAL_MODES = [
@@ -129,7 +130,11 @@ class MaterialPurchaseRequisition(models.Model):
             elif mrf.state == 'reject':
                 mrf.approval_status = 'rejected'
             elif mrf.state in RELEASED_STATES:
-                mrf.approval_status = 'approved'
+                # Figure 7 D1: automatic approval (No Approval Required) is shown apart from an
+                # approval by a person.
+                automatic = mrf._warranty_round_lines().filtered(
+                    lambda line: line.level == 'none' and line.state == 'approved')
+                mrf.approval_status = 'not_required' if automatic else 'approved'
             else:
                 approved = set(mrf._warranty_round_lines().filtered(
                     lambda line: line.state == 'approved').mapped('level'))
@@ -194,10 +199,14 @@ class MaterialPurchaseRequisition(models.Model):
         }
 
     def _warranty_line_signature(self):
+        """Database ids only: in an onchange the lines are NewId records, which cannot be
+        ordered. A saved line keeps its id (same text as stored at submission); an unsaved
+        line counts as False, so it never matches the approved signature."""
         self.ensure_one()
         return repr(sorted(
-            (line.id, line.product_id.id, line.qty, line.uom.id, line.estimated_unit_cost,
-             line.coverage_type or '', line.goodwill) for line in self.requisition_line_ids))
+            (line._origin.id, line.product_id._origin.id, line.qty, line.uom._origin.id,
+             line.estimated_unit_cost, line.coverage_type or '', line.goodwill)
+            for line in self.requisition_line_ids))
 
     def _warranty_log_links(self, text):
         for record in (self.warranty_case_id, self.warranty_service_job_id):
@@ -264,16 +273,12 @@ class MaterialPurchaseRequisition(models.Model):
         # sudo: the rules are configuration read by the workflow.
         rules = self.env['warranty.mrf.approval.rule'].sudo().search(
             [('company_id', 'in', self.company_id.parent_ids.ids)])
-        matched = rules.filtered(lambda rule: rule._matches(amounts['routing'], lines))
+        matched = rules.filtered(lambda rule: rule._matches(rule._basis_amount(amounts), lines))
+        # Figure 7 D1: no matching rule = No Approval Required (goodwill still needs Finance and
+        # GM approvers below, SRS 16.1).
         analysis = {'amounts': amounts, 'currency': currency, 'rules': rules,
-                    'matched': matched, 'levels': [], 'errors': [], 'submitter': submitter}
-        if not matched:
-            analysis['errors'].append(_(
-                "No material approval rule matches Material Request %(mrf)s (routing amount "
-                "%(amount)s %(currency)s). Contact the Warranty administrator (Warranty / "
-                "Configuration / Material Approval Rules).", mrf=self.name,
-                amount=currency.round(amounts['routing']), currency=currency.name))
-            return analysis
+                    'matched': matched, 'no_rule': not matched, 'levels': [], 'errors': [],
+                    'submitter': submitter}
         goodwill_lines = lines.filtered('goodwill')
         for level, label in APPROVAL_LEVELS:
             level_rules = matched.filtered(lambda rule: rule['%s_required' % level])
@@ -300,7 +305,7 @@ class MaterialPurchaseRequisition(models.Model):
                     "Approval and %(level)s approvers to a matching rule, or add a goodwill "
                     "rule.", level=label,
                     products=', '.join(goodwill_lines.mapped('product_id.display_name')),
-                    rules=', '.join(matched.mapped('name')))
+                    rules=', '.join(matched.mapped('name')) or _("no matching rule"))
             elif not configured:
                 info['error'] = _("The %(level)s approval required by rule(s) %(rules)s has no "
                                   "%(level)s approvers.", level=label, rules=rule_names)
@@ -386,14 +391,22 @@ class MaterialPurchaseRequisition(models.Model):
             'not_covered_amount': amounts['not_covered'], 'goodwill_amount': amounts['goodwill'],
         }
         if not levels:
+            # Automatic approval: no approving person; the reason tells a matching No Approval
+            # Required rule from no matching rule at all (Figure 7 D1).
+            if matched:
+                reason = _("No Approval Required: %s", ', '.join(matched.mapped('name')))
+                text = _("Submitted by %(user)s (round %(round)s, routing amount %(amount)s): "
+                         "approved by No Approval Required rule(s) %(rules)s.",
+                         user=self.env.user.name, round=self.approval_round, amount=amount,
+                         rules=', '.join(matched.mapped('name')))
+            else:
+                reason = _("No Approval Required: no material approval rule matches.")
+                text = _("Submitted by %(user)s (round %(round)s, routing amount %(amount)s): "
+                         "no material approval rule matches, No Approval Required.",
+                         user=self.env.user.name, round=self.approval_round, amount=amount)
             Approval.create(dict(common, level='none', sequence=0, state='approved',
                                  rule_ids=[(6, 0, matched.ids)], decision_date=now,
-                                 reason=_("No Approval Required: %s",
-                                          ', '.join(matched.mapped('name')))))
-            text = _("Submitted by %(user)s (round %(round)s, routing amount %(amount)s): "
-                     "approved by No Approval Required rule(s) %(rules)s.",
-                     user=self.env.user.name, round=self.approval_round, amount=amount,
-                     rules=', '.join(matched.mapped('name')))
+                                 reason=reason))
             self.sudo()._message_log(body=text)
             self._warranty_log_links(text)
             self._warranty_final_approve(by_rule=True)

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Figure 6 (SRS 2.9 "Helpdesk / Service Job initiates"): the ticket's Return and Repair from
+         the job, and its backup units. Navigation only. -->
+    <record id="warranty_service_job_view_form_repair" model="ir.ui.view">
+        <field name="name">warranty.service.job.form.repair</field>
+        <field name="model">warranty.service.job</field>
+        <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
+        <field name="arch" type="xml">
+            <!-- UX: not shown on AMC and free service visits (SRS Figure 8 has no workshop step;
+                 a fault found on a free service goes through Report Fault) nor on a draft job; the
+                 ticket keeps its standard Return / Repair, the server checks are unchanged. -->
+            <xpath expr="//header/field[@name='state']" position="before">
+                <field name="warranty_case_type" invisible="1"/>
+                <field name="warranty_workshop_repair_count" invisible="1"/>
+                <button name="action_warranty_workshop_intake" type="object"
+                        string="Workshop Intake" groups="stock.group_stock_user"
+                        invisible="state in ('draft', 'completed', 'cancelled') or not helpdesk_ticket_id
+                                   or warranty_case_type in ('amc', 'free_service') or warranty_workshop_repair_count"/>
+                <button name="action_warranty_open_repair" type="object"
+                        string="Repair Order" groups="stock.group_stock_user"
+                        invisible="state in ('draft', 'completed', 'cancelled') or not helpdesk_ticket_id
+                                   or warranty_case_type in ('amc', 'free_service')"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_warranty_backup_units" type="object" class="oe_stat_button"
+                        icon="fa-retweet" groups="helpdesk.group_helpdesk_user,stock.group_stock_user"
+                        invisible="not warranty_backup_unit_count">
+                    <field name="warranty_backup_unit_count" widget="statinfo" string="Backup Units"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

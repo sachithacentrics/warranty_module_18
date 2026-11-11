@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management - Field Service',
-    'version': '18.0.1.4.4',
+    'version': '18.0.1.4.11',
     'category': 'Sales/After-Sales',
     'summary': 'Warranty Service Jobs executed through Field Service (Part 4)',
     'description': """

@@ -518,6 +518,14 @@ class TestIndoorOutdoorReplacement(ReplacementCommon):
         self.assertIn('Updated Copy after replacement', html)
         self.assertIn(self.new_outdoor.name, html)
         self.assertIn('Component', html)
+        self.assertNotIn('DUPLICATE COPY', html)
+        # A reprint of the updated card shows both labels.
+        html = str(self.env['ir.qweb'].with_context(warranty_card_print_no=3)._render(report.id, {
+            'docs': self.card.with_context(warranty_card_print_no=3), 'doc_ids': self.card.ids,
+            'doc_model': 'warranty.card', 'company': self.company, 'res_company': self.company,
+            'user': self.env.user}))
+        self.assertIn('Updated Copy after replacement', html)
+        self.assertIn('DUPLICATE COPY – Print No. 3', html)
 
 
 @tagged('post_install', '-at_install', 'warranty_replacement')

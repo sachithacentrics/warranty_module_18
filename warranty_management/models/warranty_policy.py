@@ -173,9 +173,9 @@ class WarrantyPolicy(models.Model):
         help="After the Grace Period End: blocked, or allowed up to a date approved by a "
              "Helpdesk manager (Late Service Exception, never after the warranty end date).")
     service_sequence_required = fields.Boolean(
-        string='Enforce Service Sequence', default=True,
-        help="A free service is completed only after the previous free services of the card are "
-             "Completed, Expired or Cancelled; free services of one card are not merged.")
+        string='Complete Previous Service First', default=True,
+        help="Requires the previous free service to be completed, expired, or cancelled before "
+             "creating a service job for the next free service.")
 
     @api.constrains('early_service_rule', 'early_service_days')
     def _check_early_service_days(self):

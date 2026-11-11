@@ -7,3 +7,13 @@ from . import test_warranty_expiry
 from . import test_part9_controlled_actions
 from . import test_ticket_header_visibility
 from . import test_intake_delivery_default
+from . import test_figure6_navigation
+from . import test_ticket_sale_line
+from . import test_backup_restock
+from . import test_workshop_inspection_trigger
+from . import test_figure6_service_mode
+from . import test_vendor_repair
+from . import test_backup_closure
+from . import test_figure7_repair_mrf
+from . import test_ux_next_action
+from . import test_replacement_case_completion

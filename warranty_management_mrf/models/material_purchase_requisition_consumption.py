@@ -919,6 +919,7 @@ class MaterialPurchaseRequisition(models.Model):
                 raise UserError(_("Warranty Material Requests can be cancelled only when New or "
                                   "Rejected."))
             mrf._warranty_check_material_access('cancel_request')
+            mrf._warranty_check_open_customer_orders()
 
     def _warranty_check_requester_action(self, states, message):
         """5.3 Q6 extended by E-13b: Service Coordinators may also cancel (checked by

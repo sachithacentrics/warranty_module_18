@@ -96,7 +96,7 @@
     <menuitem id="menu_warranty_service_date_exception_root" name="Service Date Exceptions"
               parent="warranty_management.menu_warranty_free_services_root" sequence="30"/>
 
-    <menuitem id="menu_warranty_service_date_exception" name="Exception History"
+    <menuitem id="menu_warranty_service_date_exception" name="Late Service Exceptions"
               action="action_warranty_service_date_exception"
               parent="menu_warranty_service_date_exception_root" sequence="20"/>
 
@@ -200,7 +200,7 @@
         <field name="context">{'search_default_filter_open': 1}</field>
     </record>
 
-    <menuitem id="menu_warranty_service_date_exception_group" name="Exception Requests"
+    <menuitem id="menu_warranty_service_date_exception_group" name="Late Service Requests"
               action="action_warranty_service_date_exception_group"
               parent="menu_warranty_service_date_exception_root" sequence="10"/>
 

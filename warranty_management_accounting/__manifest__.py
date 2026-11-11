@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management - Cost and Accounting',
-    'version': '18.0.1.6.2',
+    'version': '18.0.1.8.2',
     'category': 'Sales/After-Sales',
     'summary': 'Warranty Part 8: warranty cost lines, labour, travel, subcontract, cost approval '
                'and cost report',
@@ -11,6 +11,8 @@ Part 8.3 Accounting Configuration, see ``doc/part8_3_accounting_config_design.md
 Part 8.4 Inspection Fee Adjustment, see ``doc/part8_4_inspection_adjustment_design.md``.
 Part 8.5 Warranty Case Closure, see ``doc/part8_5_case_closure_design.md``.
 Part 8.6 Warranty Provision Entries, see ``doc/part8_6_provision_entry_design.md``.
+Warranty spare parts on standard Odoo stock accounting and Finance-controlled reserve
+utilization, see ``doc/figure7_accounting_integration.md``.
 
 * Replacement cost in the case totals, vendor recovery and Net Warranty Cost
 * Read-only Warranty Cost Report with SRS filters
@@ -22,6 +24,7 @@ Part 8.6 Warranty Provision Entries, see ``doc/part8_6_provision_entry_design.md
 * Cost approval by named approvers, reversal with a reason, full audit trail
 * Optional total expected cost gate, off by default
 * No journal entries: Part 8.1 changes no accounting, stock or timesheet record
+* Close Case (Figure 6): refused while a backup unit of the case is still with the customer
 """,
     'depends': [
         'warranty_management_repair',
@@ -43,6 +46,7 @@ Part 8.6 Warranty Provision Entries, see ``doc/part8_6_provision_entry_design.md
         'views/warranty_case_closure_views.xml',
         'views/warranty_provision_entry_views.xml',
         'views/warranty_reserve_report_views.xml',
+        'views/warranty_reserve_utilization_views.xml',
         'data/warranty_cost_report_data.xml',
     ],
     'installable': True,

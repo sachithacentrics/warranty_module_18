@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management - Material Requests',
-    'version': '18.0.1.9.14',
+    'version': '18.0.1.10.7',
     'category': 'Sales/After-Sales',
     'summary': 'Warranty Phase 5: Material Request (MRF) integration with warranty cases, '
                'service jobs and Field Service tasks',
@@ -49,6 +49,12 @@ linked to a warranty record keep the vendor behaviour.
   freeze and controlled reopen, batch closure from job / case, case-closure guard, customer
   invoicing follow-up, explicit claim-line recovery allocation, header field tracking, reports
   Material Approval and Cost, Vendor Claim Recovery, Material Audit Trail (Warranty -> Reports)
+* Figure 7 (doc/figure7_workflow_decisions.md): no matching approval rule = No Approval
+  Required, Amount Basis on rules, Approved - No Approval Required status; Not Covered lines
+  quoted after submission (release blocked while the request is not valid); Covered and Not
+  Covered lines released independently; Stock Status (Ready / Partially Available / Awaiting
+  Stock / Issued), Recheck Stock / Issue Remaining, Awaiting Stock To-Do, Put Job on Awaiting
+  Parts
 """,
     'depends': [
         'warranty_management_fsm',

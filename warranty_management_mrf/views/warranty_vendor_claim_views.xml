@@ -465,9 +465,11 @@
         <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
+                <!-- UX: only when a consumed claimable part is there (the action's own check). -->
+                <field name="can_warranty_vendor_claim" invisible="1"/>
                 <button name="action_create_vendor_claim" type="object" string="Create Vendor Claim"
                         groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
-                        invisible="not material_request_count"/>
+                        invisible="not can_warranty_vendor_claim or state == 'cancelled'"/>
             </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_view_vendor_claims" type="object" class="oe_stat_button"
@@ -500,9 +502,12 @@
         <field name="inherit_id" ref="warranty_management_helpdesk.warranty_case_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
+                <!-- UX: a vendor claim follows the service (consumed claimable parts: the action's
+                     own check). -->
+                <field name="can_warranty_vendor_claim" invisible="1"/>
                 <button name="action_create_vendor_claim" type="object" string="Create Vendor Claim"
                         groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
-                        invisible="not material_request_count"/>
+                        invisible="not can_warranty_vendor_claim or state not in ('job_created', 'in_progress', 'completed', 'closed')"/>
             </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_view_vendor_claims" type="object" class="oe_stat_button"

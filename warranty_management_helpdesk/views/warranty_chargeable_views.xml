@@ -51,6 +51,10 @@
             <field name="payment_term_id" position="after">
                 <field name="warranty_case_id" invisible="not warranty_case_id"/>
             </field>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="after">
+                <field name="warranty_inspection_coverage" optional="show"
+                       column_invisible="not parent.warranty_case_id"/>
+            </xpath>
         </field>
     </record>
 </odoo>

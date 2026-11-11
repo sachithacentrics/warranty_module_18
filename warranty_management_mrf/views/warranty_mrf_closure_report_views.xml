@@ -7,9 +7,15 @@
         <field name="model">material.purchase.requisition</field>
         <field name="inherit_id" ref="material_purchase_requisitions.material_purchase_requisition_form_view"/>
         <field name="arch" type="xml">
-            <!-- A closed request is frozen: its standard Received button would only be refused. -->
+            <!-- A closed request is frozen: its standard Received button would only be refused.
+                 UX: secondary while parts are still to issue or the usage is to confirm
+                 (standalone requests have neither: unchanged). -->
             <xpath expr="//button[@name='action_received']" position="attributes">
-                <attribute name="invisible">state != 'stock' or warranty_closed</attribute>
+                <attribute name="invisible">state != 'stock' or warranty_closed or can_warranty_fulfil or can_warranty_record_usage</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_received']" position="after">
+                <button name="action_received" type="object" string="Received"
+                        invisible="state != 'stock' or warranty_closed or not (can_warranty_fulfil or can_warranty_record_usage)"/>
             </xpath>
             <xpath expr="//header" position="inside">
                 <field name="warranty_closed" invisible="1"/>
@@ -75,10 +81,11 @@
         <field name="inherit_id" ref="warranty_management_fsm.warranty_service_job_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
+                <!-- UX: closing follows the end of the job (reconciled usage). -->
                 <field name="warranty_has_open_requests" invisible="1"/>
                 <button name="action_warranty_close_requests" type="object" string="Close Material Requests"
                         groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
-                        invisible="not warranty_has_open_requests"/>
+                        invisible="not warranty_has_open_requests or state not in ('completed', 'cancelled')"/>
             </xpath>
         </field>
     </record>
@@ -92,7 +99,7 @@
                 <field name="warranty_has_open_requests" invisible="1"/>
                 <button name="action_warranty_close_requests" type="object" string="Close Material Requests"
                         groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
-                        invisible="not warranty_has_open_requests"/>
+                        invisible="not warranty_has_open_requests or state != 'completed'"/>
             </xpath>
         </field>
     </record>
@@ -416,15 +423,15 @@
         <field name="view_mode">list</field>
     </record>
 
-    <!-- Menus: Warranty -> Reports (same actions for the accounting shortcuts). -->
+    <!-- Menus: Warranty -> Reports categories (same actions for the accounting shortcuts). -->
     <menuitem id="menu_warranty_mrf_approval_cost_report" name="Material Approval and Cost"
-              parent="menu_warranty_reports" action="action_warranty_mrf_approval_cost_report" sequence="5"
+              parent="menu_warranty_reports_material" action="action_warranty_mrf_approval_cost_report" sequence="10"
               groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
     <menuitem id="menu_warranty_vendor_claim_recovery_report" name="Vendor Claim Recovery"
-              parent="menu_warranty_reports" action="action_warranty_vendor_claim_recovery_report" sequence="20"
+              parent="menu_warranty_reports_financial" action="action_warranty_vendor_claim_recovery_report" sequence="30"
               groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
     <menuitem id="menu_warranty_mrf_audit_event" name="Material Audit Trail"
-              parent="menu_warranty_reports" action="action_warranty_mrf_audit_event" sequence="30"
+              parent="menu_warranty_reports_material" action="action_warranty_mrf_audit_event" sequence="30"
               groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
     <menuitem id="menu_warranty_mrf_approval_cost_report_accounting" name="Warranty Material Approval and Cost"
               parent="account.menu_finance_reports" action="action_warranty_mrf_approval_cost_report" sequence="89"

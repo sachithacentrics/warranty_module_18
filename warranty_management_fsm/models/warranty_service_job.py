@@ -647,8 +647,27 @@ class WarrantyServiceJob(models.Model):
             'name': _("Visits"),
             'res_model': 'project.task',
             'view_mode': 'list,form',
+            # Field Service list: shows the visit status (cancelled visits muted).
+            'views': [(self.env.ref('industry_fsm.project_task_view_list_fsm').id, 'list'),
+                      (False, 'form')],
             'domain': [('id', 'in', self.sudo()._warranty_all_visits().ids)],
             'context': {'create': False},
+        }
+
+    def action_open_current_visit(self):
+        """Open Field Service (job header): the open visit of the job, else the visits list."""
+        self.ensure_one()
+        visits = self.sudo()._warranty_all_visits().filtered(
+            lambda task: not task.fsm_done and task.state not in ('1_done', '1_canceled'))
+        if len(visits) != 1:
+            return self.action_view_visits()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Field Service"),
+            'res_model': 'project.task',
+            'view_mode': 'form',
+            'views': [(False, 'form')],
+            'res_id': visits.id,
         }
 
     # ------------------------------------------------------------------ shared visit (v1)
@@ -1504,6 +1523,16 @@ class WarrantyServiceJob(models.Model):
             {'job_ids': [(6, 0, self.ids)]})
         wizard._warranty_preview()
         return wizard._warranty_action()
+
+    # UX (display only): the button follows the wizard's own offer rule.
+    warranty_late_exception_available = fields.Boolean(
+        compute='_compute_warranty_late_exception_available', compute_sudo=True)
+
+    def _compute_warranty_late_exception_available(self):
+        Wizard = self.env['warranty.service.date.exception.wizard']
+        for job in self:
+            job.warranty_late_exception_available = bool(
+                Wizard._warranty_offered(job.entitlement_ids)[0])
 
     def action_open_late_service_wizard(self):
         """Request Late Service Exception for a free service of the job (BA-approved F5)."""

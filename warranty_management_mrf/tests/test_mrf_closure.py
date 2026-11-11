@@ -509,7 +509,7 @@ class TestWarrantyMrfClosure(WarrantyMrfCommon):
             mrf.with_user(self.tech).read(['warranty_invoice_status'])
         menus = self.env['ir.ui.menu']
         reports = self.env.ref('warranty_management_mrf.menu_warranty_reports')
-        children = reports.child_id.mapped('name')
+        children = reports.child_id.child_id.mapped('name')  # report categories
         for name in ('Material Approval and Cost', 'Warranty Material Cost',
                      'Vendor Claim Recovery', 'Material Audit Trail'):
             self.assertIn(name, children)

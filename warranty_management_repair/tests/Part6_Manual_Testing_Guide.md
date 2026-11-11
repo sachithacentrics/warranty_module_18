@@ -86,3 +86,48 @@ Before each test, note the **Delivered** quantity on the Sales Order line, the c
 |---|---|---|---|---|
 | TC-R-50 | Kit (Indoor / Outdoor): return the Outdoor component, repair, return. | Accepts that unit's serial. Indoor / Outdoor serials on the unit unchanged | | |
 | TC-R-51 | A line with another undelivered unit: return and re-deliver one machine. | The undelivered unit gets no serial | | |
+
+## 7. Figure 6 YES / NO branch (repair 18.0.1.6.3)
+
+> **Superseded for 18.0.1.7.0** by `Figure6_Manual_Testing_Guide.md` (Service Mode, Vendor Repair,
+> Minor Scratch restock, Close Case backup check). The cases below stay valid for a case whose
+> Service Mode is empty.
+
+Mapping, three paths and the mandatory workshop sequence: `doc/part6_1_repair_intake_design.md`
+section 14. **Result** is filled only with manual UAT evidence (record, date); never pre-marked
+Pass.
+
+**Workshop rule:** validate the intake and Confirm the Repair Order **before** confirming the
+inspection quotation. Otherwise the trigger creates an on-site job (TC-F6-05).
+
+### 7.1 YES: Helpdesk-led On-site Service
+
+| ID | Step | Expected | Result | Tester |
+|---|---|---|---|---|
+| TC-F6-01 | Approved case, Inspection Required, no Repair Order: Prepare Service Job, confirm (or pay) the quotation. | One Draft job; Figure 4 / 5 visit continues; the job completes the case | | |
+| TC-F6-02 | Case whose earlier Repair Order machine was returned: meet the trigger again. | Job created normally (not held back) | | |
+| TC-F6-03 | Case with an open job: Prepare Service Job. | Refused: the case already has the open job | | |
+
+### 7.2 NO: Helpdesk-led Workshop Repair
+
+| ID | Step | Expected | Result | Tester |
+|---|---|---|---|---|
+| TC-F6-04 | Trigger On Sales Order Confirmation: ticket Return, validate intake; Repair, Confirm; Start Repair; Prepare Service Job, Confirm quotation; Start Repair; End Repair; Return Machine to Customer; Complete Warranty Case. | First Start refused ("requires an inspection quotation"). After Confirm: no job, one case note, To-Do "start the repair". Case Completed from the Repair Order | | |
+| TC-F6-04b | Same with trigger On Payment. | Confirm creates nothing; Start refused until fully paid; no job after payment | | |
+| TC-F6-05 | Trigger before intake: confirm the quotation first, then intake and Repair Order. Repair, return, Complete Warranty Case. | Draft job created; Complete refused ("Service job … is open"). Recovery: **Cancel** the job, then Complete: Completed, no free service consumed. (UAT example: WCAS/000062 / JOB/000048) | | |
+
+### 7.3 Job-led Workshop Repair
+
+| ID | Step | Expected | Result | Tester |
+|---|---|---|---|---|
+| TC-F6-06 | Open job: Hold > Workshop Repair (or visit Not Completed > Workshop Repair Required); job **Workshop Intake**, validate; job **Create / Open Repair Order**, Confirm. | Same job reused; no second job; Repair Order linked to the job's case | | |
+| TC-F6-07 | Before the machine is returned: complete the job / visit; Repair Order Complete Warranty Case. | Both refused (machine not returned / job open) | | |
+| TC-F6-08 | Return Machine to Customer, then complete the job's visit. | Job and case Completed by the job | | |
+
+### 7.4 Open items (not testable yet: do not mark Pass)
+
+| ID | Item | Status | Result | Tester |
+|---|---|---|---|---|
+| TC-F6-09 | Vendor Repair branch of Figure 6 | Not built: needs design and approval | Blocked | |
+| TC-F6-10 | Damaged backup unit, assessment approved: final closure (e.g. BKU/00009) | No Close by design until BA decision D3 (payment vs physical resolution, reissue of a repaired serial, scrap) | Blocked | |
+| TC-F6-11 | Lost backup unit: final closure / recovery | BA decisions D3 and D6; write-off by standard Scrap only (D5) | Blocked | |

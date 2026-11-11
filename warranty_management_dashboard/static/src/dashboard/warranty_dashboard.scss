@@ -1,0 +1,359 @@
+// Warranty Dashboard - Odoo Plum theme. Backgrounds, text and borders use Odoo's own variables,
+// so the dark-mode bundle recompiles them; only the status accents are fixed colours.
+$o-wd-plum: #714B67;
+$o-wd-teal: #168A72;
+$o-wd-amber: #E3A247;
+$o-wd-red: #D65B65;
+$o-wd-blue: #3B7CC4;
+
+.o_warranty_dashboard {
+    --o-wd-grid: #{rgba($o-main-text-color, 0.08)};
+    background-color: $o-webclient-background-color;
+    color: $o-main-text-color;
+
+    // Scrolling: Odoo's `.o_action .o_content` rule (overflow auto, height 100%) on desktop and
+    // the action's own scroll on mobile; only the inner spacing is set here.
+    > .o_wd_content {
+        padding: 20px 24px 40px;
+    }
+
+    .o_wd_header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    .o_wd_title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: $o-wd-plum;
+    }
+    .o_wd_subtitle {
+        color: $o-main-color-muted;
+        font-size: 0.875rem;
+    }
+    .o_wd_header_actions {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+    .o_wd_refresh {
+        background-color: $o-wd-plum;
+        border-color: $o-wd-plum;
+    }
+
+    // ------------------------------------------------------------ filters
+    .o_wd_filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 10px 12px;
+        padding: 12px 14px;
+        background-color: $o-view-background-color;
+        border: 1px solid $border-color;
+        border-radius: 8px;
+    }
+    .o_wd_filter {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin: 0;
+        min-width: 0;
+        > span {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: $o-main-color-muted;
+        }
+    }
+    .o_wd_legend_note {
+        margin: 8px 2px 18px;
+        font-size: 0.8rem;
+        color: $o-main-color-muted;
+    }
+    .o_wd_scope {
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+        padding: 1px 8px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: $o-main-color-muted;
+        background-color: rgba($o-main-text-color, 0.06);
+        &.o_wd_scope_dated {
+            color: $o-wd-plum;
+            background-color: rgba($o-wd-plum, 0.1);
+        }
+    }
+
+    // ------------------------------------------------------------ KPI cards
+    // Fixed column counts per width (auto-fill kept empty tracks on wide screens): 6 KPI cards
+    // in one row on desktop, 3 + 3 on small laptops / tablets, 2 per row on phones.
+    .o_wd_kpis {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 14px;
+        @media (max-width: 1199.98px) {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+    .o_wd_kpi {
+        position: relative;
+        padding: 14px 16px 12px;
+        background-color: $o-view-background-color;
+        border: 1px solid $border-color;
+        border-left: 4px solid $o-wd-plum;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: box-shadow 0.15s ease, transform 0.15s ease;
+        &:hover, &:focus-visible {
+            box-shadow: 0 4px 14px rgba($o-wd-plum, 0.14);
+            outline: none;
+        }
+        &.o_wd_accent_teal { border-left-color: $o-wd-teal; .o_wd_kpi_icon { color: $o-wd-teal; background-color: rgba($o-wd-teal, 0.1); } }
+        &.o_wd_accent_amber { border-left-color: $o-wd-amber; .o_wd_kpi_icon { color: darken($o-wd-amber, 12%); background-color: rgba($o-wd-amber, 0.14); } }
+        &.o_wd_accent_blue { border-left-color: $o-wd-blue; .o_wd_kpi_icon { color: $o-wd-blue; background-color: rgba($o-wd-blue, 0.1); } }
+        &.o_wd_accent_red { border-left-color: $o-wd-red; .o_wd_kpi_icon { color: $o-wd-red; background-color: rgba($o-wd-red, 0.1); } }
+    }
+    .o_wd_kpi_icon {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        color: $o-wd-plum;
+        background-color: rgba($o-wd-plum, 0.1);
+    }
+    .o_wd_kpi_label {
+        padding-right: 40px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: $o-main-color-muted;
+    }
+    .o_wd_kpi_value {
+        margin-top: 6px;
+        font-size: 2rem;
+        font-weight: 600;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+    }
+    .o_wd_kpi_sub {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        margin-top: 6px;
+        font-size: 0.78rem;
+        color: $o-main-color-muted;
+    }
+    .o_wd_sub_link {
+        color: $o-wd-plum;
+        text-decoration: none;
+        font-weight: 600;
+        &:hover { text-decoration: underline; }
+    }
+    .o_wd_inline_select {
+        display: inline-block;
+        width: auto;
+        min-width: 0;
+        padding: 0 18px 0 4px !important;
+        border: 1px solid $border-color;
+        border-radius: 4px;
+        background-color: $o-view-background-color;
+        color: inherit;
+        font-size: 0.78rem;
+    }
+
+    // ------------------------------------------------------------ sections and panels
+    .o_wd_section {
+        margin: 28px 0 12px;
+        font-size: 1.05rem;
+        font-weight: 600;
+        small { font-size: 0.75rem; font-weight: 400; margin-left: 8px; }
+    }
+    // Section grids use the full content width: 3 or 2 equal columns from 992px, one column
+    // below. minmax(0, 1fr) lets charts shrink instead of widening the page.
+    .o_wd_grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+        @media (min-width: 992px) {
+            &.o_wd_grid_3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            &.o_wd_grid_2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+    }
+    .o_wd_approvals_panel {
+        margin-top: 14px;
+    }
+    .o_wd_approval_list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(#{'min(100%, 190px)'}, 1fr));
+        gap: 8px 12px;
+    }
+    .o_wd_approval {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+        padding: 7px 10px;
+        border-radius: 6px;
+        border: 1px solid $border-color;
+        font-size: 0.86rem;
+        cursor: pointer;
+        &:hover, &:focus-visible { border-color: $o-wd-plum; background-color: rgba($o-wd-plum, 0.05); outline: none; }
+        &.o_wd_muted .o_wd_approval_label { color: $o-main-color-muted; }
+    }
+    .o_wd_approval_label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .o_wd_approval_total {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 6px 16px;
+        margin-top: 10px;
+        .o_wd_footnote { margin-top: 0; }
+    }
+    .o_wd_approval_sum {
+        font-size: 0.86rem;
+        strong { margin-left: 6px; font-size: 1rem; font-variant-numeric: tabular-nums; }
+    }
+    .o_wd_panel {
+        min-width: 0;
+        padding: 14px 16px;
+        background-color: $o-view-background-color;
+        border: 1px solid $border-color;
+        border-radius: 8px;
+        transition: box-shadow 0.3s ease;
+        &.o_wd_flash { box-shadow: 0 0 0 3px rgba($o-wd-plum, 0.35); }
+    }
+    .o_wd_panel_head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+        h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            small { font-weight: 400; color: $o-main-color-muted; }
+        }
+    }
+    .o_wd_chart {
+        position: relative;
+        width: 100%;
+    }
+    .o_wd_toggle {
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+        .btn-primary { background-color: $o-wd-plum; border-color: $o-wd-plum; }
+    }
+    .o_wd_figures {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+        > div {
+            padding: 8px 10px;
+            border-radius: 6px;
+            background-color: rgba($o-wd-plum, 0.05);
+            min-width: 0;
+        }
+        span {
+            display: block;
+            font-size: 0.72rem;
+            color: $o-main-color-muted;
+        }
+        strong {
+            display: block;
+            font-size: 0.98rem;
+            font-variant-numeric: tabular-nums;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        [role="button"] { cursor: pointer; &:hover strong { color: $o-wd-plum; } }
+    }
+    .o_wd_text_teal { color: $o-wd-teal; }
+    .o_wd_text_amber { color: darken($o-wd-amber, 14%); }
+    .o_wd_text_muted { color: $o-main-color-muted; }
+    .o_wd_warn { color: darken($o-wd-amber, 14%); }
+
+    .o_wd_pill {
+        display: inline-block;
+        min-width: 28px;
+        padding: 1px 8px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: 600;
+        color: $o-main-color-muted;
+        background-color: rgba($o-main-text-color, 0.06);
+        &.o_wd_pill_active { color: #fff; background-color: $o-wd-plum; }
+    }
+    .o_wd_footnote {
+        margin-top: 8px;
+        font-size: 0.72rem;
+        color: $o-main-color-muted;
+    }
+    .o_wd_empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 120px;
+        color: $o-main-color-muted;
+        font-size: 0.85rem;
+        text-align: center;
+        i { font-size: 1.2rem; opacity: 0.7; }
+        &.o_wd_loading { min-height: 50vh; }
+    }
+    .o_wd_busy { opacity: 0.55; pointer-events: none; transition: opacity 0.2s; }
+
+    // ------------------------------------------------------------ reports
+    .o_wd_reports {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(#{'min(100%, 230px)'}, 1fr));
+        gap: 10px;
+    }
+    .o_wd_report {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        text-align: left;
+        color: inherit;
+        background-color: $o-view-background-color;
+        border: 1px solid $border-color;
+        border-radius: 8px;
+        i { color: $o-wd-plum; width: 16px; text-align: center; }
+        span { flex: 1; font-size: 0.86rem; }
+        small { color: $o-main-color-muted; font-size: 0.7rem; }
+        &:hover { border-color: $o-wd-plum; box-shadow: 0 2px 8px rgba($o-wd-plum, 0.12); }
+    }
+
+    @media (max-width: 767.98px) {
+        > .o_wd_content { padding: 12px 12px 32px; }
+        .o_wd_header { align-items: flex-start; }
+        .o_wd_title { font-size: 1.25rem; }
+        .o_wd_filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .o_wd_kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .o_wd_kpi { padding: 12px; }
+        .o_wd_kpi_value { font-size: 1.6rem; }
+        .o_wd_kpi_icon { display: none; }
+        .o_wd_kpi_label { padding-right: 0; }
+        .o_wd_figures strong { font-size: 0.85rem; }
+    }
+}

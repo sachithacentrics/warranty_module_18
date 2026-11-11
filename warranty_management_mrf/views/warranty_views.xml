@@ -10,7 +10,7 @@
             <xpath expr="//header" position="inside">
                 <button name="action_create_material_request" type="object" string="Create Material Request"
                         groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
-                        invisible="state not in ('approved', 'job_created', 'in_progress', 'chargeable')"/>
+                        invisible="state not in ('approved', 'job_created', 'in_progress', 'chargeable') or not case_type"/>
                 <button name="action_link_material_request" type="object" string="Link Material Request"
                         groups="helpdesk.group_helpdesk_user"
                         invisible="True"/>

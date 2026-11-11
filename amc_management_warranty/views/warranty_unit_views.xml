@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="warranty_unit_view_form" model="ir.ui.view">
+        <field name="name">warranty.unit.view.form.inherit.amc_management_warranty</field>
+        <field name="model">warranty.unit</field>
+        <field name="inherit_id" ref="warranty_management.warranty_unit_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_amc_contracts" type="object" class="oe_stat_button"
+                        icon="fa-wrench" invisible="not amc_contract_count"
+                        groups="amc_management.amc_management_group_user">
+                    <field name="amc_contract_count" widget="statinfo" string="AMC"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

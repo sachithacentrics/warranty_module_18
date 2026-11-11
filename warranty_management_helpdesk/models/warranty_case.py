@@ -463,6 +463,21 @@ class WarrantyCase(models.Model):
         return user != self.payment_approval_requested_by_id \
             and user in self.company_id.warranty_overdue_approver_ids
 
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        """Payment Exception Approver of a case waiting for their approval: the form header shows
+        only Approve Payment Exception; every other header button (of every module) is hidden
+        while can_approve_payment is set and comes back with its own rule once it is not.
+        Display only: each action keeps its own server-side checks."""
+        arch, view = super()._get_view(view_id, view_type, **options)
+        if view_type == 'form' and arch.xpath("//header/field[@name='can_approve_payment']"):
+            for button in arch.xpath(
+                    "//header/button[@name != 'action_approve_payment_exception']"):
+                rule = button.get('invisible')
+                button.set('invisible',
+                           '(%s) or can_approve_payment' % rule if rule else 'can_approve_payment')
+        return arch, view
+
     @api.onchange('warranty_unit_id')
     def _onchange_warranty_unit_id(self):
         if self.warranty_unit_id:
@@ -2178,6 +2193,22 @@ class WarrantyCase(models.Model):
         if team.warranty_inspection_amount:
             inspection['price_unit'] = team.warranty_inspection_amount
         return [inspection]
+
+    def _warranty_inspection_coverage(self, product):
+        """Coverage of the Inspection Product by the case policies (card and free service cards,
+        as the Material Request default D7): an explicit Excluded item wins over a Covered item;
+        otherwise Not Listed. Only the product's own coverage item counts (Labour or Parts do
+        not cover the inspection). Returns (coverage, coverage item)."""
+        self.ensure_one()
+        # sudo: the policy is read for the classification only.
+        case = self.sudo()
+        policies = case.warranty_card_id.policy_id | case.service_card_ids.policy_id
+        for coverage, items in (('excluded', policies.excluded_item_ids),
+                                ('covered', policies.covered_item_ids)):
+            item = items.filtered(lambda item: item.product_id == product)[:1]
+            if item:
+                return coverage, item
+        return 'not_listed', self.env['warranty.coverage.item']
 
     def _warranty_convert_chargeable(self, chargeable_type):
         """Convert to Chargeable (Q49-Q52, Q54): status Chargeable + Chargeable Type, original

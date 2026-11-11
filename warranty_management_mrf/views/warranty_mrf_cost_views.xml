@@ -207,9 +207,21 @@
          groups or action: shown only to users who can see one of its reports (5.9 adds more). -->
     <menuitem id="menu_warranty_reports" name="Reports"
               parent="warranty_management.menu_warranty_root" sequence="90"/>
+    <!-- SRS 15 report categories: like Reports, no groups or action, so each category shows
+         only to users who can see one of its reports. -->
+    <menuitem id="menu_warranty_reports_entitlement" name="Warranty &amp; Entitlements"
+              parent="menu_warranty_reports" sequence="10"/>
+    <menuitem id="menu_warranty_reports_service" name="Service Operations"
+              parent="menu_warranty_reports" sequence="20"/>
+    <menuitem id="menu_warranty_reports_quality" name="Quality &amp; History"
+              parent="menu_warranty_reports" sequence="30"/>
+    <menuitem id="menu_warranty_reports_material" name="Materials &amp; Inventory"
+              parent="menu_warranty_reports" sequence="40"/>
+    <menuitem id="menu_warranty_reports_financial" name="Financial &amp; Recovery"
+              parent="menu_warranty_reports" sequence="50"/>
     <menuitem id="menu_warranty_mrf_cost_report" name="Warranty Material Cost"
-              parent="menu_warranty_reports" action="action_warranty_mrf_cost_report"
-              sequence="10"
+              parent="menu_warranty_reports_material" action="action_warranty_mrf_cost_report"
+              sequence="20"
               groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user,account.group_account_readonly,account.group_account_invoice"/>
     <menuitem id="menu_warranty_mrf_cost_report_accounting" name="Warranty Material Cost"
               parent="account.menu_finance_reports" action="action_warranty_mrf_cost_report"

@@ -56,7 +56,7 @@ Service Project**.
 
 | # | Steps | Expected | Actual | Status |
 |---|---|---|---|---|
-| TC-P4-018 | Planned Warranty Only job -> **Confirm Service Job**. | Job **Confirmed**; smart button **Visits (1)**; the task: project = Warranty Field Service Project (or the standard Field Service project), customer = case site / customer, planned start = Planned Date, assignees = main + support technicians, Ticket, Service Job, Warranty Case, Visit No. 1. Case status **Job Created**; chatter on job and case. Technicians get the standard internal assignment notification; no customer email. | | |
+| TC-P4-018 | Planned Warranty Only job -> **Confirm Service Job**. | Job **Confirmed**; smart button **Visits (1)**; the task: project = the company's standard Field Service project, customer = case site / customer, planned start = Planned Date, assignees = main + support technicians, Ticket, Service Job, Warranty Case, Visit No. 1. Case status **Job Created**; chatter on job and case. Technicians get the standard internal assignment notification; no customer email. | | |
 | TC-P4-019 | Job with 1 free service -> Confirm. | Free service status **Job Created**, Merge Status unchanged; free services balance unchanged; deleting the service is refused. | | |
 | TC-P4-020 | Planned job; then on the case policy tick Payment Check Required + Hold (unpaid invoice) -> Confirm. | Warning "Service job not confirmed"; job stays Planned, no task; case stays Approved / Eligible; chatter on job and case "blocked by the eligibility revalidation". Undo the policy change afterwards. | | |
 | TC-P4-021 | Move the case's Helpdesk ticket to a closed (folded) stage -> Confirm. | Refused: "Helpdesk ticket ... is closed: reopen it first". | | |
@@ -323,7 +323,7 @@ and records without request).
 
 Setup (beginner steps):
 1. Sales > Products > create the service **AC Installation**: Product Type Service, Create on
-   Order *Task*, Project = the Warranty Field Service Project, tick **Warranty Installation
+   Order *Task*, Project = the company's standard Field Service project, tick **Warranty Installation
    Service**, **Installs Products** = the split AC product(s). Save.
 2. The AC product (or its policy) uses Start Criterion *Installation/Commissioning*.
 3. Settings > Warranty: Customer Sign-off Required as needed (default on); Warranty Timezone set.
@@ -336,7 +336,7 @@ Setup (beginner steps):
 | TC-IN-04 | Reopen the task and mark it done again. | Card dates unchanged; history *Installation Task Reopened* and a note that the original completion is kept; no second activation. | | |
 | TC-IN-05 | New SO with an AC and two installation services (indoor / outdoor). Deliver, complete one task. | Card waits (Pending Installation) until both are done; start = the later completion. | | |
 | TC-IN-06 | Installation task completed **before** the delivery is validated. | Card Draft (delivery missing), Installation Date filled; validating the delivery confirms the card automatically with the original installation date. | | |
-| TC-IN-07 | Card without an installation service on the SO: **Create Installation Task** on the card. | Task created in the Warranty Field Service Project, linked to this card only; completing it confirms the card. | | |
+| TC-IN-07 | Card without an installation service on the SO: **Create Installation Task** on the card. | Task created in the company's standard Field Service project, linked to this card only; completing it confirms the card. | | |
 | TC-IN-08 | Cancel the only installation task. Then (Date Correction user) **Record Start Date Exception** with a reason. | Card back to Pending Installation; after the exception Ready, confirm manually; Start Date Source = Authorized Exception. | | |
 | TC-IN-09 | Repair / ordinary Field Service task and a Part 4 service-job visit completed. | Never change any warranty card's start date. Part 4 visit completion behaves exactly as before. | | |
 | TC-IN-10 | As a technician (no Date Correction group) edit the cards of an installation task; try to type an Installation Date on a card. | Refused / read-only. As the Date Correction user the task's cards can be changed while the task is open (history *Source Change*). | | |

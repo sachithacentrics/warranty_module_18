@@ -9,11 +9,22 @@
         <field name="arch" type="xml">
             <xpath expr="//button[@name='requisition_confirm']" position="after">
                 <!-- Phase 5.2: coverage decision (mapping D7). -->
+                <!-- UX: while coverage is pending, Submit is refused (T2.3): the coverage step is
+                     the primary action (Decide Coverage for a reviewer, else Request Coverage
+                     Decision); a decided request keeps Decide Coverage as secondary. -->
+                <button name="action_request_coverage_decision" type="object"
+                        string="Request Coverage Decision" class="btn-primary"
+                        invisible="not is_warranty_mrf or state != 'draft' or not coverage_pending_count or can_decide_coverage"/>
                 <button name="action_request_coverage_decision" type="object"
                         string="Request Coverage Decision"
-                        invisible="not is_warranty_mrf or state != 'draft' or not coverage_pending_count"/>
+                        invisible="not is_warranty_mrf or state != 'draft' or not coverage_pending_count or not can_decide_coverage"/>
                 <button name="action_decide_coverage" type="object" string="Decide Coverage"
-                        class="btn-primary" invisible="not can_decide_coverage"/>
+                        class="btn-primary" invisible="not can_decide_coverage or not coverage_pending_count"/>
+                <button name="action_decide_coverage" type="object" string="Decide Coverage"
+                        invisible="not can_decide_coverage or coverage_pending_count"/>
+            </xpath>
+            <xpath expr="//button[@name='requisition_confirm']" position="attributes">
+                <attribute name="invisible">state != 'draft' or (is_warranty_mrf and coverage_pending_count)</attribute>
             </xpath>
             <xpath expr="//sheet/*[1]" position="before">
                 <div class="alert alert-warning" role="alert"

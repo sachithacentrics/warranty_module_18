@@ -17,7 +17,7 @@
         </xpath>
         <xpath expr="//div[@name='warranty_card_internal']" position="inside">
             <t t-set="serial_rows" t-value="[row for row in card._warranty_replacement_serial_date_rows() if not unit or row['unit'] == unit.name]"/>
-            <table t-if="serial_rows" class="wc-rows-small">
+            <table t-if="serial_rows and not multi_unit" class="wc-rows-small">
                 <thead>
                     <tr>
                         <th>Warranty Number</th>
@@ -37,6 +37,33 @@
                     </tr>
                 </tbody>
             </table>
+        </xpath>
+        <!-- Several units: the serial dates follow the Unit Warranty Schedule, which has room. -->
+        <xpath expr="//div[@name='warranty_card_schedule_extra']" position="inside">
+            <t t-set="schedule_serial_rows" t-value="card._warranty_replacement_serial_date_rows()"/>
+            <t t-if="schedule_serial_rows">
+                <div class="wc-terms-title">SERIAL WARRANTY DATES</div>
+                <table class="wc-units">
+                    <thead>
+                        <tr>
+                            <th>Unit Warranty Number</th>
+                            <th>Component</th>
+                            <th>Serial</th>
+                            <th class="wc-units-date">Start Date</th>
+                            <th class="wc-units-date">End Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="schedule_serial_rows" t-as="row">
+                            <td><span t-esc="row['unit']"/></td>
+                            <td><span t-esc="row['role']"/></td>
+                            <td><span t-esc="row['serial']"/></td>
+                            <td><span t-esc="row['start']" t-options="{'widget': 'date'}"/></td>
+                            <td><span t-esc="row['end']" t-options="{'widget': 'date'}"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </t>
         </xpath>
     </template>
 </odoo>

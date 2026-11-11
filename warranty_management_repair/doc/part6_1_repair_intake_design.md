@@ -274,3 +274,140 @@ Differences from §7, found while coding:
 Not done, as decided: the MRF form does not show `warranty_repair_id`; a chargeable workshop repair has no pickup / delivery job path, because the Job Trigger creates none and Prepare Service Job is refused (raise with the BA).
 
 Not changed: `warranty_management_mrf/tests/test_settings_help.py:20` still expects 39 settings, so it fails on any database where this module is installed until it reads 40.
+
+## 13. Workshop inspection trigger (18.0.1.6.3, Figure 6 Phase 2)
+
+* An Approved case with Inspection Required whose machine is already in the workshop (a Repair Order
+  of the case, not returned, whose validated Warranty Repair Intake received the case product and
+  serial, i.e. the Confirm guard passes) and with no open service job: the Inspection Trigger (Sales
+  Order Confirmation or Payment) creates no on-site service job. The case is logged once (trigger,
+  quotation, Repair Order) and the Repair Order gets a "start the repair" To-Do.
+* Start Repair keeps its existing gate (the inspection quotation must meet the trigger);
+  Complete Warranty Case and its guards are unchanged.
+* Unchanged: cases without such a Repair Order (Figure 4 / 5), cancelled or unsupported Repair
+  Orders, job-led repairs (the job exists first), chargeable cases (Decision 3), Prepare Service Job
+  on request. Existing jobs are never cancelled automatically: an open Draft job still blocks the
+  workshop completion until the user cancels it.
+
+## 14. SRS Figure 6 YES / NO branch (page 30): mapping to the existing actions
+
+Documentation only (2026-11-06): no field, state or setting. The SRS question "On-site resolution
+possible?" is answered by the action the user takes.
+
+| Starting point | YES: on-site | NO: workshop |
+|---|---|---|
+| Helpdesk ticket / case | Case **Prepare Service Job** (or its Inspection Trigger): Figure 4 / 5 | Ticket **Return** (Warranty Repair Intake), then ticket **Repair** |
+| Service job / visit | The visit continues (Figure 4 / 5) | Job **Hold > Workshop Repair**, or visit **Not Completed > Workshop Repair Required**; then job **Workshop Intake** and **Create / Open Repair Order** |
+
+The Inspection Trigger (On Sales Order Confirmation / On Payment) is a financial authorization:
+it lets the work start (the job, or Start Repair). It is not the on-site decision. Section 13 only
+stops the trigger from creating an on-site job when the workshop was already chosen.
+
+**Three paths and their completion owner**
+
+| Path | Job | Completion |
+|---|---|---|
+| Helpdesk-led On-site Service | One job from Prepare Service Job / the trigger | The job (Figure 4 / 5) |
+| Helpdesk-led Workshop Repair | None | Repair Order **Complete Warranty Case** (section 5) |
+| Job-led Workshop Repair | The existing job, reused; no second job | The job, once the machine is returned; the Repair Order's Complete Warranty Case is refused while the job is open |
+
+**Mandatory workshop sequence (helpdesk-led)**
+
+1. Validate the Workshop Intake (ticket Return, Warranty Repair Intake ticked).
+2. Create and Confirm the Repair Order (Confirm checks the received serial).
+3. When the case requires an inspection: create (Prepare Service Job) and Confirm the inspection
+   quotation; with On Payment, invoice and pay it.
+4. Start Repair (refused until the trigger is met).
+5. Set the Repair Result, End Repair, Return Machine to Customer.
+6. Complete the case through its owner: the Repair Order when no job is open, else the job.
+
+**Exception: trigger before intake.** If the inspection quotation is confirmed (or paid) before
+steps 1–2, the machine is not yet in the workshop and the trigger creates a Draft on-site job, as
+designed (example: WCAS/000062, JOB/000048). Recovery with existing actions, chosen by the user:
+
+* the job is not needed: **Cancel** it (nothing consumed), then Complete Warranty Case on the Repair
+  Order; or
+* keep it: run the repair job-led (Hold > Workshop Repair) and complete through the job.
+
+Nothing is cancelled automatically.
+
+**Not covered yet:** Vendor Repair (not built); final closure of Damaged / Lost backup units
+(BA decision D3; D5 / D6 for Lost, `part6_3_backup_billing_design.md`).
+*(Superseded by section 15 for Vendor Repair and the Service Mode.)*
+
+## 15. Figure 6 completion (repair 18.0.1.7.0, accounting 18.0.1.6.3, 2026-11-06)
+
+Approved scope C1, S1, C3, C4, C5 and Vendor Repair (internal / external transfer types). Manual UAT
+guide: `tests/Figure6_Manual_Testing_Guide.md`.
+
+**S1 Service Mode** (`warranty.case.warranty_service_mode`, SRS 12 scenario 18): On-site /
+Workshop Repair / Vendor Repair, tracked.
+
+| Rule | Behaviour |
+|---|---|
+| Empty (SM1) | Exactly the behaviour before the field (section 13 inference included); no migration |
+| Who / when (SM2) | Helpdesk users; not on Rejected / Completed / Closed cases; while a service job is open only Workshop <-> Vendor (the job keeps control) |
+| Job-led (SM3) | Job Hold > Workshop Repair, or a Repair Order created for an open non-inspection job, sets Workshop Repair (logged) |
+| On-site | Inspection Trigger / Prepare Service Job create the job (Figure 4 / 5), even if a workshop Repair Order exists |
+| Workshop / Vendor | Inspection Trigger: no job, one case note, "start the repair" To-Do; Start Repair keeps its inspection gate. Prepare Service Job: inspection quotation only, then refused (no on-site job). Chargeable repair (Decision 3): no job even before the Repair Order exists. Chargeable inspection / excluded items orders: unchanged |
+| Leaving Vendor | Refused while a vendor transfer is open or the machine is away |
+| SM4 | The SRS "vendor repair" service type is this mode, not a new Case Type |
+
+**Vendor Repair** (`models/repair_vendor.py`, wizard `warranty.repair.vendor.send`):
+
+* Send for Repair (Inventory users, Service Mode Vendor Repair, Repair Order Under Repair, machine
+  not away): Transfer Type **Internal Transfer** (internal locations of the company outside the
+  warehouses, not intake / backup / custody) or **External Vendor** (vendor required; locations
+  flagged **Vendor Repair Custody**, of that vendor or of any vendor). Source = the verified quant
+  location of the serial (exactly one unit, company, valued, not reserved).
+* Receive from Repair: from where the serial verifiably is (must be within the send destination)
+  to the intake location.
+* Both are the warehouse's existing **Internal Transfers** type; exactly the serial, quantity 1;
+  origin = Repair Order / case; links on the picking (`warranty_vendor_repair_id`, direction, type).
+  An open transfer is reopened, never duplicated; several rounds are possible.
+* Valuation: internal and company transit locations are both valued (`_should_be_valued`), so no
+  valuation layer, sale, purchase or ownership change. Custody locations are constrained to that.
+* Guards: validation checks serial, quantity, locations; End Repair, Cancel, Return Machine to
+  Customer and the standard return of the intake are refused while the machine is away or a vendor
+  transfer is open. Intake Status **Away for Repair** while away.
+* Not decided by the SRS, so not automated: vendor charge / purchase order, approval before sending,
+  cost on the case (existing manual cost lines), vendor recovery (existing Vendor Claim), vendor
+  replacement (existing Part 7 Vendor Replacement).
+
+**C1** job Create Repair Order passes its case (`warranty_repair_case_id` context) to the ticket
+defaults. **C3** Return to Backup Stock also for Minor Scratch. **C5** Intake Status Received only
+when the linked intake received this product and serial. **C4** (accounting) Close Case refused
+while a backup unit of the case or its Repair Orders is Issued / Overdue or Draft with an open issue
+transfer; Completion unchanged; assessment, charge and disposition never block (SRS 17).
+
+**Not implemented (decisions pending):** Damaged / Lost backup Close (C2: B1 restored-to-service
+rule, B2 credit note / cancelled quotation write-off, B3 lost unit found). *(Done in section 16.)*
+
+## 16. Damaged / Lost backup closure (C2, repair 18.0.1.7.1, accounting 18.0.1.6.4, 2026-11-06)
+
+SRS: Figure 6 "Backup lost / damaged / chargeable cost?" -> approval and customer quotation /
+invoice -> close; §2.9; lifecycle "Returned / Damaged / Lost -> Closed"; §17 "track repair / scrap
+cost and recovery separately". The rules below are **business decisions** approved by the user
+(B1–B7), not explicit SRS text.
+
+| Rule | Implementation |
+|---|---|
+| Good / Minor Scratch (unchanged) | Returned, no assessment: serial in Backup Stock -> Close (Disposition Back in Backup Stock) |
+| B2 financial | Financial Recovery No Charge Approved, or Paid with the order fully invoiced and no draft move |
+| B3 | Credit Note Issued / Quotation Cancelled: not closable (write-off rule not defined), except B5c |
+| B1 restore | Damaged + approved: Restored Condition + note -> **Confirm Restored** (Inventory user, serial in Returned-Inspection) -> Return to Backup Stock -> Close (Disposition Restored) |
+| Damaged scrap | Last done move of the serial = a standard Scrap from Returned-Inspection, same company, after the issue, no stock left in an internal location |
+| B4 Lost | Last done move = a standard Scrap, or an applied Physical Inventory count (inventory move) to the inventory-loss location, from Service / Loan With Customer (Disposition Scrapped / Missing) |
+| B5 Lost -> Found | **Record Found** (Backup Damage / Loss Approver, Found Note), only on an approved Lost unit, once; refused while any unit of the serial sits in a virtual inventory location (written off): an Inventory Administrator corrects stock first with a standard operation (count back, or transfer out of Scrap). Then Create Return Transfer (Backup Return, existing serial checks) -> Returned / Damaged |
+| B5c | A recovered unit may also close with Credit Note Issued when every posted invoice and credit note of the charge order is settled (residual zero) and none is draft |
+| B5d | One assessment: a recovered unit keeps its approved loss assessment; no second damage charge (needs a separate business decision) |
+| B5e | Serials whose latest record was Closed with Disposition Scrapped / Missing are never offered and are refused on a new backup unit, even if stock is corrected by hand |
+| B5f (accounting) | Close Case also refused while a Lost unit recorded as found is not received |
+| B6 | Rejection = existing Send Back |
+| B7 | Damaged / Lost / recovered Close by Inventory users |
+| No automation | Close stores the verified move line (Disposition Move) and logs approver, financial status, disposition, reference, user and date; it creates no scrap, adjustment, transfer, invoice, payment or journal entry |
+
+Known limits: recovery of an already Closed Lost unit (Part 9); write-off rule for credit notes /
+cancelled quotations of non-recovered units; a second damage charge on a recovered unit; Confirm
+Restored needs the serial in Returned-Inspection (UAT BKU/00002 was moved to Backup Stock by
+hand).

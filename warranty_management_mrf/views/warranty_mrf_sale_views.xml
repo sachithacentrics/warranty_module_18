@@ -11,8 +11,13 @@
                 <field name="can_create_parts_quotation" invisible="1"/>
                 <field name="can_decline_chargeable" invisible="1"/>
                 <field name="can_approve_release_exception" invisible="1"/>
+                <!-- UX: secondary next to the issue / receipt / usage steps of the covered parts;
+                     primary when it is the remaining step of a received request. -->
                 <button name="action_create_parts_quotation" type="object" string="Create Parts Quotation"
-                        class="btn-primary" invisible="not can_create_parts_quotation"/>
+                        class="btn-primary"
+                        invisible="not can_create_parts_quotation or state != 'receive' or can_warranty_record_usage"/>
+                <button name="action_create_parts_quotation" type="object" string="Create Parts Quotation"
+                        invisible="not can_create_parts_quotation or (state == 'receive' and not can_warranty_record_usage)"/>
                 <button name="action_open_chargeable_decline" type="object" string="Customer Declined"
                         invisible="not can_decline_chargeable"/>
                 <button name="action_open_release_exception" type="object" string="Approve Release Exception"
@@ -33,6 +38,7 @@
                        column_invisible="not parent.is_warranty_mrf"
                        decoration-warning="chargeable_state in ('to_quote', 'waiting_customer', 'waiting_payment')"
                        decoration-success="chargeable_state in ('released', 'released_exception')"
+                       decoration-danger="chargeable_state == 'blocked'"
                        decoration-muted="chargeable_state == 'declined'"/>
                 <field name="chargeable_decline_reason" optional="hide" column_invisible="not parent.is_warranty_mrf"/>
             </xpath>

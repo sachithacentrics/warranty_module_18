@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="warranty_management_dashboard.Chart">
+        <div class="o_wd_chart" t-att-style="'height: ' + props.height + 'px'">
+            <canvas t-ref="canvas" role="img" t-att-aria-label="props.label"/>
+        </div>
+    </t>
+
+    <!-- Section badge: which filters a figure follows. -->
+    <t t-name="warranty_management_dashboard.Scope">
+        <span t-if="scope === 'snapshot'" class="o_wd_scope" title="Position today: the date range does not apply">Snapshot</span>
+        <span t-else="" class="o_wd_scope o_wd_scope_dated" t-att-title="'Date range applies to: ' + scope">
+            <i class="fa fa-calendar me-1"/><t t-esc="scope"/>
+        </span>
+    </t>
+
+    <t t-name="warranty_management_dashboard.Empty">
+        <div class="o_wd_empty">
+            <i t-attf-class="fa {{ icon or 'fa-inbox' }}"/>
+            <span t-esc="text or 'No records match the filters.'"/>
+        </div>
+    </t>
+
+    <t t-name="warranty_management_dashboard.Dashboard">
+        <!-- Odoo's action layout: the action root does not scroll (overflow hidden); its
+             .o_content child does on desktop, the action itself on mobile. -->
+        <div class="o_action o_warranty_dashboard">
+          <div class="o_content o_wd_content">
+            <!-- ======================================================== header -->
+            <div class="o_wd_header">
+                <div>
+                    <h1 class="o_wd_title">Warranty Dashboard</h1>
+                    <div class="o_wd_subtitle">Warranty status, pending services, approvals, replacements and escalations</div>
+                </div>
+                <div class="o_wd_header_actions">
+                    <button class="btn btn-light" t-on-click="resetFilters" title="Reset filters">
+                        <i class="fa fa-undo"/><span class="d-none d-md-inline ms-1">Reset</span>
+                    </button>
+                    <button class="btn btn-primary o_wd_refresh" t-on-click="() => { this.load(); this.loadFinance(true); }" title="Reload all figures">
+                        <i class="fa fa-refresh"/><span class="d-none d-md-inline ms-1">Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <t t-if="state.data">
+                <t t-set="options" t-value="state.data.options"/>
+                <t t-set="f" t-value="state.filters"/>
+                <!-- ==================================================== filters -->
+                <div class="o_wd_filters">
+                    <label t-if="options.companies.length > 1" class="o_wd_filter">
+                        <span>Company</span>
+                        <select class="form-select" t-on-change="(ev) => this.onFilter('company_id', ev)">
+                            <option value="" t-att-selected="!f.company_id">All allowed companies</option>
+                            <t t-foreach="options.companies" t-as="c" t-key="c.id">
+                                <option t-att-value="c.id" t-att-selected="f.company_id === c.id" t-esc="c.name"/>
+                            </t>
+                        </select>
+                    </label>
+                    <label t-if="options.branches.length" class="o_wd_filter">
+                        <span>Branch</span>
+                        <select class="form-select" t-on-change="(ev) => this.onFilter('branch_id', ev)">
+                            <option value="" t-att-selected="!f.branch_id">Company and all branches</option>
+                            <t t-foreach="options.branches" t-as="b" t-key="b.id">
+                                <option t-att-value="b.id" t-att-selected="f.branch_id === b.id" t-esc="b.name"/>
+                            </t>
+                        </select>
+                    </label>
+                    <label class="o_wd_filter">
+                        <span>Product Category</span>
+                        <select class="form-select" t-on-change="(ev) => this.onFilter('category_id', ev)">
+                            <option value="" t-att-selected="!f.category_id">All categories</option>
+                            <t t-foreach="options.categories" t-as="c" t-key="c.id">
+                                <option t-att-value="c.id" t-att-selected="f.category_id === c.id" t-esc="c.name"/>
+                            </t>
+                        </select>
+                    </label>
+                    <label class="o_wd_filter">
+                        <span>Warranty Status</span>
+                        <select class="form-select" t-on-change="(ev) => this.onFilter('card_state', ev)">
+                            <option value="" t-att-selected="!f.card_state">All statuses</option>
+                            <t t-foreach="options.card_states" t-as="s" t-key="s.id">
+                                <option t-att-value="s.id" t-att-selected="f.card_state === s.id" t-esc="s.name"/>
+                            </t>
+                        </select>
+                    </label>
+                    <label class="o_wd_filter o_wd_filter_date">
+                        <span>From</span>
+                        <input type="date" class="form-control" t-att-value="f.date_from" t-on-change="(ev) => this.onFilter('date_from', ev)"/>
+                    </label>
+                    <label class="o_wd_filter o_wd_filter_date">
+                        <span>To</span>
+                        <input type="date" class="form-control" t-att-value="f.date_to" t-on-change="(ev) => this.onFilter('date_to', ev)"/>
+                    </label>
+                </div>
+                <div class="o_wd_legend_note">
+                    <span class="o_wd_scope">Snapshot</span> today's position: company, category and status filters apply, the date range does not.
+                    <span class="o_wd_scope o_wd_scope_dated ms-2"><i class="fa fa-calendar me-1"/>Date</span> figures also follow the date range.
+                    <t t-if="f.card_state"> Warranty Status filters the warranty card figures only.</t>
+                </div>
+
+                <!-- ==================================================== KPI cards -->
+                <t t-set="k" t-value="state.data.kpis"/>
+                <div class="o_wd_kpis" t-att-class="{'o_wd_busy': state.loading}">
+                    <div class="o_wd_kpi o_wd_accent_teal" role="button" tabindex="0" t-on-click="() => this.open('active')">
+                        <div class="o_wd_kpi_icon"><i class="fa fa-shield"/></div>
+                        <div class="o_wd_kpi_label">Active Warranties</div>
+                        <div class="o_wd_kpi_value" t-esc="count(k.active)"/>
+                        <div class="o_wd_kpi_sub">Confirmed and valid today</div>
+                    </div>
+                    <div class="o_wd_kpi o_wd_accent_amber" role="button" tabindex="0" t-on-click="() => this.open('expiring')">
+                        <div class="o_wd_kpi_icon"><i class="fa fa-hourglass-half"/></div>
+                        <div class="o_wd_kpi_label">Expiring Warranties</div>
+                        <div class="o_wd_kpi_value" t-esc="count(k.expiring)"/>
+                        <div class="o_wd_kpi_sub" t-on-click.stop="() => {}">
+                            Within
+                            <select class="o_wd_inline_select" t-on-change="(ev) => this.onFilter('expiring_days', ev)">
+                                <t t-foreach="options.expiring_windows" t-as="d" t-key="d">
+                                    <option t-att-value="d" t-att-selected="f.expiring_days === d" t-esc="d"/>
+                                </t>
+                            </select>
+                            days
+                        </div>
+                    </div>
+                    <div class="o_wd_kpi o_wd_accent_blue" role="button" tabindex="0" t-on-click="() => this.open('pending_services')">
+                        <div class="o_wd_kpi_icon"><i class="fa fa-calendar-check-o"/></div>
+                        <div class="o_wd_kpi_label">Pending Warranty Services</div>
+                        <div class="o_wd_kpi_value" t-esc="count(k.pending_services)"/>
+                        <div class="o_wd_kpi_sub">
+                            <a href="#" class="o_wd_sub_link text-danger" t-on-click.prevent.stop="() => this.open('services_overdue')"><t t-esc="count(k.services_overdue)"/> overdue</a>
+                            ·
+                            <a href="#" class="o_wd_sub_link o_wd_text_amber" t-on-click.prevent.stop="() => this.open('services_due')"><t t-esc="count(k.services_due)"/> due</a>
+                        </div>
+                    </div>
+                    <div class="o_wd_kpi o_wd_accent_plum" role="button" tabindex="0" t-on-click="() => this.scrollTo('o_wd_approvals')">
+                        <div class="o_wd_kpi_icon"><i class="fa fa-check-square-o"/></div>
+                        <div class="o_wd_kpi_label">Pending Approvals</div>
+                        <div class="o_wd_kpi_value" t-esc="k.approvals_total"/>
+                        <div class="o_wd_kpi_sub">
+                            <t t-esc="k.approvals.filter((a) => a.count).length"/> of <t t-esc="k.approvals.length"/> approval types waiting
+                        </div>
+                    </div>
+                    <div class="o_wd_kpi o_wd_accent_plum" role="button" tabindex="0" t-on-click="() => this.open('open_replacements')">
+                        <div class="o_wd_kpi_icon"><i class="fa fa-exchange"/></div>
+                        <div class="o_wd_kpi_label">Open Replacements</div>
+                        <div class="o_wd_kpi_value" t-esc="count(k.open_replacements)"/>
+                        <div class="o_wd_kpi_sub" t-if="k.replacements_submitted !== null">
+                            <a href="#" class="o_wd_sub_link" t-on-click.prevent.stop="() => this.open('appr_replacement')"><t t-esc="k.replacements_submitted"/> awaiting approval</a>
+                        </div>
+                        <div class="o_wd_kpi_sub" t-else="">No access</div>
+                    </div>
+                    <div class="o_wd_kpi o_wd_accent_red" role="button" tabindex="0" t-on-click="() => this.open('escalations')">
+                        <div class="o_wd_kpi_icon"><i class="fa fa-exclamation-triangle"/></div>
+                        <div class="o_wd_kpi_label">Repeated Failure Escalations</div>
+                        <div class="o_wd_kpi_value" t-esc="count(k.escalations)"/>
+                        <div class="o_wd_kpi_sub">
+                            <a href="#" class="o_wd_sub_link" t-on-click.prevent.stop="() => this.open('repeated_flagged')"><t t-esc="count(k.repeated_flagged)"/> open repeated-failure cases</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================================================== operations -->
+                <h2 class="o_wd_section">Warranty and Services</h2>
+                <div class="o_wd_grid o_wd_grid_3">
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Warranty Status</h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'snapshot'"/></t>
+                        </div>
+                        <WarrantyDashboardChart t-if="state.charts.cardStatus" config="state.charts.cardStatus" onSegmentClick.bind="onCardStatusClick" label="'Warranty status distribution'"/>
+                        <t t-else="" t-call="warranty_management_dashboard.Empty"/>
+                    </div>
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Expiry Trend <small>next 12 months</small></h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'snapshot'"/></t>
+                        </div>
+                        <WarrantyDashboardChart t-if="state.charts.expiry" config="state.charts.expiry" onSegmentClick.bind="onExpiryClick" label="'Active warranties by expiry month'"/>
+                        <t t-else="" t-call="warranty_management_dashboard.Empty"><t t-set="text" t-value="'No active warranty ends in the next 12 months.'"/></t>
+                    </div>
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Service Due and Overdue</h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'snapshot'"/></t>
+                        </div>
+                        <WarrantyDashboardChart t-if="state.charts.serviceDue" config="state.charts.serviceDue" onSegmentClick.bind="onServiceDueClick" label="'Open services by due indicator'"/>
+                        <t t-else="" t-call="warranty_management_dashboard.Empty"><t t-set="text" t-value="'No open warranty service.'"/></t>
+                        <div class="o_wd_footnote">All open services, by the existing Due Indicator. <b>Not Yet in Alert Window</b>: the alert date is not reached yet, or the service has no due date to monitor (e.g. usage-based or already scheduled).</div>
+                    </div>
+                </div>
+                <!-- Full-width row: the approval types flow in as many columns as fit. -->
+                <div class="o_wd_panel o_wd_approvals_panel" id="o_wd_approvals">
+                    <div class="o_wd_panel_head">
+                        <h3>Pending Approvals</h3>
+                        <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'snapshot'"/></t>
+                    </div>
+                    <div class="o_wd_approval_list">
+                        <t t-foreach="k.approvals" t-as="a" t-key="a.key">
+                            <div class="o_wd_approval" t-att-class="{'o_wd_muted': !a.count}" role="button" tabindex="0" t-on-click="() => this.open(a.key)">
+                                <span class="o_wd_approval_label" t-esc="a.label"/>
+                                <span class="o_wd_pill" t-att-class="{'o_wd_pill_active': a.count}" t-esc="a.count"/>
+                            </div>
+                        </t>
+                    </div>
+                    <div class="o_wd_approval_total">
+                        <span class="o_wd_footnote">Each document is counted once, in its own approval step. Types you have no access to are not listed.</span>
+                        <span class="o_wd_approval_sum">Total waiting <strong t-esc="k.approvals_total"/></span>
+                    </div>
+                </div>
+
+                <!-- ==================================================== quality -->
+                <h2 class="o_wd_section">Failures and Replacements</h2>
+                <div class="o_wd_grid o_wd_grid_2">
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Failure Patterns</h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'case created'"/></t>
+                        </div>
+                        <div class="btn-group btn-group-sm o_wd_toggle" role="group">
+                            <t t-foreach="[['product', 'Product'], ['category', 'Failure Category']]" t-as="g" t-key="g[0]">
+                                <button class="btn" t-att-class="state.failureGroup === g[0] ? 'btn-primary' : 'btn-light'" t-on-click="() => this.setFailureGroup(g[0])" t-esc="g[1]"/>
+                            </t>
+                        </div>
+                        <WarrantyDashboardChart t-if="state.charts.failure" config="state.charts.failure" onSegmentClick.bind="onFailureClick" height="260" label="'Failure cases'"/>
+                        <t t-else="" t-call="warranty_management_dashboard.Empty"><t t-set="text" t-value="'No failure case in the period.'"/></t>
+                    </div>
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Replacements and Repeated Failures</h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'requested / created'"/></t>
+                        </div>
+                        <WarrantyDashboardChart t-if="state.charts.trend" config="state.charts.trend" onSegmentClick.bind="onTrendClick" height="290" label="'Replacements and repeated failures by month'"/>
+                        <t t-else="" t-call="warranty_management_dashboard.Empty"><t t-set="text" t-value="'No replacement or repeated failure in the period.'"/></t>
+                    </div>
+                </div>
+
+                <!-- ==================================================== financial -->
+                <h2 class="o_wd_section">Cost, Recovery and Reserve
+                    <small t-if="currency and currency.mixed" class="o_wd_warn">several currencies: amounts are not converted</small>
+                </h2>
+                <div class="o_wd_grid o_wd_grid_3" t-att-class="{'o_wd_busy': state.financeLoading}">
+                    <t t-set="fin" t-value="state.finance"/>
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Warranty Cost</h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'cost date'"/></t>
+                        </div>
+                        <t t-if="!fin">
+                            <div class="o_wd_empty"><i class="fa fa-circle-o-notch fa-spin"/><span>Calculating from the Warranty Cost Report…</span></div>
+                        </t>
+                        <t t-elif="!fin.cost.available" t-call="warranty_management_dashboard.Empty"><t t-set="icon" t-value="'fa-lock'"/><t t-set="text" t-value="'Warranty costs are not available for your access rights.'"/></t>
+                        <t t-else="">
+                            <div class="o_wd_figures">
+                                <div><span>Actual</span><strong t-esc="money(fin.cost.actual)"/></div>
+                                <div><span>Recovered</span><strong class="o_wd_text_teal" t-esc="money(fin.cost.recovered)"/></div>
+                                <div><span>Net</span><strong t-esc="money(fin.cost.net)"/></div>
+                            </div>
+                            <WarrantyDashboardChart t-if="state.charts.cost" config="state.charts.cost" onSegmentClick.bind="onCostClick" height="200" label="'Warranty cost by type'"/>
+                            <t t-else="" t-call="warranty_management_dashboard.Empty"><t t-set="text" t-value="'No warranty cost in the period.'"/></t>
+                        </t>
+                    </div>
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Vendor Reimbursement</h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'claim created'"/></t>
+                        </div>
+                        <t t-if="!fin">
+                            <div class="o_wd_empty"><i class="fa fa-circle-o-notch fa-spin"/><span>Loading…</span></div>
+                        </t>
+                        <t t-elif="!fin.recovery.available" t-call="warranty_management_dashboard.Empty"><t t-set="icon" t-value="'fa-lock'"/><t t-set="text" t-value="'Vendor claims are not available for your access rights.'"/></t>
+                        <t t-else="">
+                            <div class="o_wd_figures">
+                                <div role="button" t-on-click="() => this.open('vendor_claims')"><span>Claims</span><strong t-esc="fin.recovery.claims"/></div>
+                                <div><span>Recovered</span><strong class="o_wd_text_teal" t-esc="money(fin.recovery.recovered_amount)"/></div>
+                                <div><span>Outstanding</span><strong class="o_wd_text_amber" t-esc="money(fin.recovery.outstanding_amount)"/></div>
+                            </div>
+                            <WarrantyDashboardChart t-if="state.charts.recovery" config="state.charts.recovery" onSegmentClick="() => this.open('vendor_claims')" height="200" label="'Vendor claim amounts'"/>
+                            <t t-else="" t-call="warranty_management_dashboard.Empty"><t t-set="text" t-value="'No vendor claim in the period.'"/></t>
+                        </t>
+                    </div>
+                    <div class="o_wd_panel">
+                        <div class="o_wd_panel_head">
+                            <h3>Provision and Reserve</h3>
+                            <t t-call="warranty_management_dashboard.Scope"><t t-set="scope" t-value="'entry date'"/></t>
+                        </div>
+                        <t t-if="!fin">
+                            <div class="o_wd_empty"><i class="fa fa-circle-o-notch fa-spin"/><span>Loading…</span></div>
+                        </t>
+                        <t t-elif="!fin.reserve.available" t-call="warranty_management_dashboard.Empty"><t t-set="icon" t-value="'fa-lock'"/><t t-set="text" t-value="'The warranty reserve is visible to Accounting users only.'"/></t>
+                        <t t-else="">
+                            <div class="o_wd_figures">
+                                <div role="button" t-on-click="() => this.open('reserve')"><span>Reserve balance</span><strong t-esc="money(fin.reserve.reserve_amount)"/></div>
+                                <div><span>Actual cost</span><strong class="o_wd_text_amber" t-esc="money(fin.reserve.actual_cost_amount)"/></div>
+                                <div><span>Draft (not counted)</span><strong class="o_wd_text_muted" t-esc="money(fin.reserve.draft_amount)"/></div>
+                            </div>
+                            <WarrantyDashboardChart t-if="state.charts.reserve" config="state.charts.reserve" onSegmentClick.bind="onReserveClick" height="200" label="'Provision and reserve movements'"/>
+                            <t t-else="" t-call="warranty_management_dashboard.Empty"><t t-set="text" t-value="'No provision or reserve movement in the period.'"/></t>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- ==================================================== reports -->
+                <h2 class="o_wd_section">Reports</h2>
+                <div class="o_wd_reports">
+                    <t t-foreach="state.data.reports" t-as="r" t-key="r.xml_id">
+                        <button class="o_wd_report" t-on-click="() => this.openReport(r)">
+                            <i t-attf-class="fa {{ r.amc ? 'fa-wrench' : 'fa-bar-chart' }}"/>
+                            <span t-esc="r.name"/>
+                            <small t-if="r.amc">AMC module</small>
+                        </button>
+                    </t>
+                </div>
+            </t>
+            <div t-else="" class="o_wd_empty o_wd_loading"><i class="fa fa-circle-o-notch fa-spin"/><span>Loading the dashboard…</span></div>
+          </div>
+        </div>
+    </t>
+</templates>

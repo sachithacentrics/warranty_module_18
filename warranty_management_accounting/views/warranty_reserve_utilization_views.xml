@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Figure 7 / SRS 17 (doc/figure7_accounting_integration.md): covered parts use standard
+         Odoo stock accounting; Finance applies posted warranty cost against the reserve. Rights
+         are enforced on the server; the views only follow them. -->
+    <record id="res_config_settings_view_form_warranty_b2" model="ir.ui.view">
+        <field name="name">res.config.settings.form.warranty.reserve.utilization</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="warranty_management_accounting.res_config_settings_view_form_warranty_accounting"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='warranty_accounting_accounts']" position="after">
+                <setting id="warranty_reserve_utilization" string="Warranty Reserve Utilization"
+                         help="Finance applies the posted warranty cost of a completed or closed case against the warranty reserve with a draft journal entry (Dr Warranty Provision / Reserve, Cr Warranty Expense) and posts it. Covered spare parts follow standard Odoo stock accounting; nothing is posted automatically."
+                         title="Finance applies the posted warranty cost of a completed or closed case against the warranty reserve with a draft journal entry (Dr Warranty Provision / Reserve, Cr Warranty Expense) and posts it. Covered spare parts follow standard Odoo stock accounting; nothing is posted automatically.">
+                    <div class="content-group">
+                        <div class="row"><label for="warranty_reserve_subcontract_eligible" class="col-lg-4"/>
+                            <field name="warranty_reserve_subcontract_eligible"
+                                   readonly="not warranty_accounting_can_edit"/></div>
+                        <div class="row"><label for="warranty_reserve_goodwill_eligible" class="col-lg-4"/>
+                            <field name="warranty_reserve_goodwill_eligible"
+                                   readonly="not warranty_accounting_can_edit"/></div>
+                        <div class="row mt-2"><label for="warranty_b2_readiness" class="col-lg-4"/>
+                            <field name="warranty_b2_readiness" class="col-lg-8"/></div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_move_form_warranty_b2" model="ir.ui.view">
+        <field name="name">account.move.form.warranty.reserve.utilization</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@id='other_tab_entry_group']" position="inside">
+                <group string="Warranty Accounting" name="warranty_reserve" invisible="not warranty_b2_kind">
+                    <field name="warranty_b2_kind"/>
+                    <field name="warranty_b2_case_id"/>
+                    <field name="warranty_b2_eligible_amount"/>
+                    <field name="warranty_b2_available_amount"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_move_tree_warranty_b2" model="ir.ui.view">
+        <field name="name">account.move.list.warranty.reserve.utilization</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <list string="Warranty Reserve Utilization" create="false"
+                  decoration-muted="state == 'cancel'" decoration-info="state == 'draft'">
+                <field name="date"/>
+                <field name="name"/>
+                <field name="warranty_b2_case_id"/>
+                <field name="ref" optional="show"/>
+                <field name="reversed_entry_id" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="show"/>
+                <field name="amount_total_signed" string="Amount" sum="Total"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_move_search_warranty_b2" model="ir.ui.view">
+        <field name="name">account.move.search.warranty.reserve.utilization</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="warranty_b2_case_id"/>
+                <filter name="draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="posted" string="Posted" domain="[('state', '=', 'posted')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_case" string="Warranty Case" context="{'group_by': 'warranty_b2_case_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_warranty_b2_moves" model="ir.actions.act_window">
+        <field name="name">Warranty Reserve Utilization</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('warranty_b2_kind', '!=', False)]</field>
+        <field name="context">{'create': False, 'search_default_draft': 1}</field>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('view_move_tree_warranty_b2')}), (0, 0, {'view_mode': 'form', 'view_id': ref('account.view_move_form')})]"/>
+        <field name="search_view_id" ref="view_move_search_warranty_b2"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No warranty reserve utilization yet</p>
+            <p>Finance creates a draft from a completed or closed warranty case (Warranty
+               Accounting tab), reviews it and posts it.</p>
+        </field>
+    </record>
+
+    <!-- Warranty case: figures and the Finance-controlled utilization. -->
+    <record id="warranty_case_view_form_b2" model="ir.ui.view">
+        <field name="name">warranty.case.form.reserve.utilization</field>
+        <field name="model">warranty.case</field>
+        <field name="inherit_id" ref="warranty_management_accounting.warranty_case_view_form_cost_lines"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='warranty_cost']" position="after">
+                <page string="Warranty Accounting" name="warranty_b2"
+                      groups="account.group_account_readonly,account.group_account_invoice">
+                    <div class="mb-2">
+                        <button name="action_warranty_reserve_utilization" type="object"
+                                string="Create Reserve Utilization Draft" class="btn-secondary"
+                                groups="account.group_account_user"
+                                invisible="state not in ('completed', 'closed')"
+                                confirm="Create a draft reserve utilization for this case? Finance posts it."/>
+                        <button name="action_open_warranty_b2_moves" type="object"
+                                string="Reserve Entries" class="btn-link" icon="fa-list"
+                                invisible="not warranty_b2_move_count"/>
+                    </div>
+                    <group>
+                        <group string="Warranty Cost in Accounting">
+                            <field name="warranty_b2_currency_id" invisible="1"/>
+                            <field name="warranty_b2_move_count" invisible="1"/>
+                            <field name="warranty_reserve_parts_amount"/>
+                            <field name="warranty_reserve_goodwill_amount"/>
+                            <field name="warranty_reserve_recovered_amount"/>
+                            <field name="warranty_reserve_subcontract_amount"/>
+                        </group>
+                        <group string="Reserve Utilization">
+                            <field name="warranty_reserve_utilized_amount"/>
+                            <field name="warranty_reserve_eligible_amount" class="fw-bold"/>
+                            <field name="warranty_reserve_available_amount"/>
+                        </group>
+                    </group>
+                    <p class="text-muted">
+                        Eligible = covered parts cost posted to Warranty Expense by standard stock
+                        accounting, net of posted vendor recovery of the same lines (goodwill and
+                        subcontract only when the company's policy says so), minus utilization
+                        already made. The actual cost of every part is on the Material Cost tab of
+                        the request and in the Case Cost Breakdown. Utilization is never above the
+                        available posted reserve, and is checked again when Finance posts it.
+                    </p>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <menuitem id="menu_warranty_b2_root" name="Warranty"
+              parent="account.menu_finance_entries" sequence="90"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+    <menuitem id="menu_warranty_b2_moves" name="Warranty Reserve Utilization"
+              parent="menu_warranty_b2_root" action="action_warranty_b2_moves" sequence="2"
+              groups="account.group_account_readonly,account.group_account_invoice"/>
+</odoo>

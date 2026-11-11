@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Approved D5: project of the warranty Field Service tasks. -->
+    <!-- D5 revised: no Warranty Field Service Project setting; the visits use the company's
+         standard Field Service project. -->
     <record id="res_config_settings_view_form_warranty_fsm" model="ir.ui.view">
         <field name="name">res.config.settings.form.warranty.fsm</field>
         <field name="model">res.config.settings</field>
@@ -8,10 +9,6 @@
         <field name="arch" type="xml">
             <xpath expr="//block[@name='warranty_general_settings']" position="after">
                 <block title="Field Service Visits" name="warranty_field_service_settings">
-                <setting id="warranty_fsm_project" string="Warranty Field Service Project"
-                         help="The Field Service project that receives the warranty visits. If empty, the company's standard Field Service project is used.">
-                    <field name="warranty_fsm_project_id" options="{'no_create': True}"/>
-                </setting>
                 <!-- Phase 4.7 (approved K2 / K3): warranty visit completion checks. -->
                 <setting id="warranty_inspection_template_id" string="Inspection Worksheet Template"
                          help="Worksheet used by the inspection visit of a warranty case whose Case Type is not known yet. If empty, the product's or the project's worksheet is used.">

@@ -1,0 +1,18 @@
+// Dark mode only (web.assets_web_dark): Odoo Plum lightened for text on dark backgrounds.
+$o-wd-plum-dark-text: #C9A3BE;
+
+.o_warranty_dashboard {
+    .o_wd_title,
+    .o_wd_sub_link,
+    .o_wd_scope.o_wd_scope_dated,
+    .o_wd_report i,
+    .o_wd_figures [role="button"]:hover strong {
+        color: $o-wd-plum-dark-text;
+    }
+    .o_wd_scope.o_wd_scope_dated {
+        background-color: rgba($o-wd-plum-dark-text, 0.14);
+    }
+    .o_wd_kpi .o_wd_kpi_icon {
+        color: $o-wd-plum-dark-text;
+    }
+}

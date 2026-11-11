@@ -104,12 +104,11 @@ class TestWarrantyMrfQuotation(WarrantyMrfCommon):
             new.with_user(self.helpdesk_user).action_create_parts_quotation()
 
     def test_02_confirmation_release_and_no_double_issue(self):
-        """T4.3 (On Confirmation) / T4.8: covered lines wait until every Not Covered line is
-        quoted or declined; the internal picking never contains Not Covered material; the
-        quotation's delivery is the only issue and is validated after confirmation."""
+        """T4.3 (On Confirmation) / T4.8, Figure 7 D2: covered lines are issued on their own
+        release (not held back by the Not Covered lines); the internal picking never contains
+        Not Covered material; the quotation's delivery is the only issue and is validated after
+        confirmation."""
         mrf = self._mrf([(self.part, 1), (self.gas, 2)])
-        with self.assertRaisesRegex(UserError, 'create the parts quotation'):
-            mrf.with_user(self.store).request_stock()
         order = self._quote(mrf)
         mrf.with_user(self.store).request_stock()
         internal = self.env['stock.picking'].search([('custom_requisition_id', '=', mrf.id)])

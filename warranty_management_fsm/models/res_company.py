@@ -6,7 +6,8 @@ class ResCompany(models.Model):
     _inherit = 'res.company'
 
     # Approved D5: project of the warranty Field Service tasks; empty = the company's standard
-    # Field Service project.
+    # Field Service project. D5 revised: no longer shown in the Warranty Settings (kept for
+    # compatibility).
     warranty_fsm_project_id = fields.Many2one(
         'project.project', string='Warranty Field Service Project',
         domain="[('is_fsm', '=', True), ('company_id', '=', id)]")
@@ -75,6 +76,7 @@ class ResCompany(models.Model):
         project = self.warranty_fsm_project_id or self.env['project.project'].search(
             [('is_fsm', '=', True), ('company_id', '=', self.id)], order='id', limit=1)
         if not project:
-            raise UserError(_("No Field Service project is available for %s: set the Warranty "
-                              "Field Service Project in the Warranty Settings.", self.name))
+            raise UserError(_("No Field Service project is available for %s: create the "
+                              "company's standard Field Service project in Field Service.",
+                              self.name))
         return project

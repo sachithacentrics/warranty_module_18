@@ -32,6 +32,11 @@ class SaleOrderLine(models.Model):
     warranty_excluded_item_id = fields.Many2one(
         'warranty.case.excluded.item', string='Warranty Excluded Item', readonly=True,
         copy=False, ondelete='set null', index='btree_not_null')
+    # Inspection Quotation coverage, set at creation from the warranty policy. A Covered line
+    # keeps its price with a 100% discount, so the original and covered amounts stay on the line.
+    warranty_inspection_coverage = fields.Selection(
+        [('covered', 'Covered'), ('excluded', 'Excluded'), ('not_listed', 'Not Listed')],
+        string='Warranty Coverage', readonly=True, copy=False)
 
     @api.constrains('warranty_excluded_item_id', 'order_id')
     def _check_warranty_excluded_item(self):

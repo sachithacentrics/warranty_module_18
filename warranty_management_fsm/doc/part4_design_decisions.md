@@ -106,7 +106,8 @@ Confirm Service Job (Helpdesk users, job Planned) in diagram order, one transact
    the standard Field Service project): name JOB - WCAS - product, customer = case site else
    customer (D9), planned start = Planned Date (D6: no end), assignees = main + support
    technicians (standard internal assignment notifications, D13), ticket (helpdesk_fsm field),
-   Service Job, Warranty Case, Free Services, Visit No. 1;
+   Service Job, Warranty Case, Free Services, Visit No. 1 (**D5 revised 2026-11-08**, see
+   below);
 4. free services -> **Job Created** (G1, previous status kept in `job_previous_state`), Merge
    Status unchanged; job **Confirmed**; case **Approved -> Job Created**.
 
@@ -120,6 +121,28 @@ Confirm Service Job (Helpdesk users, job Planned) in diagram order, one transact
   Field Service rights to confirm).
 * Module now also depends on `helpdesk_fsm` (installed automatically with Field Service).
 * Worksheet instances: Phase 4.4 (G6).
+
+### D5 revised (2026-11-08, user approval; module 18.0.1.4.5)
+
+The SRS requires Helpdesk -> Service Job -> Field Service Task only, not a separate warranty
+project. The **Warranty Field Service Project** setting is removed from the Warranty Settings:
+warranty visits, shared visits, installation tasks and AMC visits use the company's standard
+Field Service project (first active Field Service project of the company), as before when the
+setting was empty. The stored company field, its constraint and `_warranty_fsm_project()` stay
+unchanged for compatibility (AMC service module, existing tests). If the company has no Field
+Service project, the error now asks to create the company's standard Field Service project.
+UAT (2026-11-08): setting empty in both companies, all warranty tasks in project "Field Service"
+(id 9), so no behaviour change.
+
+**Open discrepancy - SRS 2.7 (to verify in manual UAT, logic not changed):** SRS 2.7 requires the
+worksheet template on the product master or the product-specific service configuration. The
+template order is free service snapshot (from the product) -> product Worksheet Template ->
+**Field Service project default template** -> (inspection jobs only) company Inspection
+Worksheet Template (G2). The project-default fallback is not in the SRS: a product without
+template silently gets the project worksheet. UAT 2026-11-08: 4 products with warranty cards
+have no Worksheet Template; 13 worksheet instances use "Device Installation and Maintenance",
+the project default, set on no product. Required approach: configure the Worksheet Template on
+every warranty product; review in UAT whether the fallback should stay.
 
 ## Phase 4.4 - Worksheet instances (approved W1-W6, G9; 2026-10-22)
 

@@ -78,7 +78,7 @@
                             groups="helpdesk.group_helpdesk_user,material_purchase_requisitions.group_purchase_requisition_user"
                             invisible="replacement_type != 'vendor' or state != 'done'"/>
                     <button name="action_warranty_replacement_generate_card" type="object"
-                            string="Generate Updated Card"
+                            string="Generate Updated Card" class="btn-primary"
                             invisible="state != 'done' or updated_card_generated"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,submitted,approved,done"/>

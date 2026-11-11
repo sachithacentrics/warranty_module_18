@@ -197,6 +197,9 @@ class WarrantyCard(models.Model):
     ], string='Card Grouping Mode', readonly=True)
     unit_warranty_ids = fields.One2many(
         'warranty.unit', 'warranty_card_id', string='Unit Warranty Numbers')
+    # List display only: the serials of the card's unit warranty records, in unit order.
+    unit_serial_numbers = fields.Char(string='Serial Number(s)',
+                                      compute='_compute_unit_serial_numbers')
     warranty_basis = fields.Selection([
         ('period', 'Period'),
         ('usage', 'Usage'),
@@ -295,8 +298,10 @@ class WarrantyCard(models.Model):
     late_service_handling = fields.Selection(LATE_SERVICE_HANDLING,
                                              string='Late Service Handling', readonly=True,
                                              copy=False)
-    service_sequence_required = fields.Boolean(string='Enforce Service Sequence', readonly=True,
-                                               copy=False)
+    service_sequence_required = fields.Boolean(
+        string='Complete Previous Service First', readonly=True, copy=False,
+        help="Requires the previous free service to be completed, expired, or cancelled before "
+             "creating a service job for the next free service.")
     usage_alert_percentage = fields.Float(string='Usage Alert %', readonly=True, copy=False)
     service_alert_user_ids = fields.Many2many(
         'res.users', 'warranty_card_alert_user_rel', 'card_id', 'user_id',
@@ -407,6 +412,12 @@ class WarrantyCard(models.Model):
             card.service_entitlement_count = len(card.service_entitlement_ids)
 
     @api.depends('free_services_allowed')
+    @api.depends('unit_warranty_ids.unit_number', 'unit_warranty_ids.serial_ids.name')
+    def _compute_unit_serial_numbers(self):
+        for card in self:
+            serials = card.unit_warranty_ids.sorted('unit_number').serial_ids
+            card.unit_serial_numbers = ', '.join(serials.mapped('name')) or False
+
     def _compute_free_services_included(self):
         for card in self:
             card.free_services_included = card._free_services_included()
@@ -1212,7 +1223,8 @@ class WarrantyCard(models.Model):
                 status=_("Confirmed") if card_restored else _("unchanged")))
 
     def _warranty_card_print_units(self):
-        """One printed sheet per unit that is still under this card."""
+        """The units still under this card: one unit prints on the sheet itself, several print
+        in the Unit Warranty Schedule after the sheet."""
         self.ensure_one()
         return self.unit_warranty_ids.filtered(lambda unit: unit.state != 'cancelled').sorted('name')
 
@@ -1274,6 +1286,56 @@ class WarrantyCard(models.Model):
             'company_email': company.email,
         }
 
+    def _warranty_card_print_summary_values(self, units):
+        """Values of the one printed sheet of a card with several units (SRS 2.3): the card values,
+        and each unit in the Unit Warranty Schedule instead of the single Item / Serial No."""
+        self.ensure_one()
+        values = self._warranty_card_print_values(units[:0])
+        products = units.sudo().product_id
+        if len(products) == 1:
+            item = _("%(product)s (%(count)s units)", product=products.name, count=len(units))
+            model = self._warranty_card_print_values(units[:1])['model']
+        else:
+            item = _("%(products)s products (%(count)s units)", products=len(products),
+                     count=len(units))
+            model = False
+        values.update({
+            'unit_number': False,
+            'model': model,
+            'item': item,
+            'serial': _("See Unit Warranty Schedule"),
+            'indoor': False,
+            'outdoor': False,
+        })
+        return values
+
+    def _warranty_card_print_schedule(self, units):
+        """Rows of the Unit Warranty Schedule: each unit with its own product, current serials
+        and dates (a replacement updates them on the unit). sudo: as _warranty_card_print_values."""
+        self.ensure_one()
+        card = self.sudo()
+        states = dict(units._fields['state']._description_selection(self.env))
+        rows = []
+        for unit in units.sudo():
+            # The Indoor / Outdoor roles come from warranty_management_mrp.
+            roles = [(label, unit[field]) for label, field in (
+                (_("ID"), 'indoor_serial_id'), (_("OD"), 'outdoor_serial_id'))
+                if field in unit._fields and unit[field]]
+            serial = ' / '.join('%s: %s' % (label, lot.name) for label, lot in roles) \
+                if roles else ', '.join(unit.serial_ids.mapped('name'))
+            start = unit.start_date or card.warranty_start_date
+            end = unit.end_date or card.warranty_end_date
+            rows.append({
+                'product': (unit.product_id or card.product_id).name,
+                'number': unit.name,
+                'serial': serial,
+                'unit_number': unit.unit_number or '',
+                'start_text': format_date(self.env, start) if start else '',
+                'end_text': format_date(self.env, end) if end else '',
+                'state': states.get(unit.state, ''),
+            })
+        return rows
+
     def _regenerate_soft_copy(self):
         """Q11: after a correction the protected PDF soft copy (same attachment record) gets
         the corrected dates; it is not a download (Download Count unchanged)."""
@@ -1324,14 +1386,15 @@ class WarrantyCard(models.Model):
             })
             card.sudo().pdf_attachment_id = attachment
 
-    def _warranty_render_pdf(self):
+    def _warranty_render_pdf(self, print_no=0):
         """The warranty card PDF with the current report, nothing stored. Only after the download
         checks. sudo: same reach as the protected attachment; a Helpdesk user may have no Sales
-        or Accounting rights."""
+        or Accounting rights. Print No. 2 onwards is marked Duplicate Copy (SRS 9.10 step 7)."""
         self.ensure_one()
         report = self.env.ref('warranty_management.action_report_warranty_card')
         pdf_content, __ = self.env['ir.actions.report'].sudo().with_context(
-            warranty_card_pdf_token=SYSTEM_PDF_TOKEN)._render_qweb_pdf(report, self.ids)
+            warranty_card_pdf_token=SYSTEM_PDF_TOKEN, warranty_card_print_no=print_no,
+        )._render_qweb_pdf(report, self.ids)
         return pdf_content
 
     def _get_pdf_attachment(self):
@@ -1396,10 +1459,49 @@ class WarrantyCard(models.Model):
                     'context': {'default_warranty_card_id': self.id},
                 }
         ticket = self.env['warranty.card.download.ticket']._issue(self, request)
+        # The client downloads the ticket link, then reloads the form (Download Count, chatter).
         return {
-            'type': 'ir.actions.act_url',
-            'url': '/warranty/card/pdf/%s' % ticket.token,
-            'target': 'self',
+            'type': 'ir.actions.client',
+            'tag': 'warranty_card_download_pdf',
+            'params': {'url': '/warranty/card/pdf/%s' % ticket.token},
+        }
+
+    def action_send_warranty_card(self):
+        """Send to Customer (SRS 9.10 step 3): the standard email composer with the stored soft
+        copy attached and the customer as recipient when the customer has an email. Not a
+        download: Download Count, history and approvals are not involved."""
+        self.ensure_one()
+        self.check_access('read')
+        if self.state not in ('confirmed', 'expired'):
+            raise UserError(_("The warranty card can only be sent when it is confirmed or "
+                              "expired."))
+        soft_copy = self._get_pdf_attachment()
+        # sudo: a copy of the protected soft copy for this email (composer attachment of the
+        # current user); it stays protected in the chatter (ir.binary).
+        attachment = self.env['ir.attachment'].sudo().create({
+            'name': soft_copy.name,
+            'raw': soft_copy.raw,
+            'mimetype': 'application/pdf',
+            'res_model': 'mail.compose.message',
+            'res_id': 0,
+            'warranty_card_pdf_copy': True,
+        })
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Send Warranty Card"),
+            'res_model': 'mail.compose.message',
+            'view_mode': 'form',
+            'views': [(False, 'form')],
+            'target': 'new',
+            'context': {
+                'default_model': self._name,
+                'default_res_ids': self.ids,
+                'default_composition_mode': 'comment',
+                'default_template_id': self.env.ref(
+                    'warranty_management.mail_template_warranty_card').id,
+                'default_attachment_ids': [Command.set(attachment.ids)],
+                'default_email_layout_xmlid': 'mail.mail_notification_light',
+            },
         }
 
     def _download_approval_needed(self):

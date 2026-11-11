@@ -192,6 +192,9 @@
                 <field name="user_id"/>
                 <field name="summary" optional="show"/>
                 <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="res_model" column_invisible="1"/>
+                <button name="action_open_source" type="object" string="Open"
+                        icon="fa-external-link" invisible="not res_model"/>
             </list>
         </field>
     </record>
@@ -204,13 +207,22 @@
                 <field name="card_id"/>
                 <field name="unit_id"/>
                 <field name="reference"/>
+                <field name="entity"/>
                 <field name="event_type"/>
                 <field name="user_id"/>
+                <field name="summary"/>
+                <filter name="filter_created" string="Records Created"
+                        domain="[('event_type', 'ilike', ' created')]"/>
+                <filter name="filter_status" string="Status Changes"
+                        domain="[('event_type', 'ilike', ' status: ')]"/>
+                <separator/>
                 <filter name="filter_date" string="Date" date="event_date"/>
                 <group expand="0" string="Group By">
                     <filter name="group_entity" string="Entity" context="{'group_by': 'entity'}"/>
+                    <filter name="group_event_type" string="Event" context="{'group_by': 'event_type'}"/>
                     <filter name="group_user" string="User" context="{'group_by': 'user_id'}"/>
                     <filter name="group_card" string="Warranty Card" context="{'group_by': 'card_id'}"/>
+                    <filter name="group_date" string="Date" context="{'group_by': 'event_date:day'}"/>
                 </group>
             </search>
         </field>

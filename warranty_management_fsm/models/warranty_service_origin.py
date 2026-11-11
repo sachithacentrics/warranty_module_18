@@ -337,6 +337,35 @@ class WarrantyServiceJob(models.Model):
             'context': {'default_job_id': self.id},
         }
 
+    def _warranty_single_unit_values(self):
+        """Header Product / Serial No. of a job whose free services cover exactly one unit:
+        {'product': product, 'serial': the unit's only serial, else an empty lot}. Several
+        units (or none): {} - no arbitrary choice; the linked services show each unit."""
+        self.ensure_one()
+        # sudo: Helpdesk users may have no Inventory rights.
+        units = self.env['warranty.unit'].sudo()
+        for service in self.entitlement_ids:
+            units |= service.sudo()._warranty_job_units(self)
+        if len(units) != 1:
+            return {}
+        serials = units.serial_ids
+        return {'product': units.product_id,
+                'serial': serials if len(serials) == 1 else serials.browse()}
+
+    def _warranty_fill_ticket_unit(self, ticket, values):
+        """A linked ticket keeps its own Product / Serial No.: only an empty Product is filled
+        (with the serial when the ticket has none), or an empty Serial No. of the same product.
+        sudo: a system write of the link (the ticket's warranty fields are locked once
+        linked)."""
+        product, serial = values.get('product'), values.get('serial')
+        if not product:
+            return
+        if not ticket.warranty_product_id and not ticket.warranty_serial_id:
+            ticket.sudo().write({'warranty_product_id': product.id,
+                                 'warranty_serial_id': serial.id})
+        elif ticket.warranty_product_id == product and not ticket.warranty_serial_id and serial:
+            ticket.sudo().write({'warranty_serial_id': serial.id})
+
     def _warranty_link_ticket(self, ticket=None, description=None):
         """Create or Link Helpdesk Ticket (SRS 9.4 step 7): the ticket only; the warranty case
         is created manually on the ticket (Warranty Cases > New) and linked to the job by
@@ -353,11 +382,13 @@ class WarrantyServiceJob(models.Model):
                                   ticket=ticket.display_name, job=self.name))
             if not ticket.warranty_site_id:
                 ticket.warranty_site_id = self.site_id
+            self._warranty_fill_ticket_unit(ticket, self._warranty_single_unit_values())
         else:
             team = self.company_id.warranty_draft_job_team_id
             if not team:
                 raise UserError(_("Set the Draft Job Helpdesk Team of %s in the Warranty "
                                   "Settings to create the ticket.", self.company_id.name))
+            unit_values = self._warranty_single_unit_values()
             ticket = self.env['helpdesk.ticket'].with_context(mail_create_nosubscribe=True).create({
                 'name': _("Free service: %s", names),
                 'team_id': team.id,
@@ -365,6 +396,8 @@ class WarrantyServiceJob(models.Model):
                 'is_warranty': True,
                 'warranty_site_id': self.site_id.id,
                 'warranty_site_address': self.site_id.contact_address or False,
+                'warranty_product_id': unit_values.get('product', self.env['product.product']).id,
+                'warranty_serial_id': unit_values.get('serial', self.env['stock.lot']).id,
                 'description': description or Markup('<p>%s</p>') % _(
                     "Created from service job %(job)s for the free services %(services)s.",
                     job=self.name, services=names),

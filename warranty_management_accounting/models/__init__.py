@@ -8,3 +8,5 @@ from . import warranty_inspection_adjustment
 from . import warranty_case_closure
 from . import warranty_provision_entry
 from . import warranty_reserve_report
+from . import warranty_reserve_utilization
+from . import warranty_history

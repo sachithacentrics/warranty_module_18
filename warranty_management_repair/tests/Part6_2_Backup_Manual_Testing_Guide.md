@@ -45,7 +45,10 @@ User: Inventory User and Helpdesk User. Test data: a warranty ticket (ideally wi
 | TC-B-32 | Validate with no Return Condition. | Refused; no stock move | | |
 | TC-B-33 | Return Condition Good, validate. | **Returned**; Actual Return = validation time; serial in Returned-Inspection; To-Do "inspect and close"; notes | | |
 | TC-B-34 | Close. | Refused: not back in Backup Stock | | |
-| TC-B-35 | Inventory > Internal Transfer: Returned-Inspection → Backup Stock, BK-001, validate. Close. | **Closed**; BK-001 selectable again | | |
+| TC-B-35 | **Return to Backup Stock** (18.0.1.6.2). | Standard Internal Transfer opens: Returned-Inspection → Backup Stock, BK-001 reserved, quantity 1; shown as Return to Stock Transfer; record stays Returned | | |
+| TC-B-35a | Back to the record, Return to Backup Stock again. Close. | Same transfer opened, no second one; Close refused (not back in Backup Stock) | | |
+| TC-B-35b | Validate the transfer. Close. | Record stays Returned until Close (no automatic close); To-Do "close"; then **Closed**; BK-001 selectable again | | |
+| TC-B-35c | Minor Scratch return: no Return to Backup Stock button; Inventory > Internal Transfer by hand, then Close. | **Closed** (existing path) | | |
 | TC-B-36 | New record, issue, Return Condition **Damaged**, validate. | **Damaged**; serial in Returned-Inspection; no Close button (Phase 3) | | |
 | TC-B-37 | Cancel an issue transfer before validating, then Create Issue Transfer. | Record stays Draft; a new transfer is created | | |
 

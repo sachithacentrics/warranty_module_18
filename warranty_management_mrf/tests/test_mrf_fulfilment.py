@@ -1,7 +1,7 @@
 from lxml import etree
 
 from odoo.exceptions import AccessError, UserError
-from odoo.tests import tagged
+from odoo.tests import Form, tagged
 
 from .common import WarrantyMrfCommon
 
@@ -139,13 +139,18 @@ class TestWarrantyMrfFulfilment(WarrantyMrfCommon):
                          (5, 'issued', 'issued'))
 
     def test_03_out_of_stock(self):
-        """No stock: without a vendor -> clear error; with a line vendor (Store user) -> RFQ
-        for the full quantity, no picking; open RFQ -> nothing more to buy."""
+        """No stock: without a vendor -> Awaiting Stock (Figure 7 D4: notification, note, one
+        To-Do, nothing created, same request); with a line vendor (Store user) -> RFQ for the
+        full quantity, no picking; open RFQ -> nothing more to buy."""
         mrf = self._mrf([(self.filter, 3)])
         line = self._line(mrf, self.filter)
         self.assertEqual(line.availability, 'unavailable')
-        with self.assertRaisesRegex(UserError, 'No stock and no vendor'):
-            self._fulfil(mrf)
+        result = mrf.with_user(self.store).action_warranty_fulfil()
+        self.assertEqual((result['tag'], result['params']['type']), ('display_notification',
+                                                                      'warning'))
+        self.assertIn('No stock and no vendor', line.stock_wait_reason)
+        self.assertEqual((mrf.state, mrf.warranty_stock_status), ('approve', 'awaiting'))
+        self.assertFalse(self._issue_pickings(mrf) or mrf.purchase_order_ids)
         line.with_user(self.store).write({'partner_id': [(6, 0, self.vendor.ids)]})
         self._fulfil(mrf)
         self.assertFalse(self._issue_pickings(mrf))
@@ -229,18 +234,17 @@ class TestWarrantyMrfFulfilment(WarrantyMrfCommon):
         self.assertFalse(self._issue_pickings(draft))
 
     def test_08_mixed_request_unpaid_chargeable(self):
-        """Mixed request, On Payment: the covered line is issued by the request; the Not
-        Covered line only by the quotation delivery after payment; no duplicate movement."""
+        """Mixed request, On Payment: the covered line is issued by the request (Figure 7 D2:
+        not held back by the Not Covered line); the Not Covered line only by the quotation
+        delivery after payment; no duplicate movement."""
         self._add_stock(self.filter, 5)
         self.company.warranty_mrf_release_trigger = 'payment'
         mrf = self._mrf([(self.filter, 1), (self.gas, 2)])
-        with self.assertRaisesRegex(UserError, 'create the parts quotation'):
-            self._fulfil(mrf)
+        self._fulfil(mrf)
+        picking = self._issue_pickings(mrf)
         action = mrf.with_user(self.helpdesk_user).action_create_parts_quotation()
         order = self.env['sale.order'].browse(action['res_id'])
         order.action_confirm()
-        self._fulfil(mrf)
-        picking = self._issue_pickings(mrf)
         self.assertEqual(picking.move_ids.product_id, self.filter)
         self._validate(picking)
         gas = self._line(mrf, self.gas)
@@ -317,6 +321,49 @@ class TestWarrantyMrfFulfilment(WarrantyMrfCommon):
         views = self.env['warranty.service.job'].with_user(self.helpdesk_user).get_views(
             [(False, 'form')])
         self.assertIn('material_status', views['views']['form']['arch'])
+
+    def test_12_non_storable_lines_on_the_form(self):
+        """A covered non-storable part and a service added on the form (source location set):
+        no error, Free at Source 0, line kept after save / reopen, coverage from the policy;
+        a storable line keeps its free quantity."""
+        parts = self.env['product.product'].create({'name': 'Parts Kit', 'type': 'consu'})
+        self.policy.covered_item_ids |= self.env['warranty.coverage.item'].create(
+            {'name': 'Parts Kit', 'product_id': parts.id})
+        service = self.env['product.product'].create({'name': 'Site Survey', 'type': 'service'})
+        self._add_stock(self.filter, 3)
+        action = self._approved().with_user(self.helpdesk_user).action_create_material_request()
+        form = Form(self.Mrf.with_user(self.helpdesk_user).with_context(**action['context']))
+        for product in (parts, service, self.filter):
+            with form.requisition_line_ids.new() as line:
+                line.product_id = product
+                line.qty = 1
+                self.assertEqual(line.available_qty, 3 if product == self.filter else 0.0)
+        mrf = form.save()
+        self.assertTrue(mrf.location_id)
+        self.env.invalidate_all()
+        reopened = Form(mrf.with_user(self.helpdesk_user))
+        self.assertEqual(len(reopened.requisition_line_ids), 3)
+        line = self._line(mrf, parts)
+        self.assertEqual((line.available_qty, line.coverage_type), (0.0, 'covered'))
+        self.assertEqual(self._line(mrf, self.filter).available_qty, 3)
+
+    def test_13_non_storable_line_is_issued(self):
+        """A covered non-storable line is not stock-limited: Available, and the whole quantity
+        is issued as before; the storable line is issued from its stock."""
+        parts = self.env['product.product'].create({'name': 'Parts Kit', 'type': 'consu'})
+        self.policy.covered_item_ids |= self.env['warranty.coverage.item'].create(
+            {'name': 'Parts Kit', 'product_id': parts.id})
+        self._add_stock(self.filter, 5)
+        mrf = self._mrf([(parts, 2), (self.filter, 1)])
+        line = self._line(mrf, parts)
+        self.assertEqual((line.coverage_type, line.available_qty, line.availability,
+                          line.outstanding_qty), ('covered', 0.0, 'available', 2))
+        self._fulfil(mrf)
+        moves = self._issue_pickings(mrf).move_ids
+        self.assertEqual(moves.filtered(lambda move: move.product_id == parts).product_uom_qty, 2)
+        self.assertEqual(moves.filtered(lambda move: move.product_id == self.filter)
+                         .product_uom_qty, 1)
+        self.assertEqual((line.in_issue_qty, line.outstanding_qty), (2, 0))
 
     def test_90_smart_buttons_follow_linked_documents(self):
         """Internal Picking / Purchase Order only with linked documents: 0, 1 and 2 pickings,

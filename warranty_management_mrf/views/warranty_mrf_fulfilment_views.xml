@@ -8,11 +8,19 @@
         <field name="arch" type="xml">
             <xpath expr="//button[@name='request_stock']" position="after">
                 <field name="can_warranty_fulfil" invisible="1"/>
-                <button name="action_warranty_fulfil" type="object" string="Issue / Purchase Remaining"
+                <field name="warranty_job_state" invisible="1"/>
+                <button name="action_warranty_fulfil" type="object" string="Recheck Stock / Issue Remaining"
                         class="btn-primary" invisible="state != 'stock' or not can_warranty_fulfil"
                         groups="material_purchase_requisitions.group_purchase_requisition_user,stock.group_stock_user"/>
+                <button name="action_warranty_job_awaiting_parts" type="object" string="Put Job on Awaiting Parts"
+                        invisible="warranty_stock_status not in ('awaiting', 'partial') or warranty_job_state != 'in_progress'"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"/>
             </xpath>
             <xpath expr="//field[@name='approval_status']" position="after">
+                <field name="warranty_stock_status" widget="badge" invisible="not warranty_stock_status"
+                       decoration-success="warranty_stock_status in ('ready', 'issued')"
+                       decoration-warning="warranty_stock_status == 'partial'"
+                       decoration-danger="warranty_stock_status == 'awaiting'"/>
                 <field name="issue_progress" invisible="not issue_progress"/>
             </xpath>
             <xpath expr="//field[@name='requisition_line_ids']/list/field[@name='chargeable_state']" position="after">
@@ -22,6 +30,7 @@
                        decoration-success="availability == 'available'"
                        decoration-warning="availability == 'partial'"
                        decoration-danger="availability == 'unavailable'"/>
+                <field name="stock_wait_reason" optional="show" column_invisible="not parent.is_warranty_mrf"/>
                 <field name="in_issue_qty" optional="show" column_invisible="not parent.is_warranty_mrf"/>
                 <field name="issued_qty" optional="show" column_invisible="not parent.is_warranty_mrf"/>
                 <field name="outstanding_qty" optional="show" column_invisible="not parent.is_warranty_mrf"/>
@@ -43,6 +52,8 @@
                         domain="[('warranty_mrf_status', '=', 'partially_issued')]"/>
                 <filter string="To Issue" name="to_issue"
                         domain="[('warranty_mrf_status', 'in', ('approved', 'released', 'partially_issued'))]"/>
+                <filter string="Awaiting Stock" name="awaiting_stock"
+                        domain="[('warranty_stock_status', 'in', ('awaiting', 'partial'))]"/>
             </xpath>
         </field>
     </record>
@@ -56,8 +67,9 @@
                 <field name="material_shortage" invisible="1"/>
                 <div class="alert alert-warning" role="alert"
                      invisible="not material_shortage or state not in ('confirmed', 'rescheduled', 'in_progress')">
-                    Material shortage on a Material Request of this job: consider putting the job on
-                    Awaiting Parts until the materials are issued.
+                    Awaiting stock on a Material Request of this job: consider putting the job on
+                    Awaiting Parts until the materials are issued (Recheck Stock / Issue Remaining
+                    on the request after replenishment).
                 </div>
             </xpath>
             <xpath expr="//group[@name='right']" position="inside">

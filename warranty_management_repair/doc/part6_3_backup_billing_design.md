@@ -34,7 +34,8 @@
 |---|---|---|
 | Returned | Damaged | Submit Assessment (damage found during the inspection; return condition unchanged) |
 | Issued / Overdue | Lost | Report Lost, then Approve Assessment |
-| Damaged / Lost | Closed | **Not implemented: D3** |
+| Damaged / Lost | Closed | Close (repair 18.0.1.7.1, Figure 6 C2): see `part6_1_repair_intake_design.md` section 16 |
+| Lost | (Lost, found) -> Returned / Damaged | Record Found (approver), then the Backup Return (C2, B5) |
 
 Phase 2 is unchanged for Good and Minor Scratch: Returned, transfer to Backup Stock, Close.
 
@@ -49,9 +50,9 @@ and after Lost.
 
 | # | Question | Until decided |
 |---|---|---|
-| D3 | Does closure need full payment, or physical resolution only? How are approved write-offs handled, and what happens after a cancelled quotation? | Damaged and Lost cannot be closed. **A repaired damaged serial cannot be reissued.** No waiver exists beyond an approver's explicit approval of zero charge before any quotation. |
+| D3 | Does closure need full payment, or physical resolution only? How are approved write-offs handled, and what happens after a cancelled quotation? | **Decided 2026-11-06 (C2, B1–B7):** payment and physical resolution both needed; restored units via Confirm Restored. Still open: a write-off rule for credit notes / cancelled quotations of units that were not recovered (not closable). |
 | D4 | Deposit collection, application, refund, forfeiture | Amount and invoice link only. Accounting acts manually. |
-| D6 | Recovery of a lost unit that is found | Not supported: return refused, record stays Lost, serial blocked. A corrected assessment after approval is also not supported. |
+| D6 | Recovery of a lost unit that is found | **Decided 2026-11-06 (C2, B5)** before the record is closed: Record Found, stock correction first when written off. Still open: recovery of a Closed Lost record (Part 9); a corrected assessment after approval. |
 | D9 | Must actual repair and scrap cost link automatically? | Manual, approved Repair / Scrap Cost; not on the warranty case cost. |
 
 ## Decisions accepted from the mapping

@@ -84,9 +84,11 @@
             </xpath>
             <!-- Flexible service dates (BA-approved F5, requirement 4). -->
             <xpath expr="//header" position="inside">
+                <!-- UX: only when a free service of the job allows it (the wizard's offer rule). -->
+                <field name="warranty_late_exception_available" invisible="1"/>
                 <button name="action_open_late_service_wizard" type="object"
                         string="Request Late Service Exception" groups="helpdesk.group_helpdesk_user"
-                        invisible="not entitlement_ids or state in ('draft', 'cancelled', 'completed')"/>
+                        invisible="not warranty_late_exception_available or state in ('draft', 'cancelled', 'completed')"/>
             </xpath>
             <xpath expr="//field[@name='planned_date']" position="after">
                 <field name="actual_completion_date" invisible="not actual_completion_date"/>

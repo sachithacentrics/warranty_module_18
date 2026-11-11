@@ -252,18 +252,18 @@ Fill in **Actual Result** and **Status** (Pass / Fail / Blocked / N/A) for each 
 | | |
 |---|---|
 | **Requirement** | Q3 / B3 – policy first, company fallback; explicit "No" on the policy wins |
-| **Preconditions** | Policy **P2 Free Service Policy** → Auto-create Services **unticked**. Settings → Auto-create Services **ticked**. |
-| **Steps** | 1. Run Procedure A with AC-P2-STD. 2. Procedure B. 3. Restore: policy Auto-create **ticked**, Settings Auto-create **unticked**. |
+| **Preconditions** | Policy **P2 Free Service Policy** → Auto-create Services **unticked**. (Auto-create Services is no longer in the Warranty Settings - 2026-11-08; the policy decides alone.) |
+| **Steps** | 1. Run Procedure A with AC-P2-STD. 2. Procedure B. 3. Restore: policy Auto-create **ticked**. |
 | **Expected** | **No** lines created. Notice: "Auto-create Services is disabled: create the service entitlements manually." Free Services Allowed still 3 (eligibility kept). |
 | **Actual Result** | |
 | **Status** | |
 
-#### TC-P2-008 – No policy: company setting decides, no default schedule method
+#### TC-P2-008 – No policy: product Auto-create decides, no default schedule method
 | | |
 |---|---|
 | **Requirement** | Q3, Q4 – no silent default schedule method |
-| **Preconditions** | Category **Air Conditioners P2** → Default Warranty Policy **empty**. Settings → Default Warranty Policy empty, Auto-create Services **ticked**. |
-| **Steps** | 1. Run Procedure A with AC-P2-STD. 2. Procedure B. 3. Restore: category policy = P2 Free Service Policy, Settings Auto-create **unticked**. |
+| **Preconditions** | Category **Air Conditioners P2** → Default Warranty Policy **empty**. Settings → Default Warranty Policy empty. Product **AC-P2-STD** → Warranty tab → Auto-create Services **ticked** (shown while no policy applies). |
+| **Steps** | 1. Run Procedure A with AC-P2-STD. 2. Procedure B. 3. Restore: category policy = P2 Free Service Policy, product Auto-create **unticked**. |
 | **Expected** | Resolved Rule tab: Warranty Policy empty. 3 Draft lines created **without due dates**. Schedule Method empty. Notice: "Schedule Method not resolved: the warranty card has no warranty policy with a Schedule Method. Enter the due dates manually." |
 | **Actual Result** | |
 | **Status** | |

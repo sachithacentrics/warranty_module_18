@@ -10,3 +10,4 @@ from . import test_warranty_case_approval_setting
 from . import test_warranty_case_scope_visibility
 from . import test_warranty_case_card_selection
 from . import test_ticket_warranty_visibility
+from . import test_warranty_case_payment_approver_view

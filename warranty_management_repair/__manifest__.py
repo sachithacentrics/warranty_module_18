@@ -1,6 +1,6 @@
 {
     'name': 'Warranty Management - Repair Intake',
-    'version': '18.0.1.5.3',
+    'version': '18.0.1.7.7',
     'category': 'Sales/After-Sales',
     'summary': 'Warranty Part 6.1: repair intake and workshop repair with standard Repair Orders',
     'description': """
@@ -26,6 +26,21 @@ Bridge between Warranty Management (Parts 1-5) and the standard Repairs / Invent
   serial (Stage 3): Manager / GM approval, optional Vendor Claim; Component (Stage 3): Manager / GM
   approval, the existing Material Request, defective part return, part history; see
   ``doc/part7_replacement_design.md``
+* Figure 6 navigation: Workshop Intake / Repair Order from the service job, Issue Backup Machine and
+  Return Machine to Customer on the Repair Order, Backup Units smart buttons, Repair Order Next Step
+* Warranty tickets: no Sales Order Item proposed automatically (helpdesk_sale_timesheet)
+* Backup unit Return to Backup Stock: standard Internal Transfer Returned-Inspection -> Backup
+  Stock of the serial for a Good return; Close stays manual
+* Workshop inspection trigger: an Approved case whose machine is in the workshop (Repair Order with
+  a validated intake) gets no on-site service job from its Inspection Trigger; Start Repair may start
+* Figure 6 Service Mode (SRS 12 scenario 18) on the warranty case: On-site / Workshop Repair /
+  Vendor Repair decides whether the triggers create a Field Service job
+* Vendor Repair: Send for Repair / Receive from Repair, standard internal transfers of the serial to
+  an internal location or a Vendor Repair Custody location (no sale, purchase or revaluation)
+* Return to Backup Stock also for Minor Scratch; Intake Status checks the received serial
+* Damaged / Lost backup Close (Figure 6 C2): approved assessment, settled charge and a verified
+  standard Scrap / missing count / confirmed restoration; Lost -> Found recovery; written-off
+  serials are never issued again. Close creates no stock or accounting entry
 """,
     'depends': [
         'warranty_management_mrf',
@@ -33,6 +48,7 @@ Bridge between Warranty Management (Parts 1-5) and the standard Repairs / Invent
         'helpdesk_repair',
         'helpdesk_account',
         'helpdesk_timesheet',
+        'helpdesk_sale_timesheet',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -44,8 +60,11 @@ Bridge between Warranty Management (Parts 1-5) and the standard Repairs / Invent
         'views/res_config_settings_views.xml',
         'views/repair_order_views.xml',
         'views/warranty_case_views.xml',
+        'views/warranty_service_job_views.xml',
         'views/helpdesk_ticket_views.xml',
         'wizard/stock_picking_return_views.xml',
+        'wizard/repair_vendor_send_views.xml',
+        'views/stock_location_views.xml',
         'report/warranty_card_report.xml',
     ],
     'installable': True,

@@ -4,6 +4,7 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from odoo.addons.warranty_management_fsm.models.warranty_service_job import _COMPLETION_MARKER
+from odoo.addons.warranty_management_mrf.models.material_purchase_requisition import MRF_JOB_STATES
 
 from .stock_move import MRF_ONLY_LINE_TYPES
 
@@ -46,6 +47,7 @@ class RepairOrder(models.Model):
         ('awaiting_receipt', 'Awaiting Receipt'),
         ('received', 'Received'),
         ('under_repair', 'Under Repair'),
+        ('at_vendor', 'Away for Repair'),
         ('repaired', 'Repaired'),
         ('returned', 'Returned'),
         ('cancelled', 'Cancelled'),
@@ -57,6 +59,27 @@ class RepairOrder(models.Model):
         compute='_compute_warranty_mrf_line_ids')
     warranty_machine_replaced = fields.Boolean(string='Machine Replaced',
                                                compute='_compute_warranty_machine_replaced')
+    # Figure 6 navigation (display only).
+    warranty_backup_unit_count = fields.Integer(compute='_compute_warranty_backup_units')
+    warranty_backup_open = fields.Boolean(compute='_compute_warranty_backup_units')
+    warranty_next_step = fields.Char(string='Next Step', compute='_compute_warranty_next_step')
+
+    def _compute_warranty_backup_units(self):
+        counts = self.env['warranty.backup.unit']._warranty_backup_counts('repair_id', self)
+        open_units = self._warranty_open_backup_units()
+        for repair in self:
+            repair.warranty_backup_unit_count = counts.get(repair._origin.id, 0)
+            repair.warranty_backup_open = repair._origin in open_units.repair_id
+
+    def _warranty_open_backup_units(self):
+        """Backup units of these Repair Orders not issued yet or with the customer."""
+        return self.env['warranty.backup.unit'].search([
+            ('repair_id', 'in', self._origin.ids), ('state', 'in', ('draft', 'issued', 'overdue'))])
+
+    def _compute_warranty_next_step(self):
+        for repair in self:
+            repair.warranty_next_step = repair._warranty_next_step() \
+                if repair.warranty_case_id and repair._origin else False
 
     def _compute_warranty_machine_replaced(self):
         for repair in self:
@@ -81,19 +104,28 @@ class RepairOrder(models.Model):
                 repair.warranty_case_id and moves
                 and (not repair.lot_id or repair.lot_id in moves.move_line_ids.lot_id))
 
-    @api.depends('state', 'warranty_case_id', 'picking_id.state', 'warranty_equipment_returned')
+    @api.depends('state', 'warranty_case_id', 'picking_id.state', 'warranty_equipment_returned',
+                 'product_id', 'lot_id', 'picking_id.move_line_ids.lot_id',
+                 'warranty_vendor_picking_ids.state')
     def _compute_warranty_intake_state(self):
+        """C5: Received = the linked Warranty Repair Intake is validated and received exactly
+        this product and serial (the Confirm guard); Away for Repair = the last validated vendor
+        repair transfer sent the machine away (it shows until the receive is validated)."""
         states = {'cancel': 'cancelled', 'done': 'repaired', 'under_repair': 'under_repair'}
         for repair in self:
+            picking = repair.picking_id
             if not repair.warranty_case_id:
                 repair.warranty_intake_state = False
             elif repair.warranty_equipment_returned:
                 repair.warranty_intake_state = 'returned'
+            elif repair.state != 'cancel' and repair._origin and repair._warranty_vendor_away():
+                repair.warranty_intake_state = 'at_vendor'
             elif repair.state in states:
                 repair.warranty_intake_state = states[repair.state]
             else:
-                repair.warranty_intake_state = 'received' \
-                    if repair.picking_id.state == 'done' else 'awaiting_receipt'
+                received = picking.warranty_repair_intake and picking.state == 'done' \
+                    and picking._warranty_repair_received(repair.product_id, repair.lot_id)
+                repair.warranty_intake_state = 'received' if received else 'awaiting_receipt'
 
     @api.depends('warranty_mrf_ids.requisition_line_ids')
     def _compute_warranty_mrf_line_ids(self):
@@ -176,6 +208,12 @@ class RepairOrder(models.Model):
             repair._warranty_repair_log(_(
                 "Repair Order %(repair)s linked to warranty case %(case)s by %(user)s.",
                 repair=repair.name, case=case.name, user=self.env.user.name))
+            job = case.open_service_job_id
+            if job and job.job_type not in INSPECTION_JOB_TYPES:
+                # SM3: a job-led workshop repair; the job keeps control of the completion.
+                case._warranty_set_service_mode('workshop', _(
+                    "Service Mode set to Workshop Repair: Repair Order %(repair)s was created for "
+                    "the open service job %(job)s.", repair=repair.name, job=job.name))
 
     # ------------------------------------------------------------------ history and To-Dos
     def _warranty_repair_log(self, text):
@@ -409,3 +447,137 @@ class RepairOrder(models.Model):
             "(workshop repair, no service job).", case=case.name, user=self.env.user.name,
             repair=self.name))
         return True
+
+    # ------------------------------------------------------------------ Figure 6 navigation
+    def _warranty_next_step(self):
+        """Repair Order Next Step: read only, from the existing guards (the first problem they
+        would raise), the backup units and the case status. Nothing is checked or changed here."""
+        self.ensure_one()
+        case = self.warranty_case_id.sudo()
+        if self.state == 'cancel':
+            return False
+        returned = self.warranty_equipment_returned or self.warranty_machine_replaced
+        if self.state in ('draft', 'confirmed', 'under_repair'):
+            if self.state == 'under_repair' and self._warranty_vendor_open_pickings():
+                step = _("Validate the vendor repair transfer %s.",
+                         self._warranty_vendor_open_pickings()[:1].name)
+            elif self.state == 'under_repair' and self._warranty_vendor_away():
+                step = _("The machine is away for repair: Receive from Repair when it comes back.")
+            elif self.state == 'under_repair' and case.warranty_service_mode == 'vendor' \
+                    and not self.warranty_vendor_picking_ids:
+                step = _("Send for Repair.")
+            elif self.state == 'under_repair':
+                step = _("Set the Repair Result, then End Repair.") \
+                    if not self.warranty_repair_result else _("End Repair.")
+            else:
+                problems = self._warranty_repair_confirm_problems()
+                if self.state == 'confirmed' and not problems:
+                    problems = self._warranty_repair_start_problems()
+                step = problems[0] if problems else (
+                    _("Confirm the Repair Order.") if self.state == 'draft' else _("Start Repair."))
+            if not self.warranty_backup_unit_count:
+                step = _("%s Optional: Issue Backup Machine.", step)
+            return step
+        if not returned:
+            return _("Return Machine to Customer.")
+        backup_step = self.env['warranty.backup.unit'].sudo().search(
+            [('repair_id', '=', self.id)])._warranty_backup_next_step()
+        if backup_step:
+            return backup_step
+        if case.state in ('approved', 'chargeable'):
+            problems = self._warranty_repair_completion_problems()
+            return problems[0] if problems else _("Complete Warranty Case.")
+        if case.state in JOB_CASE_STATES:
+            return _("Complete service job %s: it completes the warranty case.",
+                     case.open_service_job_id.name or '-')
+        if case.state == 'completed':
+            return _("Warranty case completed: it is closed with the accounting steps.")
+        return False
+
+    def action_warranty_create_material_request(self):
+        """Figure 7 D9 (Helpdesk / Service Job / Repair Order -> MRF): the existing Create
+        Material Request form of the case, linked to exactly this Repair Order. The service job
+        is linked only when the case has exactly one job that accepts requests (never guessed);
+        no Field Service visit (workshop work). Customer, product and serial follow the case."""
+        self.ensure_one()
+        case = self.warranty_case_id
+        if not case:
+            raise UserError(_("Repair Order %s has no warranty case.", self.name))
+        if self.state in ('done', 'cancel') or self.warranty_equipment_returned:
+            raise UserError(_("Repair Order %s is closed: request parts on an open Repair Order.",
+                              self.name))
+        # sudo: jobs are read for the link only; repair users may have no Field Service rights.
+        jobs = case.sudo().service_job_ids.filtered(
+            lambda job: job.state in MRF_JOB_STATES and job.job_type not in INSPECTION_JOB_TYPES)
+        job = jobs if len(jobs) == 1 else False
+        action = self.env['material.purchase.requisition']._warranty_mrf_form_action(case, job)
+        action['context']['default_warranty_repair_id'] = self.id
+        return action
+
+    def action_warranty_issue_backup(self):
+        """Issue Backup Machine: the Backup Unit form prefilled with ticket, case and Repair
+        Order (customer, card and service job follow them). Nothing is created or issued here:
+        the user saves the form and uses Create Issue Transfer. A unit not issued yet or with the
+        customer is opened instead of a second one."""
+        self.ensure_one()
+        self.env['warranty.backup.unit']._warranty_backup_check_coordinator()
+        if not self.warranty_case_id or not self.ticket_id:
+            raise UserError(_("Repair Order %s has no warranty case.", self.name))
+        if self.state == 'cancel' or self.warranty_equipment_returned \
+                or self.warranty_machine_replaced:
+            raise UserError(_("The machine of Repair Order %s is no longer in the workshop: no "
+                              "backup machine is needed.", self.name))
+        units = self._warranty_open_backup_units()
+        if units:
+            return self.env['warranty.backup.unit']._warranty_backup_action(
+                [('id', 'in', units.ids)])
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _("Issue Backup Machine"),
+            'res_model': 'warranty.backup.unit',
+            'view_mode': 'form',
+            'views': [(False, 'form')],
+            'target': 'current',
+            'context': {
+                'default_ticket_id': self.ticket_id.id,
+                'default_warranty_case_id': self.warranty_case_id.id,
+                'default_repair_id': self.id,
+            },
+        }
+
+    def action_view_warranty_backup_units(self):
+        self.ensure_one()
+        return self.env['warranty.backup.unit']._warranty_backup_action(
+            [('repair_id', '=', self.id)])
+
+    def action_warranty_return_machine(self):
+        """Return Machine to Customer: the standard Return of the Warranty Repair Intake receipt
+        (as its Return button: serial, quantity, locations and Sales Order quantities unchanged).
+        A return not validated yet is opened instead of a second one."""
+        self.ensure_one()
+        if not self.env.user.has_group('stock.group_stock_user'):
+            raise AccessError(_("Only Inventory users can return the machine."))
+        picking = self.picking_id
+        if not self.warranty_case_id or self.state != 'done':
+            raise UserError(_("Repair Order %s is not a finished warranty repair.", self.name))
+        if self.warranty_equipment_returned or self.warranty_machine_replaced:
+            raise UserError(_("The machine of Repair Order %s has already been returned or "
+                              "replaced.", self.name))
+        if not picking.warranty_repair_intake or picking.state != 'done':
+            raise UserError(_("Repair Order %s has no validated Warranty Repair Intake.",
+                              self.name))
+        pending = picking.move_ids.returned_move_ids.filtered(
+            lambda move: move.state not in ('done', 'cancel')
+            and move.location_dest_id.usage == 'customer').picking_id
+        if pending:
+            return {
+                'type': 'ir.actions.act_window',
+                'res_model': 'stock.picking',
+                'view_mode': 'form',
+                'views': [(False, 'form')],
+                'res_id': pending[:1].id,
+            }
+        action = self.env['ir.actions.act_window']._for_xml_id('stock.act_stock_return_picking')
+        action['context'] = {'active_id': picking.id, 'active_ids': picking.ids,
+                             'active_model': 'stock.picking'}
+        return action

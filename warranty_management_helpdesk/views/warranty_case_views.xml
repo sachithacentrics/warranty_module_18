@@ -153,11 +153,14 @@
                         <field name="requested_item_ids" widget="many2many_tags" options="{'no_create': True}"
                                readonly="state not in ('new', 'eligibility_checked')"
                                placeholder="Requested services / items, e.g. Standard Service, Gas Refill"/>
-                        <field name="merged_adhoc_request"/>
+                        <field name="merged_adhoc_request"
+                               invisible="not merged_adhoc_request and state != 'new'"/>
                         <field name="merged_adhoc_description"
                                invisible="not merged_adhoc_request"/>
                     </group>
-                    <group string="Payment" name="payment">
+                    <!-- Shown once the eligibility check has a payment result (UX). -->
+                    <group string="Payment" name="payment"
+                           invisible="payment_eligibility in (False, 'not_required') and not payment_hold and not payment_waiver_user_id">
                         <group>
                             <field name="payment_eligibility"/>
                             <field name="payment_hold" invisible="not payment_hold"/>
@@ -167,19 +170,6 @@
                             <field name="payment_waiver_user_id"/>
                             <field name="payment_waiver_date"/>
                             <field name="payment_waiver_conditions"/>
-                        </group>
-                    </group>
-                    <group string="Repeated Failure" name="repeated_failure">
-                        <group>
-                            <field name="failure_category"/>
-                            <field name="repeated_failure_flag"/>
-                            <field name="repeated_failure_count"/>
-                            <field name="escalation_pending" invisible="not escalation_pending"/>
-                            <field name="escalation_requested_by_id" invisible="not escalation_requested_by_id"/>
-                        </group>
-                        <group invisible="not escalation_confirmed_by_id">
-                            <field name="escalation_confirmed_by_id"/>
-                            <field name="escalation_confirmed_date"/>
                         </group>
                     </group>
                     <notebook>
@@ -218,7 +208,8 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Linked Free Services" name="linked_services">
+                        <page string="Linked Free Services" name="linked_services"
+                              invisible="not service_entitlement_ids and (state != 'new' or not pending_service_ids)">
                             <field name="service_entitlement_ids" readonly="state != 'new'"
                                    domain="[('id', 'in', pending_service_ids)]"
                                    options="{'no_create': True}">
@@ -232,7 +223,8 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Pending Customer Services" name="pending_services">
+                        <page string="Pending Customer Services" name="pending_services"
+                              invisible="not pending_service_ids">
                             <field name="pending_service_ids">
                                 <list create="0" delete="0">
                                     <field name="name"/>
@@ -244,6 +236,22 @@
                                     <field name="state" widget="badge"/>
                                 </list>
                             </field>
+                        </page>
+                        <!-- UX: failure analysis moved from the sheet to its own tab. -->
+                        <page string="Failure Analysis" name="failure_analysis">
+                            <group string="Repeated Failure" name="repeated_failure">
+                                <group>
+                                    <field name="failure_category"/>
+                                    <field name="repeated_failure_flag"/>
+                                    <field name="repeated_failure_count"/>
+                                    <field name="escalation_pending" invisible="not escalation_pending"/>
+                                    <field name="escalation_requested_by_id" invisible="not escalation_requested_by_id"/>
+                                </group>
+                                <group invisible="not escalation_confirmed_by_id">
+                                    <field name="escalation_confirmed_by_id"/>
+                                    <field name="escalation_confirmed_date"/>
+                                </group>
+                            </group>
                         </page>
                     </notebook>
                 </sheet>

@@ -85,6 +85,10 @@ class MaterialPurchaseRequisition(models.Model):
             parts.append(Markup('<p><b>%s</b></p>') % _(
                 "No approval required (rule %s): the request is approved at submission.",
                 ', '.join(analysis['matched'].mapped('name'))))
+        elif not analysis['matched'] and not analysis['levels']:
+            parts.append(Markup('<p><b>%s</b></p>') % _(
+                "No approval required (no material approval rule matches): the request is "
+                "approved at submission."))
         if analysis['levels']:
             rows = Markup('').join(
                 Markup('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>') % (
@@ -123,6 +127,8 @@ class MaterialPurchaseRequisition(models.Model):
             conditions.append(_("from %s", money(rule.min_amount)))
         if rule.max_amount:
             conditions.append(_("below %s", money(rule.max_amount)))
+        if rule.amount_basis == 'covered' and (rule.min_amount or rule.max_amount):
+            conditions.append(_("amount of the Covered lines"))
         if rule.coverage_condition and rule.coverage_condition != 'any':
             conditions.append(dict(rule._fields['coverage_condition']._description_selection(
                 rule.env))[rule.coverage_condition])

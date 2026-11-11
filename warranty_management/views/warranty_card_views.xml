@@ -8,6 +8,7 @@
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="product_id" optional="show"/>
+                <field name="unit_serial_numbers" optional="show"/>
                 <field name="sale_order_id"/>
                 <field name="card_grouping_mode" optional="hide"/>
                 <field name="start_criterion" optional="show"/>
@@ -34,6 +35,8 @@
                             class="btn-primary" invisible="state != 'ready'"/>
                     <button name="action_download_pdf" type="object" string="Download PDF"
                             icon="fa-download" invisible="state not in ('confirmed', 'expired')"/>
+                    <button name="action_send_warranty_card" type="object" string="Send to Customer"
+                            icon="fa-envelope" invisible="state not in ('confirmed', 'expired')"/>
                     <button name="action_open_date_wizard" type="object"
                             string="Record Start Date Exception"
                             groups="warranty_management.group_warranty_date_correction"
@@ -137,7 +140,10 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Free Services" name="free_services">
+                        <!-- UX: hidden when the card has no free services (resolved count 0, no
+                             entitlements), whatever the kept company Scope Mode (BA 2026-10-28). -->
+                        <page string="Free Services" name="free_services"
+                              invisible="not free_services_allowed and not service_entitlement_ids">
                             <field name="free_services_included" invisible="1"/>
                             <div class="alert alert-warning" role="alert"
                                  invisible="not free_service_schedule_note">
@@ -214,17 +220,15 @@
                                     <field name="warranty_duration"/>
                                     <field name="warranty_duration_unit"/>
                                     <field name="usage_limit" invisible="warranty_basis != 'usage'"
-                                   required="warranty_basis == 'usage'"/>
-                            <field name="usage_unit" invisible="warranty_basis != 'usage'"
-                                   required="warranty_basis == 'usage'"/>
+                                           required="warranty_basis == 'usage'"/>
+                                    <field name="usage_unit" invisible="warranty_basis != 'usage'"
+                                           required="warranty_basis == 'usage'"/>
                                     <field name="payment_check_required" invisible="1"/>
                                 </group>
                                 <group>
                                     <field name="free_services_allowed"/>
-                                    <field name="free_services_used"/>
-                                    <field name="free_services_balance"/>
-                                    <field name="free_service_frequency"/>
-                                    <field name="free_service_frequency_unit"/>
+                                    <field name="free_service_frequency" invisible="not free_services_allowed"/>
+                                    <field name="free_service_frequency_unit" invisible="not free_services_allowed"/>
                                 </group>
                             </group>
                         </page>
@@ -235,7 +239,8 @@
                                 <field name="invoice_ids" widget="many2many_tags"/>
                             </group>
                         </page>
-                        <page string="Warranty Date History" name="warranty_date_history">
+                        <page string="Warranty Date History" name="warranty_date_history"
+                              invisible="not date_log_ids">
                             <field name="date_log_ids" readonly="1">
                                 <list>
                                     <field name="log_datetime"/>
@@ -281,6 +286,8 @@
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="product_id"/>
+                <field name="unit_warranty_ids" string="Serial Number"
+                       filter_domain="[('unit_warranty_ids.serial_ids.name', 'ilike', self)]"/>
                 <field name="sale_order_id"/>
                 <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
                 <filter name="filter_pending_installation" string="Pending Installation"

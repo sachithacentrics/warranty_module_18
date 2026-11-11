@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from odoo import Command
 from odoo.exceptions import UserError, ValidationError
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.warranty_management.tests.common import confirm_and_group, set_installation
 
@@ -166,3 +166,27 @@ class TestAmcWarrantyLink(TransactionCase):
         self.assertEqual(expired.state, 'expired')
         self.assertFalse(expired.activity_ids.filtered(
             lambda activity: activity.summary and activity.summary.startswith('Offer an AMC')))
+
+    def test_tc090_unit_amc_navigation(self):
+        """TC-090 / AMC-A06: the unit warranty number opens the AMC contract covering it; the
+        smart button is for AMC users only, other warranty users keep their unit form."""
+        card = self._card(quantity=2)
+        unit, other = card.unit_warranty_ids.sorted('id')
+        self.assertEqual(unit.amc_contract_count, 0)
+        contract = self.env['amc.contract'].browse(card.action_convert_to_amc()['res_id'])
+        (unit | other).invalidate_recordset(['amc_contract_count'])
+        self.assertEqual((unit.amc_contract_count, other.amc_contract_count), (1, 1))
+        amc_user = new_test_user(self.env, login='amc_w_unit_user',
+                                 groups='base.group_user,amc_management.amc_management_group_user',
+                                 company_id=self.company.id, company_ids=self.company.ids)
+        action = unit.with_user(amc_user).action_view_amc_contracts()
+        self.assertEqual((action['res_model'], action['res_id']), ('amc.contract', contract.id))
+        arch = self.env['warranty.unit'].with_user(amc_user).get_views(
+            [(False, 'form')])['views']['form']['arch']
+        self.assertIn('action_view_amc_contracts', arch)
+        employee = new_test_user(self.env, login='amc_w_unit_employee', groups='base.group_user',
+                                 company_id=self.company.id, company_ids=self.company.ids)
+        arch = self.env['warranty.unit'].with_user(employee).get_views(
+            [(False, 'form')])['views']['form']['arch']
+        self.assertNotIn('action_view_amc_contracts', arch)
+        self.assertEqual(unit.with_user(employee).amc_contract_count, 1)

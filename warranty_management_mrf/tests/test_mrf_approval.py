@@ -85,8 +85,9 @@ class TestWarrantyMrfApproval(WarrantyMrfCommon):
         (D-F); amount boundaries; low value -> explicit No Approval Required rule."""
         self._matrix()
         low = self._submit(self._mrf([(self.part, 1)]))
+        # Figure 7 D1: automatic approval is shown apart from an approval by a person.
         self.assertEqual((low.state, low.approval_status, low.approval_routing_amount),
-                         ('approve', 'approved', 18500))
+                         ('approve', 'not_required', 18500))
         self.assertEqual(self._round(low).level, 'none')
         self.assertFalse(low.approved_by_id, 'no approving person for a No Approval rule')
         mixed = self._submit(self._mrf([(self.part, 1), (self.gas, 3)]))
@@ -143,13 +144,17 @@ class TestWarrantyMrfApproval(WarrantyMrfCommon):
 
     # ------------------------------------------------------------------ T3.3 - T3.5
     def test_03_no_rule_combination_and_branch(self):
-        """T3.5: no matching rule -> submit refused (no auto-approval); a No Approval rule plus
-        a Manager rule -> Manager (strictest, D-C); a parent-company rule applies to a branch
-        request, a branch rule does not apply to the parent (D-B, Q1)."""
+        """T3.5 as changed by Figure 7 D1: no matching rule -> No Approval Required (automatic,
+        no approving person, reason recorded); a No Approval rule plus a Manager rule -> Manager
+        (strictest, D-C); a parent-company rule applies to a branch request, a branch rule does
+        not apply to the parent (D-B, Q1)."""
+        free = self._submit(self._mrf([(self.part, 1)]))
+        line = self._round(free)
+        self.assertEqual((free.state, free.approval_status, line.level, line.state),
+                         ('approve', 'not_required', 'none', 'approved'))
+        self.assertIn('no material approval rule matches', line.reason)
+        self.assertFalse(line.rule_ids or free.approved_by_id or free.activity_ids)
         mrf = self._mrf([(self.part, 1)])
-        with self.assertRaisesRegex(UserError, 'No material approval rule matches'):
-            self._submit(mrf)
-        self.assertEqual((mrf.state, mrf.approval_round), ('draft', 0))
         self._rule('Everything free')
         self._rule('PCB needs manager', ('manager',), product_ids=[(6, 0, self.part.ids)])
         self._submit(mrf)
@@ -403,9 +408,9 @@ class TestWarrantyMrfApproval(WarrantyMrfCommon):
 
     # ------------------------------------------------------------------ T3.18 / T3.19
     def test_13_release_guards(self):
-        """T3.18 / T3.19 (D-L): pickings / RFQs only for fully approved requests without Not
-        Covered lines; manual pickings and RFQs linked to other warranty requests refused, also
-        in superuser mode."""
+        """T3.18 / T3.19 (D-L, Figure 7 D2): pickings / RFQs only for fully approved requests;
+        Not Covered lines never on a transfer or RFQ of the request; manual pickings and RFQs
+        linked to unapproved warranty requests refused, also in superuser mode."""
         self._matrix()
         approved = self._submit(self._mrf([(self.part, 1)]))
         with self.assertRaises(AccessError):
@@ -423,12 +428,25 @@ class TestWarrantyMrfApproval(WarrantyMrfCommon):
         vals = {'picking_type_id': self.warehouse.int_type_id.id,
                 'location_id': self.warehouse.lot_stock_id.id,
                 'location_dest_id': self.tech_location.id}
-        for mrf in (waiting, mixed):
-            with self.assertRaises(UserError):
-                Picking.create(dict(vals, custom_requisition_id=mrf.id))
-            with self.assertRaises(UserError):
-                self.env['purchase.order'].sudo().create(
-                    {'partner_id': self.customer.id, 'custom_requisition_id': mrf.id})
+        with self.assertRaises(UserError):
+            Picking.create(dict(vals, custom_requisition_id=waiting.id))
+        with self.assertRaises(UserError):
+            self.env['purchase.order'].sudo().create(
+                {'partner_id': self.customer.id, 'custom_requisition_id': waiting.id})
+        gas_line = mixed.requisition_line_ids
+        manual = Picking.create(vals)
+        with self.assertRaisesRegex(UserError, 'parts quotation only'):
+            self.env['stock.move'].sudo().create({
+                'name': 'Gas', 'product_id': self.gas.id, 'product_uom_qty': 1,
+                'product_uom': self.gas.uom_id.id, 'picking_id': manual.id,
+                'location_id': manual.location_id.id,
+                'location_dest_id': manual.location_dest_id.id,
+                'custom_requisition_line_id': gas_line.id})
+        rfq = self.env['purchase.order'].sudo().create({'partner_id': self.customer.id})
+        with self.assertRaisesRegex(UserError, 'parts quotation only'):
+            self.env['purchase.order.line'].sudo().create({
+                'order_id': rfq.id, 'product_id': self.gas.id, 'product_qty': 1,
+                'custom_requisition_line_id': gas_line.id})
         with self.assertRaises(UserError):
             picking.sudo().write({'custom_requisition_id': waiting.id})
         standalone = self._standalone()

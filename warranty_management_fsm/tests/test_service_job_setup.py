@@ -54,6 +54,9 @@ class TestServiceJobSetup(ServiceJobCommon):
         self.company.warranty_scope_mode = 'warranty_only'
         arch = ' '.join(self.env['warranty.service.job'].get_view(
             view_type='form')['arch'].split())
-        self.assertIn('<page string="Free Services" name="free_services">', arch)
+        # UX 2026-11-09: shown while planning and whenever the job has free services.
+        self.assertIn('<page string="Free Services" name="free_services" '
+                      'invisible="not entitlement_ids and state not in (\'draft\', \'planned\')">',
+                      arch)
         self.assertNotIn('warranty_free_services_enabled', arch)
         self.assertIn('name="merge_type"', arch)

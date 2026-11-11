@@ -266,7 +266,8 @@ class TestServiceJobMultiCard(ServiceJobCommon):
         card = self._ac_card()
         pair = card.service_entitlement_ids.sorted('service_no')[:2]
         card.sudo().service_sequence_required = True
-        self.assertIn('Enforce Service Sequence', ' '.join(pair._warranty_sequence_problems()))
+        self.assertIn('Complete Previous Service First',
+                      ' '.join(pair._warranty_sequence_problems()))
         card.sudo().service_sequence_required = False
         self.assertEqual(self._check(self._case(pair)), 'eligible')
 

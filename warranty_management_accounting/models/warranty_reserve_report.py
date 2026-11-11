@@ -107,6 +107,7 @@ class WarrantyReserveReport(models.TransientModel):
                 'invoice_id': move.warranty_provision_invoice_id.id
                 or source.warranty_provision_invoice_id.id,
                 'refund_id': move.warranty_provision_refund_id.id,
+                'case_id': move.warranty_b2_case_id.id,
                 'partner_id': line.partner_id.id,
                 'product_id': invoice_line.product_id.id,
                 'category_id': invoice_line.product_id.categ_id.id,

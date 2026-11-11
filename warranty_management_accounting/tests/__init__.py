@@ -5,3 +5,7 @@ from . import test_warranty_case_closure
 from . import test_warranty_cost_lines
 from . import test_warranty_cost_report
 from . import test_warranty_provision_entry
+from . import test_close_case_backup
+from . import test_figure7_cost
+from . import test_figure7_accounting
+from . import test_inspection_quotation_coverage

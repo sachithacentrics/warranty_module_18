@@ -46,7 +46,7 @@
                     <button name="action_open_due_date_wizard" type="object" string="Change Due Date"
                             invisible="not id or state != 'draft'"/>
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,scheduled,rescheduled,in_progress,completed"/>
+                           statusbar_visible="draft,pending,scheduled,rescheduled,in_progress,completed"/>
                 </header>
                 <sheet>
                     <div class="alert alert-warning" role="alert" invisible="not due_date_conflict">

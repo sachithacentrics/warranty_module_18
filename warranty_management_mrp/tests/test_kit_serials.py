@@ -397,3 +397,25 @@ class TestWarrantyKitSerials(TransactionCase):
         card.sale_order_id.user_id = self.env.ref('base.user_admin')
         self.assertEqual(card._warranty_card_print_values(unit)['dealer'],
                          self.env.ref('base.user_admin').name)
+
+    def test_44_several_units_print_one_sheet_and_the_schedule(self):
+        card = self._order(3).warranty_card_ids
+        cancelled = card.unit_warranty_ids[0]
+        cancelled.sudo()._warranty_system_write({'state': 'cancelled'})
+        units = card._warranty_card_print_units()
+        html = self._printed(card)
+        self.assertEqual(html.count('WARRANTY CERTIFICATE'), 1, 'one sheet, not one per unit')
+        self.assertIn('UNIT WARRANTY SCHEDULE', html)
+        self.assertIn('See Unit Warranty Schedule', html)
+        for unit in units:
+            self.assertIn(unit.name, html)
+        self.assertNotIn(cancelled.name, html)
+        rows = card._warranty_card_print_schedule(units)
+        self.assertEqual([row['number'] for row in rows], units.mapped('name'))
+        self.assertEqual([row['product'] for row in rows], units.product_id.mapped('name') * 2)
+
+    def test_45_one_unit_prints_without_schedule(self):
+        card = self._order(1).warranty_card_ids
+        html = self._printed(card)
+        self.assertNotIn('UNIT WARRANTY SCHEDULE', html)
+        self.assertIn(card.unit_warranty_ids.name, html)

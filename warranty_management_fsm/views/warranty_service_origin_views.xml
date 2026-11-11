@@ -81,9 +81,14 @@
         <field name="arch" type="xml">
             <xpath expr="//header/button[@name='action_open_due_date_wizard']" position="after">
                 <field name="open_service_job_id" invisible="1"/>
+                <!-- UX: the next step once the service is scheduled; Schedule stays first
+                     while it is pending / missed. -->
+                <button name="action_open_service_job_wizard" type="object"
+                        string="Create Service Job" class="btn-primary" groups="helpdesk.group_helpdesk_user"
+                        invisible="not id or open_service_job_id or state not in ('scheduled', 'rescheduled')"/>
                 <button name="action_open_service_job_wizard" type="object"
                         string="Create Service Job" groups="helpdesk.group_helpdesk_user"
-                        invisible="not id or open_service_job_id or state not in ('pending', 'scheduled', 'rescheduled', 'missed')"/>
+                        invisible="not id or open_service_job_id or state not in ('pending', 'missed')"/>
             </xpath>
         </field>
     </record>

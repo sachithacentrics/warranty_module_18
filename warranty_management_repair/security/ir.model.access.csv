@@ -10,3 +10,4 @@ access_warranty_replacement_component_helpdesk,warranty.replacement.component he
 access_warranty_replacement_component_stock,warranty.replacement.component stock,model_warranty_replacement_component_line,stock.group_stock_user,1,1,1,1
 access_warranty_replacement_user,warranty.replacement user,model_warranty_replacement,base.group_user,1,1,0,0
 access_warranty_replacement_helpdesk_user,warranty.replacement helpdesk user,model_warranty_replacement,helpdesk.group_helpdesk_user,1,1,1,1
+access_warranty_repair_vendor_send_stock,warranty.repair.vendor.send stock user,model_warranty_repair_vendor_send,stock.group_stock_user,1,1,1,1

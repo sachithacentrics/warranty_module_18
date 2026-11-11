@@ -110,8 +110,8 @@
     </record>
 
     <menuitem id="menu_warranty_reserve_report" name="Warranty Provision / Reserve"
-              parent="warranty_management_mrf.menu_warranty_reports"
-              action="action_server_warranty_reserve_report" sequence="4"
+              parent="warranty_management_mrf.menu_warranty_reports_financial"
+              action="action_server_warranty_reserve_report" sequence="20"
               groups="account.group_account_readonly,account.group_account_invoice"/>
     <menuitem id="menu_warranty_reserve_report_accounting" name="Warranty Provision / Reserve"
               parent="account.menu_finance_reports"

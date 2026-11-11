@@ -581,8 +581,9 @@ class TestSrsServiceFlow(ServiceJobCommon):
 
     # ------------------------------------------------------------------ Warranty tab protection
     def _assert_ticket_locked(self, ticket):
-        """Attempted changes as a Helpdesk user and as a manager; the job and case keep theirs."""
-        other = self._card()
+        """Attempted changes as a Helpdesk user and as a manager; the job and case keep theirs.
+        Another product: a single-unit ticket already shows its unit's product."""
+        other = self._unrelated_card()
         for user in (self.helpdesk_user, self.helpdesk_manager):
             mine = ticket.with_user(user)
             for vals in ({'warranty_product_id': other.product_id.id},
@@ -632,6 +633,7 @@ class TestSrsServiceFlow(ServiceJobCommon):
         self.assertEqual((ticket.warranty_card_id, ticket.warranty_unit_id),
                          (self.card, self.card.unit_warranty_ids))
         self.assertEqual(ticket.warranty_linked_service_ids, services)
+        self.assertEqual(ticket.warranty_product_id, self.card.unit_warranty_ids.product_id)
         other = self._assert_ticket_locked(ticket)
         job.sudo()._warranty_service_marker().write({'state': 'cancelled'})
         self.env.invalidate_all()

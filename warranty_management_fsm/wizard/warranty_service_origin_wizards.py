@@ -186,13 +186,9 @@ class WarrantyCaseCreateWizard(models.TransientModel):
             job = wizard._warranty_service_job()
             if not job:
                 continue
-            # sudo: Helpdesk users may have no Inventory rights.
-            units = self.env['warranty.unit'].sudo()
-            for service in job.entitlement_ids:
-                units |= service.sudo()._warranty_job_units(job)
-            serials = units.serial_ids
-            wizard.product_id = units.product_id if len(units) == 1 else False
-            wizard.serial_id = serials if len(units) == 1 and len(serials) == 1 else False
+            values = job._warranty_single_unit_values()
+            wizard.product_id = values.get('product', False)
+            wizard.serial_id = values.get('serial', False)
             wizard.site_id = wizard.site_id or job.site_id
 
     def _compute_available_service_ids(self):
@@ -206,13 +202,18 @@ class WarrantyCaseCreateWizard(models.TransientModel):
 
     def action_create(self):
         """The waiting job gets its case; a wizard left open after that opens the existing case
-        (duplicate prevention)."""
+        (duplicate prevention). The read-only header Product / Serial No. are derived again from
+        the job here: the client does not save read-only fields, and the other fields of the
+        same compute (site, priority, complaint) it does save would leave them empty."""
         self.ensure_one()
         ticket = self.helpdesk_ticket_id
         job = self._warranty_service_job()
         if job:
+            values = job._warranty_single_unit_values()
             self.write({'case_type': 'free_service',
-                        'service_entitlement_ids': [(6, 0, job.entitlement_ids.ids)]})
+                        'service_entitlement_ids': [(6, 0, job.entitlement_ids.ids)],
+                        'product_id': values.get('product', self.env['product.product']).id,
+                        'serial_id': values.get('serial', self.env['stock.lot']).id})
         else:
             cases = ticket._warranty_job_linked_cases()
             if cases:

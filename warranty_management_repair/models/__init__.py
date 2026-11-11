@@ -17,3 +17,4 @@ from . import warranty_service_job
 from . import warranty_unit
 
 from . import warranty_part9
+from . import repair_vendor

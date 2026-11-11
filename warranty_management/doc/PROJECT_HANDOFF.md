@@ -103,6 +103,43 @@ Damaged and Lost records cannot be closed until D3. Phase 4 Reporting not starte
 `Part9_History_Exceptions_Mapping.md` (sections 9-10), `doc/part9_controlled_actions_design.md` and
 `doc/part9_test_report.md`. Void and the extended warranty product wait for business decisions.
 
+**2026-11-07 status:** SRS Figure 7, non-accounting part (decisions D1 to D5 and D9, approved by
+the user).
+- Versions: mrf 18.0.1.10.0, repair 18.0.1.7.2, accounting 18.0.1.6.5.
+- Implemented and tested on `wt_p7_s2` only; **not on UAT** (UAT has mrf 18.0.1.9.14, repair
+  18.0.1.7.1, accounting 18.0.1.6.4).
+- Changes:
+  - no matching approval rule = No Approval Required;
+  - rule Amount Basis;
+  - Not Covered quotation after submission, with Release Blocked;
+  - Stock Status / Awaiting Stock loop;
+  - MRF Case Cost Breakdown;
+  - Repair Order Create Material Request.
+- Records: `warranty_management_mrf/doc/figure7_workflow_decisions.md`; guide
+  `warranty_management_mrf/tests/Figure7_Manual_Testing_Guide.md`.
+- Pre-change copy: DB `wt_f7_base`; module sources in the session scratchpad `rollback_f7_src`.
+- Full regression on `wt_p7_s2` (run in small batches): 961 tests, only the 3 known baseline
+  failures. The user accepted the work for further verification; it is not deployed to UAT.
+- The warranty expense / provision accounting is a design only
+  (`warranty_management_accounting/doc/figure7_accounting_design.md`, rev. 2: B2 evaluated on
+  UAT; 600000 is not a suitable Cost Recognition Account). It waits for Finance decisions F1 to
+  F14. No accounting code until approved.
+- B2 chosen by the user (625100 / 216100 / 450100; not 600000; no backfill). The Finance checklist,
+  validation rules and the remaining decisions D-F1 to D-F13 are in
+  `warranty_management_accounting/doc/figure7_b2_finance_checklist.md`.
+- B2 implemented on `wt_p7_s2` only: accounting 18.0.1.7.0, **off by default**, tests
+  `test_figure7_b2`.
+  - Pre-B2 copies: DB `wt_f7b2_base`; sources `rollback_b2_src/pre_b2_accounting` (scratchpad).
+  - Finance setup, security and the UAT upgrade steps:
+    `warranty_management_accounting/doc/figure7_b2_setup_and_upgrade.md`.
+  - B2 must not be activated in UAT before Finance approves D-F1 to D-F13.
+- **Superseded 2026-11-07 (user, after SRS review):** B2 removed. Accounting 18.0.1.8.0 uses
+  standard Odoo stock accounting for covered parts and keeps only Finance-controlled reserve
+  utilization (`warranty_management_accounting/doc/figure7_accounting_integration.md`, tests
+  `test_figure7_accounting`). Built on `wt_p7_s2`; trial upgrade of UAT copy `wt_f7_mrf13`
+  identical data. Rollback: DB `wt_f7std_base`, sources `rollback_f7std/` (scratchpad).
+  UAT found at mrf 18.0.1.10.2 / accounting 18.0.1.7.0; mrf on disk 18.0.1.10.4.
+
 ## 3. Manual UAT status
 
 * **Phase 5.9 – UAT-901 … 915** (`warranty_management_mrf/tests/Part5_Manual_Testing_Guide.md`):

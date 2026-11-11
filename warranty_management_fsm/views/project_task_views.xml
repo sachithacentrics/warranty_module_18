@@ -17,6 +17,47 @@
                 <field name="warranty_entitlement_ids" widget="many2many_tags"
                        invisible="not warranty_entitlement_ids"/>
             </xpath>
+            <!-- UAT Figure 9: a cancelled visit (e.g. Rescheduled) keeps its stage; the ribbon
+                 shows its cancelled state. -->
+            <widget name="web_ribbon" position="after">
+                <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger"
+                        invisible="not active or not warranty_service_job_id or state != '1_canceled'"/>
+            </widget>
+        </field>
+    </record>
+
+    <!-- UAT Figure 9: Field Service lists. Stages are not moved when a visit is cancelled or
+         completed (standard Odoo); the visit status is shown by the task state. -->
+    <record id="project_task_view_list_fsm_warranty_state" model="ir.ui.view">
+        <field name="name">project.task.list.fsm.warranty.state</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="industry_fsm.project_task_view_list_fsm"/>
+        <field name="arch" type="xml">
+            <list position="attributes">
+                <attribute name="decoration-muted">state == '1_canceled'</attribute>
+            </list>
+            <field name="name" position="after">
+                <field name="state" string="Status" widget="badge" optional="show"
+                       decoration-danger="state == '1_canceled'"
+                       decoration-success="state == '1_done'"
+                       decoration-info="state not in ('1_done', '1_canceled')"/>
+                <field name="warranty_visit_outcome" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="project_task_view_search_fsm_warranty_state" model="ir.ui.view">
+        <field name="name">project.task.search.fsm.warranty.state</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="industry_fsm.project_task_view_search_fsm"/>
+        <field name="arch" type="xml">
+            <filter name="closed_tasks" position="after">
+                <filter string="Cancelled" name="warranty_cancelled_tasks"
+                        domain="[('state', '=', '1_canceled')]"/>
+            </filter>
+            <filter name="stage" position="after">
+                <filter string="Status" name="warranty_group_state" context="{'group_by': 'state'}"/>
+            </filter>
         </field>
     </record>
 
@@ -33,11 +74,46 @@
             <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-secondary')]" position="attributes">
                 <attribute name="invisible" add="warranty_is_visit" separator=" or "/>
             </xpath>
+            <!-- UX next step (Visit started -> Complete Worksheet -> Sign Report -> Complete
+                 Visit): one primary button; Complete Visit stays available (secondary) and its
+                 server checks are unchanged. The visit's own Sign Report replaces the standard
+                 one when the company requires the customer sign-off. -->
+            <xpath expr="//button[@name='action_preview_worksheet'][hasclass('btn-primary')]" position="attributes">
+                <attribute name="invisible" add="(warranty_service_job_id and warranty_signoff_required)" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='action_preview_worksheet'][hasclass('btn-secondary')]" position="attributes">
+                <attribute name="invisible" add="(warranty_service_job_id and warranty_signoff_required)" separator=" or "/>
+            </xpath>
             <xpath expr="//button[@name='action_fsm_validate'][hasclass('btn-primary')]" position="after">
+                <field name="warranty_signoff_required" invisible="1"/>
+                <field name="warranty_worksheets_ready" invisible="1"/>
+                <field name="worksheet_signature" invisible="1"/>
+                <field name="total_hours_spent" invisible="1"/>
+                <field name="timer_start" invisible="1"/>
+                <button name="action_view_warranty_worksheets" type="object" string="Complete Worksheet"
+                        class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="not warranty_service_job_id or fsm_done or state in ('1_done', '1_canceled')
+                                   or warranty_worksheets_ready or not warranty_worksheet_count
+                                   or not (timer_start or total_hours_spent)"/>
+                <button name="action_preview_worksheet" type="object" string="Sign Report"
+                        class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="not warranty_service_job_id or fsm_done or state in ('1_done', '1_canceled')
+                                   or not warranty_signoff_required or worksheet_signature or timer_start
+                                   or not warranty_worksheets_ready"/>
                 <button name="action_warranty_complete_visit" type="object" string="Complete Visit"
                         class="btn-primary"
                         groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
-                        invisible="not warranty_service_job_id or fsm_done or state in ('1_done', '1_canceled')"
+                        invisible="not warranty_service_job_id or fsm_done or state in ('1_done', '1_canceled')
+                                   or not warranty_worksheets_ready or timer_start
+                                   or (warranty_signoff_required and not worksheet_signature)"
+                        confirm="Complete this warranty visit? The service job and the warranty case are completed and the linked free services are consumed."/>
+                <button name="action_warranty_complete_visit" type="object" string="Complete Visit"
+                        groups="helpdesk.group_helpdesk_user,industry_fsm.group_fsm_user"
+                        invisible="not warranty_service_job_id or fsm_done or state in ('1_done', '1_canceled')
+                                   or (warranty_worksheets_ready and not timer_start
+                                       and (not warranty_signoff_required or worksheet_signature))"
                         confirm="Complete this warranty visit? The service job and the warranty case are completed and the linked free services are consumed."/>
                 <!-- Phase 4.8 (approved L1). -->
                 <button name="action_warranty_visit_not_completed" type="object"

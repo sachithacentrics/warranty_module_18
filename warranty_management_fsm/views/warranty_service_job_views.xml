@@ -62,6 +62,9 @@
                     <button name="action_open_plan_wizard" type="object" string="Plan Next Visit"
                             class="btn-primary" groups="helpdesk.group_helpdesk_user"
                             invisible="state != 'incomplete'"/>
+                    <!-- UX next step: the visit is where a confirmed job is carried out. -->
+                    <button name="action_open_current_visit" type="object" string="Open Field Service"
+                            class="btn-primary" invisible="not visit_count or state not in ('confirmed', 'rescheduled', 'in_progress')"/>
                     <button name="action_open_cancel_wizard" type="object" string="Cancel Job"
                             groups="helpdesk.group_helpdesk_user"
                             invisible="state not in ('confirmed', 'in_progress', 'awaiting_parts', 'workshop', 'incomplete', 'rescheduled')"/>
@@ -97,7 +100,7 @@
                             <field name="warranty_card_ids" widget="many2many_tags"
                                    invisible="(warranty_card_id and merge_type != 'merged') or not warranty_card_ids"/>
                             <field name="warranty_unit_id" invisible="merge_type == 'merged'"/>
-                            <field name="merge_type"/>
+                            <field name="merge_type" invisible="merge_type == 'none'"/>
                             <field name="completion_mode"
                                    readonly="state in ('completed', 'cancelled')"/>
                             <field name="reschedule_count" invisible="not reschedule_count"/>
@@ -126,12 +129,15 @@
                         <page string="Visits" name="visits" invisible="not visit_ids"
                               groups="industry_fsm.group_fsm_user,project.group_project_user">
                             <field name="visit_ids">
-                                <list create="0" delete="0">
+                                <list create="0" delete="0" decoration-muted="state == '1_canceled'">
                                     <field name="warranty_visit_no" string="Visit"/>
                                     <field name="name"/>
                                     <field name="planned_date_begin" string="Planned"/>
                                     <field name="user_ids" widget="many2many_avatar_user"/>
-                                    <field name="state"/>
+                                    <field name="state" widget="badge"
+                                           decoration-danger="state == '1_canceled'"
+                                           decoration-success="state == '1_done'"
+                                           decoration-info="state not in ('1_done', '1_canceled')"/>
                                     <field name="warranty_visit_outcome"/>
                                     <field name="warranty_noncompletion_reason" optional="show"/>
                                     <field name="priority" widget="priority" optional="show"/>
@@ -160,7 +166,8 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Free Services" name="free_services">
+                        <page string="Free Services" name="free_services"
+                              invisible="not entitlement_ids and state not in ('draft', 'planned')">
                             <field name="entitlement_ids" context="{'warranty_service_job_id': id}">
                                 <list>
                                     <field name="name"/>
@@ -233,10 +240,23 @@
                 <button name="action_prepare_service_job" type="object" string="Prepare Service Job"
                         class="btn-primary" groups="helpdesk.group_helpdesk_user"
                         invisible="state != 'approved' or eligibility_result != 'eligible' or open_service_job_id"/>
+                <!-- UX (Figure 9 UAT, WCAS/000072): Inspection Required runs the inspection
+                     quotation first; the button names that step. Same method, same checks. -->
+                <field name="warranty_inspection_step" invisible="1"/>
+                <button name="action_prepare_service_job" type="object"
+                        string="Create Inspection Quotation" class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="warranty_inspection_step != 'quotation'"/>
+                <button name="action_open_inspection_quotation" type="object"
+                        string="Open Inspection Quotation" class="btn-primary"
+                        groups="helpdesk.group_helpdesk_user"
+                        invisible="warranty_inspection_step != 'waiting'"/>
+                <button name="action_open_service_job" type="object" string="Open Service Job"
+                        class="btn-primary" invisible="not open_service_job_id"/>
             </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_view_service_jobs" type="object" class="oe_stat_button"
-                        icon="fa-wrench" invisible="not service_job_count">
+                        icon="fa-briefcase" invisible="not service_job_count">
                     <field name="service_job_count" widget="statinfo" string="Service Jobs"/>
                 </button>
             </xpath>
